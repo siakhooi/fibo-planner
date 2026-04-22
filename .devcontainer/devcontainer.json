@@ -1,6 +1,6 @@
 {
-	"name": "GO 1.25 Development Dev Container",
-	"image": "siakhooi/devcontainer:go125",
+	"name": "GO 1.26 Development Dev Container",
+	"image": "siakhooi/devcontainer:go126",
 	"remoteUser": "maui",
 	"containerUser": "maui",
 	"updateRemoteUserUID": true,
@@ -8,20 +8,18 @@
 	"customizations": {
 		"vscode": {
 			"extensions": [
-				"github.copilot",
-				"github.copilot-chat",
 				"lfm.vscode-makefile-term",
 				"golang.go",
 				"humao.rest-client",
 				"ms-vscode.live-server",
-				"redhat.vscode-yaml",
-				"github.vscode-github-actions"
+				"redhat.vscode-yaml"
 			]
 		}
 	},
 	"mounts": [
 		"source=/var/run/docker.sock,target=/var/run/docker.sock,type=bind"
 	],
+	"postStartCommand": "sudo chmod 666 /var/run/docker.sock || true",
 	"remoteEnv": {
 		"LOCAL_WORKSPACE_FOLDER": "${localWorkspaceFolder}"
 	}
