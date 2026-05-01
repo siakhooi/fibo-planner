@@ -40,3 +40,11 @@ jobs:
         with:
           version: latest
           args: build --snapshot --clean
+
+  build-docker-images:
+    uses: ./.github/workflows/build-docker-image.yml
+    secrets:
+      PUBLISH_TO_GITHUB_REPO_TOKEN: ${{ secrets.PUBLISH_TO_GITHUB_REPO_TOKEN }}
+      REGISTRY_PASSWORD_DOCKER: ${{ secrets.REGISTRY_PASSWORD_DOCKER }}
+    with:
+      push-images: false

@@ -38,12 +38,11 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.TOKEN_TO_UPLOAD_ASSETS }}
 
-      - uses: siakhooi/publish-to-repo-action@7867fe051bf2d37ac664f0da4286deb2f0937430 # v0.3.0
-        with:
-          token: ${{ secrets.PUBLISH_TO_GITHUB_REPO_TOKEN }}
-          config-file: publish-to-apt.yml
 
-      - uses: siakhooi/publish-to-repo-action@7867fe051bf2d37ac664f0da4286deb2f0937430 # v0.3.0
-        with:
-          token: ${{ secrets.PUBLISH_TO_GITHUB_REPO_TOKEN }}
-          config-file: publish-to-rpms.yml
+  build-docker-images:
+    uses: ./.github/workflows/build-docker-image.yml
+    secrets:
+      PUBLISH_TO_GITHUB_REPO_TOKEN: ${{ secrets.PUBLISH_TO_GITHUB_REPO_TOKEN }}
+      REGISTRY_PASSWORD_DOCKER: ${{ secrets.REGISTRY_PASSWORD_DOCKER }}
+    with:
+      push-images: true
