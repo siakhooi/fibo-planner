@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Room {{.RoomID}} · Fibo Planner</title>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { font-size: 1.5rem; }
+    .meta { color: #444; margin-top: 1rem; }
+    .crumb { font-size: 0.9rem; margin-bottom: 1rem; }
+    .crumb a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <p class="crumb"><a href="/">Fibo Planner</a> · Room</p>
+
+  <h1>Room {{.RoomID}}</h1>
+  {{if .RoomName}}
+  <p><strong>{{.RoomName}}</strong></p>
+  {{end}}
+  <p>Welcome—share this URL with your team. When everyone has joined, you can start estimating.</p>
+
+  <div
+    hx-ext="ws"
+    ws-connect="/ws/{{.RoomID}}"
+    class="meta"
+  >
+    <p>
+      Connected in this room:
+      <strong id="session-count">{{.Count}}</strong>
+    </p>
+  </div>
+</body>
+</html>

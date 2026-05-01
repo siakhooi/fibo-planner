@@ -24,9 +24,29 @@
     class="meta"
   >
     <p>
-      Connected sessions:
+      Connected sessions (this site):
       <strong id="session-count">{{.Count}}</strong>
     </p>
   </div>
+
+  <section style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #ddd;">
+    <h2 style="font-size: 1.15rem; margin: 0 0 0.75rem;">Create a room</h2>
+    <p style="margin: 0 0 1rem; color: #444;">Start a session for your team. You can add an optional name to recognize it later.</p>
+    <form method="post" action="/rooms">
+      <label for="room-name" style="display: block; margin-bottom: 0.35rem;">Room name <span style="color:#666;font-weight:normal">(optional)</span></label>
+      <input
+        id="room-name"
+        type="text"
+        name="name"
+        maxlength="120"
+        autocomplete="off"
+        placeholder="e.g. Sprint 42 backlog"
+        style="width: 100%; max-width: 22rem; padding: 0.5rem; margin-bottom: 0.75rem; box-sizing: border-box;"
+      />
+      <div>
+        <button type="submit" style="padding: 0.45rem 1rem;">Create room</button>
+      </div>
+    </form>
+  </section>
 </body>
 </html>

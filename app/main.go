@@ -2,11 +2,14 @@ package main
 
 import (
 	"bytes"
+	"crypto/rand"
 	"embed"
 	"fmt"
 	"html/template"
 	"log"
+	"math/big"
 	"net/http"
+	"strings"
 	"sync"
 
 	"github.com/go-chi/chi/v5"
@@ -14,10 +17,10 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-//go:embed index.html
-var indexFS embed.FS
+//go:embed *.html
+var tplFS embed.FS
 
-var indexTpl = template.Must(template.ParseFS(indexFS, "index.html"))
+var tmpl = template.Must(template.ParseFS(tplFS, "*.html"))
 
 var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
@@ -27,7 +30,7 @@ var upgrader = websocket.Upgrader{
 	},
 }
 
-// Hub tracks active WebSocket connections (one per browser session).
+// Hub tracks active WebSocket connections (one browser tab/session) for one room.
 type Hub struct {
 	mu    sync.Mutex
 	conns map[*websocket.Conn]struct{}
@@ -57,7 +60,7 @@ func (h *Hub) count() int {
 	return len(h.conns)
 }
 
-// broadcastCount sends an HTMX out-of-band swap so every client updates the counter.
+// broadcastCount sends an HTMX out-of-band swap so every client in this room updates the counter.
 func (h *Hub) broadcastCount() {
 	n := h.count()
 	fragment := fmt.Sprintf(
@@ -79,48 +82,157 @@ func (h *Hub) broadcastCount() {
 	}
 }
 
+// App holds the home-page hub, per-room hubs, and optional display names for rooms created via the form.
+type App struct {
+	mu        sync.Mutex
+	indexHub  *Hub // connections open on "/" (live session count on the index page)
+	roomHubs  map[string]*Hub
+	roomNames map[string]string
+}
+
+func newApp() *App {
+	return &App{
+		indexHub:  newHub(),
+		roomHubs:  make(map[string]*Hub),
+		roomNames: make(map[string]string),
+	}
+}
+
+func runHubWebSocket(w http.ResponseWriter, r *http.Request, h *Hub) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("websocket upgrade: %v", err)
+		return
+	}
+
+	h.add(conn)
+	h.broadcastCount()
+
+	go func() {
+		defer func() {
+			_ = conn.Close()
+			h.remove(conn)
+			h.broadcastCount()
+		}()
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+}
+
+func randomSixDigitRoomID() string {
+	n, err := rand.Int(rand.Reader, big.NewInt(900000))
+	if err != nil {
+		return "100000"
+	}
+	return fmt.Sprintf("%06d", int(n.Int64())+100000)
+}
+
+func (a *App) getOrCreateHub(roomID string) *Hub {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if h, ok := a.roomHubs[roomID]; ok {
+		return h
+	}
+	h := newHub()
+	a.roomHubs[roomID] = h
+	return h
+}
+
+func (a *App) home(w http.ResponseWriter, r *http.Request) {
+	data := struct{ Count int }{Count: a.indexHub.count()}
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "index.html", data); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(buf.Bytes())
+}
+
+func (a *App) indexWS(w http.ResponseWriter, r *http.Request) {
+	runHubWebSocket(w, r, a.indexHub)
+}
+
+func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
+	if err := r.ParseForm(); err != nil {
+		http.Error(w, "bad form", http.StatusBadRequest)
+		return
+	}
+	name := strings.TrimSpace(r.FormValue("name"))
+	if len(name) > 120 {
+		name = name[:120]
+	}
+
+	a.mu.Lock()
+	var id string
+	for range 64 {
+		candidate := randomSixDigitRoomID()
+		if _, exists := a.roomHubs[candidate]; !exists {
+			id = candidate
+			break
+		}
+	}
+	if id == "" {
+		a.mu.Unlock()
+		http.Error(w, "could not allocate room", http.StatusServiceUnavailable)
+		return
+	}
+	a.roomHubs[id] = newHub()
+	if name != "" {
+		a.roomNames[id] = name
+	}
+	a.mu.Unlock()
+
+	http.Redirect(w, r, "/"+id, http.StatusSeeOther)
+}
+
+func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomID")
+	h := a.getOrCreateHub(roomID)
+
+	a.mu.Lock()
+	name := a.roomNames[roomID]
+	a.mu.Unlock()
+
+	data := struct {
+		RoomID   string
+		RoomName string
+		Count    int
+	}{
+		RoomID:   roomID,
+		RoomName: name,
+		Count:    h.count(),
+	}
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "room.html", data); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	_, _ = w.Write(buf.Bytes())
+}
+
+func (a *App) roomWS(w http.ResponseWriter, r *http.Request) {
+	roomID := chi.URLParam(r, "roomID")
+	h := a.getOrCreateHub(roomID)
+	runHubWebSocket(w, r, h)
+}
+
 func main() {
-	hub := newHub()
+	app := newApp()
 
 	r := chi.NewRouter()
 	r.Use(middleware.Logger)
 	r.Use(middleware.Recoverer)
 
-	r.Get("/", func(w http.ResponseWriter, r *http.Request) {
-		var buf bytes.Buffer
-		data := struct{ Count int }{Count: hub.count()}
-		if err := indexTpl.Execute(&buf, data); err != nil {
-			http.Error(w, "template error", http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		_, _ = w.Write(buf.Bytes())
-	})
-
-	r.Get("/ws", func(w http.ResponseWriter, r *http.Request) {
-		conn, err := upgrader.Upgrade(w, r, nil)
-		if err != nil {
-			log.Printf("websocket upgrade: %v", err)
-			return
-		}
-
-		hub.add(conn)
-		hub.broadcastCount()
-
-		go func() {
-			defer func() {
-				_ = conn.Close()
-				hub.remove(conn)
-				hub.broadcastCount()
-			}()
-			// Read until the client disconnects (required to observe close / ping handling).
-			for {
-				if _, _, err := conn.ReadMessage(); err != nil {
-					return
-				}
-			}
-		}()
-	})
+	r.Post("/rooms", app.createRoom)
+	r.Get("/ws", app.indexWS)
+	r.Get("/ws/{roomID:[0-9]{6}}", app.roomWS)
+	r.Get("/{roomID:[0-9]{6}}", app.roomPage)
+	r.Get("/", app.home)
 
 	addr := ":8080"
 	log.Printf("listening on http://localhost%s", addr)
