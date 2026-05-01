@@ -17,7 +17,7 @@ clean:
 	rm -f *.log
 
 docker-build:
-	docker build -t siakhooi/planning-poker -f docker/Dockerfile .
+	docker build -t siakhooi/fibo-planner -f docker/Dockerfile .
 
 docker-run:
-	docker run -p 8080:8080 siakhooi/planning-poker
+	docker run -p 8080:8080 siakhooi/fibo-planner
