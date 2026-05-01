@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
@@ -7,46 +8,56 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js"></script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
-    h1 { font-size: 1.5rem; }
-    .meta { color: #444; margin-top: 1rem; }
+    body {
+      font-family: system-ui, sans-serif;
+      max-width: 40rem;
+      margin: 2rem auto;
+      padding: 0 1rem;
+      line-height: 1.5;
+    }
+
+    h1 {
+      font-size: 1.5rem;
+    }
+
+    .meta {
+      color: #444;
+      margin-top: 1rem;
+    }
   </style>
 </head>
+
 <body>
   <h1>Fibo Planner</h1>
   <p>
-    Fibo Planner helps agile teams run the planning poker technique—using Fibonacci cards to estimate stories and align on effort quickly.
+    Fibo Planner helps agile teams run the planning poker technique—using Fibonacci cards to estimate stories and align
+    on effort quickly.
   </p>
-
-  <div
-    hx-ext="ws"
-    ws-connect="/ws"
-    class="meta"
-  >
-    <p>
-      Connected sessions (this site):
-      <strong id="session-count">{{.Count}}</strong>
-    </p>
-  </div>
 
   <section style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #ddd;">
     <h2 style="font-size: 1.15rem; margin: 0 0 0.75rem;">Create a room</h2>
-    <p style="margin: 0 0 1rem; color: #444;">Start a session for your team. You can add an optional name to recognize it later.</p>
+    <p style="margin: 0 0 1rem; color: #444;">Start a session for your team. You can add an optional name to recognize
+      it later.</p>
     <form method="post" action="/rooms">
-      <label for="room-name" style="display: block; margin-bottom: 0.35rem;">Room name <span style="color:#666;font-weight:normal">(optional)</span></label>
-      <input
-        id="room-name"
-        type="text"
-        name="name"
-        maxlength="120"
-        autocomplete="off"
+      <label for="room-name" style="display: block; margin-bottom: 0.35rem;">Room name <span
+          style="color:#666;font-weight:normal">(optional)</span></label>
+      <input id="room-name" type="text" name="name" maxlength="120" autocomplete="off"
         placeholder="e.g. Sprint 42 backlog"
-        style="width: 100%; max-width: 22rem; padding: 0.5rem; margin-bottom: 0.75rem; box-sizing: border-box;"
-      />
+        style="width: 100%; max-width: 22rem; padding: 0.5rem; margin-bottom: 0.75rem; box-sizing: border-box;" />
       <div>
         <button type="submit" style="padding: 0.45rem 1rem;">Create room</button>
       </div>
     </form>
   </section>
+  <section>
+    <div hx-ext="ws" ws-connect="/ws" class="meta">
+      <p>
+        Users in Lobby (this page):
+        <strong id="session-count">{{.Count}}</strong>
+      </p>
+    </div>
+  </section>
+
 </body>
+
 </html>

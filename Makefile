@@ -21,3 +21,9 @@ docker-build:
 
 docker-run:
 	docker run -p 8080:8080 siakhooi/fibo-planner
+
+curl-ws:
+	curl -sS -N  ws://localhost:8080/ws
+
+websocat-ws:
+	 websocat ws://localhost:8080/ws
