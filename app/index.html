@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Planning Poker</title>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js"></script>
+  <style>
+    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    h1 { font-size: 1.5rem; }
+    .meta { color: #444; margin-top: 1rem; }
+  </style>
+</head>
+<body>
+  <h1>Welcome to Planning Poker</h1>
+  <p>This is your Go app with Chi, WebSockets, and HTMX.</p>
+
+  <div
+    hx-ext="ws"
+    ws-connect="/ws"
+    class="meta"
+  >
+    <p>
+      Connected sessions:
+      <strong id="session-count">{{.Count}}</strong>
+    </p>
+  </div>
+</body>
+</html>

@@ -1,5 +1,5 @@
 run:
-	go run app/main.go
+	go run ./app
 curl:
 	curl http://localhost:8080
 
