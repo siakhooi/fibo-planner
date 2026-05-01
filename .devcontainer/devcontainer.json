@@ -1,6 +1,6 @@
 {
 	"name": "GO 1.26 Development Dev Container",
-	"image": "siakhooi/devcontainer:go126",
+	"image": "siakhooi/devcontainer:go126_2604",
 	"remoteUser": "maui",
 	"containerUser": "maui",
 	"updateRemoteUserUID": true,
