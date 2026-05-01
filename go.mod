@@ -1,4 +1,4 @@
-module github.com/siakhooi/planning-poker
+module github.com/siakhooi/fibo-planner
 
 go 1.26.1
 
