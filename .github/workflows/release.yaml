@@ -6,7 +6,7 @@ on:
       - created
 
 jobs:
-  release:
+  build:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd  # v6.0.2
@@ -31,13 +31,7 @@ jobs:
           token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
           files: test-coverage.out
 
-      - uses: goreleaser/goreleaser-action@1a80836c5c9d9e5755a25cb59ec6f45a3b5f41a8 # v7.2.1
-        with:
-          version: latest
-          args: release --clean
-        env:
-          GITHUB_TOKEN: ${{ secrets.TOKEN_TO_UPLOAD_ASSETS }}
-
+      - run: scripts/build.sh
 
   build-docker-images:
     uses: ./.github/workflows/build-docker-image.yml
