@@ -14,6 +14,7 @@ import (
 	"strconv"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -32,6 +33,9 @@ var upgrader = websocket.Upgrader{
 		return true // tighten in production (same-origin, explicit origins)
 	},
 }
+
+// roomIdleEvictionDelay is how long a room with zero WebSocket connections may stay before it is removed.
+const roomIdleEvictionDelay = 30 * time.Minute
 
 // Hub tracks active WebSocket connections (one browser tab/session) for one room.
 type Hub struct {
@@ -117,17 +121,19 @@ func (h *Hub) broadcastRoomState() {
 
 // App holds the home-page hub, per-room hubs, and optional display names for rooms created via the form.
 type App struct {
-	mu        sync.Mutex
-	indexHub  *Hub // connections open on "/" (live session count on the index page)
-	roomHubs  map[string]*Hub
-	roomNames map[string]string
+	mu              sync.Mutex
+	indexHub        *Hub // connections open on "/" (live session count on the index page)
+	roomHubs        map[string]*Hub
+	roomNames       map[string]string
+	roomEvictTimers map[string]*time.Timer // pending idle-eviction per room
 }
 
 func newApp() *App {
 	return &App{
-		indexHub:  newHub(),
-		roomHubs:  make(map[string]*Hub),
-		roomNames: make(map[string]string),
+		indexHub:        newHub(),
+		roomHubs:        make(map[string]*Hub),
+		roomNames:       make(map[string]string),
+		roomEvictTimers: make(map[string]*time.Timer),
 	}
 }
 
@@ -180,6 +186,54 @@ func (a *App) broadcastLobbyState() {
 	a.indexHub.writeTextToAll([]byte(fragment))
 }
 
+// scheduleRoomEvictionLocked starts (or replaces) the idle timer for an empty room. Caller must hold a.mu.
+func (a *App) scheduleRoomEvictionLocked(roomID string, h *Hub) {
+	if t, ok := a.roomEvictTimers[roomID]; ok {
+		t.Stop()
+		delete(a.roomEvictTimers, roomID)
+	}
+	timer := time.AfterFunc(roomIdleEvictionDelay, func() {
+		a.evictRoomIfStillEmpty(roomID, h)
+	})
+	a.roomEvictTimers[roomID] = timer
+}
+
+func (a *App) scheduleRoomEviction(roomID string, h *Hub) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	a.scheduleRoomEvictionLocked(roomID, h)
+}
+
+func (a *App) cancelRoomEviction(roomID string) {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	if t, ok := a.roomEvictTimers[roomID]; ok {
+		t.Stop()
+		delete(a.roomEvictTimers, roomID)
+	}
+}
+
+func (a *App) evictRoomIfStillEmpty(roomID string, h *Hub) {
+	a.mu.Lock()
+	current, ok := a.roomHubs[roomID]
+	if !ok || current != h {
+		a.mu.Unlock()
+		return
+	}
+	if h.count() != 0 {
+		delete(a.roomEvictTimers, roomID)
+		a.mu.Unlock()
+		return
+	}
+	delete(a.roomHubs, roomID)
+	delete(a.roomNames, roomID)
+	delete(a.roomEvictTimers, roomID)
+	a.mu.Unlock()
+
+	log.Printf("removed room after %v idle: %s", roomIdleEvictionDelay, roomID)
+	a.broadcastLobbyState()
+}
+
 func runIndexHubWebSocket(w http.ResponseWriter, r *http.Request, a *App) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
@@ -204,7 +258,7 @@ func runIndexHubWebSocket(w http.ResponseWriter, r *http.Request, a *App) {
 	}()
 }
 
-func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, h *Hub, displayName string) {
+func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID string, h *Hub, displayName string) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("websocket upgrade: %v", err)
@@ -215,15 +269,19 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, h *Hub,
 		displayName = displayName[:120]
 	}
 	h.add(conn, displayName)
+	a.cancelRoomEviction(roomID)
 	h.broadcastRoomState()
 	a.broadcastLobbyState()
 
 	go func() {
 		defer func() {
 			_ = conn.Close()
-			h.remove(conn)
+			remaining := h.remove(conn)
 			h.broadcastRoomState()
 			a.broadcastLobbyState()
+			if remaining == 0 {
+				a.scheduleRoomEviction(roomID, h)
+			}
 		}()
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
@@ -249,6 +307,7 @@ func (a *App) getOrCreateHub(roomID string) *Hub {
 	}
 	h := newHub()
 	a.roomHubs[roomID] = h
+	a.scheduleRoomEvictionLocked(roomID, h)
 	return h
 }
 
@@ -319,6 +378,7 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 	if name != "" {
 		a.roomNames[id] = name
 	}
+	a.scheduleRoomEvictionLocked(id, a.roomHubs[id])
 	a.mu.Unlock()
 
 	a.broadcastLobbyState()
@@ -357,7 +417,7 @@ func (a *App) roomWS(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomID")
 	h := a.getOrCreateHub(roomID)
 	name := strings.TrimSpace(r.URL.Query().Get("name"))
-	runRoomHubWebSocket(w, r, a, h, name)
+	runRoomHubWebSocket(w, r, a, roomID, h, name)
 }
 
 func main() {
