@@ -299,16 +299,11 @@ func randomSixDigitRoomID() string {
 	return fmt.Sprintf("%06d", int(n.Int64())+100000)
 }
 
-func (a *App) getOrCreateHub(roomID string) *Hub {
+func (a *App) getHub(roomID string) (*Hub, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	if h, ok := a.roomHubs[roomID]; ok {
-		return h
-	}
-	h := newHub()
-	a.roomHubs[roomID] = h
-	a.scheduleRoomEvictionLocked(roomID, h)
-	return h
+	h, ok := a.roomHubs[roomID]
+	return h, ok
 }
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
@@ -388,8 +383,19 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomID")
-	h := a.getOrCreateHub(roomID)
-	a.broadcastLobbyState()
+	h, ok := a.getHub(roomID)
+	if !ok {
+		data := struct{ RoomID string }{RoomID: roomID}
+		var buf bytes.Buffer
+		if err := tmpl.ExecuteTemplate(&buf, "room_not_found.html", data); err != nil {
+			http.Error(w, "template error", http.StatusInternalServerError)
+			return
+		}
+		w.Header().Set("Content-Type", "text/html; charset=utf-8")
+		w.WriteHeader(http.StatusNotFound)
+		_, _ = w.Write(buf.Bytes())
+		return
+	}
 
 	a.mu.Lock()
 	name := a.roomNames[roomID]
@@ -415,7 +421,11 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) roomWS(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomID")
-	h := a.getOrCreateHub(roomID)
+	h, ok := a.getHub(roomID)
+	if !ok {
+		http.Error(w, "room not found", http.StatusNotFound)
+		return
+	}
 	name := strings.TrimSpace(r.URL.Query().Get("name"))
 	runRoomHubWebSocket(w, r, a, roomID, h, name)
 }
