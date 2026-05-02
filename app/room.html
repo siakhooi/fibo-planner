@@ -12,6 +12,14 @@
     .meta { color: #444; margin-top: 1rem; }
     .crumb { font-size: 0.9rem; margin-bottom: 1rem; }
     .crumb a { color: #2563eb; }
+    ul.user-list { margin: 0.35rem 0 0; padding-left: 1.25rem; }
+    .join-form { margin-top: 1rem; max-width: 22rem; }
+    .join-form label { display: block; margin-bottom: 0.35rem; }
+    .join-form input[type="text"] {
+      width: 100%; max-width: 22rem; padding: 0.5rem; margin-bottom: 0.75rem;
+      box-sizing: border-box;
+    }
+    .join-form button { padding: 0.45rem 1rem; }
   </style>
 </head>
 <body>
@@ -21,17 +29,77 @@
   {{if .RoomName}}
   <p><strong>{{.RoomName}}</strong></p>
   {{end}}
-  <p>Welcome—share this URL with your team. When everyone has joined, you can start estimating.</p>
 
-  <div
-    hx-ext="ws"
-    ws-connect="/ws/{{.RoomID}}"
-    class="meta"
-  >
-    <p>
-      Users in this room:
-      <strong id="session-count">{{.Count}}</strong>
-    </p>
+  <section id="join-gate" class="join-gate">
+    <p>Enter your name to join this room.</p>
+    <form id="join-form" class="join-form" action="#">
+      <label for="display-name">Your name</label>
+      <input
+        id="display-name"
+        type="text"
+        name="display-name"
+        maxlength="120"
+        autocomplete="name"
+        required
+        placeholder="e.g. Alex"
+      />
+      <div>
+        <button type="submit">Join room</button>
+      </div>
+    </form>
+  </section>
+
+  <div id="room-main" class="room-main" hidden>
+    <p id="welcome-line">Welcome! Share this URL with your team. When everyone has joined, you can start estimating.</p>
+
+    <div
+      id="room-ws"
+      hx-ext="ws"
+      class="meta"
+    >
+      <p>
+        Users in this room (<strong id="session-count">{{.Count}}</strong>):
+      </p>
+      <ul id="user-list" class="user-list"></ul>
+    </div>
   </div>
+
+  <script>
+    (function () {
+      var roomID = "{{.RoomID}}";
+      var key = "fibo-planner-display-name-" + roomID;
+      var gate = document.getElementById("join-gate");
+      var main = document.getElementById("room-main");
+      var form = document.getElementById("join-form");
+      var input = document.getElementById("display-name");
+
+      function enterRoom(displayName) {
+        displayName = (displayName || "").trim().slice(0, 120);
+        if (!displayName) {
+          return;
+        }
+        localStorage.setItem(key, displayName);
+        gate.hidden = true;
+        main.hidden = false;
+        var welcome = document.getElementById("welcome-line");
+        welcome.textContent =
+          "Welcome, " + displayName + "! Share this URL with your team. When everyone has joined, you can start estimating.";
+        var el = document.getElementById("room-ws");
+        el.setAttribute("ws-connect", "/ws/" + roomID + "?name=" + encodeURIComponent(displayName));
+        htmx.process(el);
+      }
+
+      var stored = localStorage.getItem(key);
+      if (stored && stored.trim()) {
+        enterRoom(stored);
+      } else {
+        input.focus();
+        form.addEventListener("submit", function (e) {
+          e.preventDefault();
+          enterRoom(input.value);
+        });
+      }
+    })();
+  </script>
 </body>
 </html>

@@ -5,10 +5,12 @@ import (
 	"crypto/rand"
 	"embed"
 	"fmt"
+	"html"
 	"html/template"
 	"log"
 	"math/big"
 	"net/http"
+	"sort"
 	"strings"
 	"sync"
 
@@ -33,17 +35,20 @@ var upgrader = websocket.Upgrader{
 // Hub tracks active WebSocket connections (one browser tab/session) for one room.
 type Hub struct {
 	mu    sync.Mutex
-	conns map[*websocket.Conn]struct{}
+	conns map[*websocket.Conn]string // display name per connection
 }
 
 func newHub() *Hub {
-	return &Hub{conns: make(map[*websocket.Conn]struct{})}
+	return &Hub{conns: make(map[*websocket.Conn]string)}
 }
 
-func (h *Hub) add(c *websocket.Conn) int {
+func (h *Hub) add(c *websocket.Conn, displayName string) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	h.conns[c] = struct{}{}
+	if strings.TrimSpace(displayName) == "" {
+		displayName = "Guest"
+	}
+	h.conns[c] = displayName
 	return len(h.conns)
 }
 
@@ -82,6 +87,41 @@ func (h *Hub) broadcastCount() {
 	}
 }
 
+// broadcastRoomState sends session count and the sorted list of participant names (room page only).
+func (h *Hub) broadcastRoomState() {
+	h.mu.Lock()
+	n := len(h.conns)
+	names := make([]string, 0, len(h.conns))
+	for _, name := range h.conns {
+		names = append(names, name)
+	}
+	conns := make([]*websocket.Conn, 0, len(h.conns))
+	for c := range h.conns {
+		conns = append(conns, c)
+	}
+	h.mu.Unlock()
+
+	sort.Strings(names)
+	var listHTML strings.Builder
+	for _, name := range names {
+		listHTML.WriteString("<li>")
+		listHTML.WriteString(html.EscapeString(name))
+		listHTML.WriteString("</li>")
+	}
+
+	fragment := fmt.Sprintf(
+		`<strong id="session-count" hx-swap-oob="true">%d</strong>`+
+			`<ul id="user-list" class="user-list" hx-swap-oob="true">%s</ul>`,
+		n, listHTML.String(),
+	)
+
+	for _, c := range conns {
+		if err := c.WriteMessage(websocket.TextMessage, []byte(fragment)); err != nil {
+			log.Printf("websocket write: %v", err)
+		}
+	}
+}
+
 // App holds the home-page hub, per-room hubs, and optional display names for rooms created via the form.
 type App struct {
 	mu        sync.Mutex
@@ -98,14 +138,14 @@ func newApp() *App {
 	}
 }
 
-func runHubWebSocket(w http.ResponseWriter, r *http.Request, h *Hub) {
+func runIndexHubWebSocket(w http.ResponseWriter, r *http.Request, h *Hub) {
 	conn, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Printf("websocket upgrade: %v", err)
 		return
 	}
 
-	h.add(conn)
+	h.add(conn, "")
 	h.broadcastCount()
 
 	go func() {
@@ -113,6 +153,33 @@ func runHubWebSocket(w http.ResponseWriter, r *http.Request, h *Hub) {
 			_ = conn.Close()
 			h.remove(conn)
 			h.broadcastCount()
+		}()
+		for {
+			if _, _, err := conn.ReadMessage(); err != nil {
+				return
+			}
+		}
+	}()
+}
+
+func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, h *Hub, displayName string) {
+	conn, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Printf("websocket upgrade: %v", err)
+		return
+	}
+
+	if len(displayName) > 120 {
+		displayName = displayName[:120]
+	}
+	h.add(conn, displayName)
+	h.broadcastRoomState()
+
+	go func() {
+		defer func() {
+			_ = conn.Close()
+			h.remove(conn)
+			h.broadcastRoomState()
 		}()
 		for {
 			if _, _, err := conn.ReadMessage(); err != nil {
@@ -153,7 +220,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 }
 
 func (a *App) indexWS(w http.ResponseWriter, r *http.Request) {
-	runHubWebSocket(w, r, a.indexHub)
+	runIndexHubWebSocket(w, r, a.indexHub)
 }
 
 func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
@@ -218,7 +285,8 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 func (a *App) roomWS(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomID")
 	h := a.getOrCreateHub(roomID)
-	runHubWebSocket(w, r, h)
+	name := strings.TrimSpace(r.URL.Query().Get("name"))
+	runRoomHubWebSocket(w, r, h, name)
 }
 
 func main() {
