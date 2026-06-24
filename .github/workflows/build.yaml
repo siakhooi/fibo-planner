@@ -3,10 +3,11 @@ name: build
 on:
   push:
     branches:
-      - "*"
-  workflow_call:
+      - "**"
   pull_request:
-
+    branches:
+      - "**"
+  workflow_call:
 
 jobs:
   build:
