@@ -1,5 +1,7 @@
 # Fibo Planner
 
+Stage: Alpha
+
 Fibo Planner helps agile teams run the planning poker technique—using Fibonacci cards to estimate stories and align on effort quickly.
 
 ## Reference:
