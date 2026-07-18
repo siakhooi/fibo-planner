@@ -3,7 +3,6 @@ package main
 import (
 	"bytes"
 	"html"
-	"log"
 	"net/http"
 	"sort"
 	"strconv"
@@ -57,30 +56,6 @@ func (a *App) lobbyOverviewOOBHTML() string {
 func (a *App) broadcastLobbyState() {
 	fragment := a.lobbyOverviewOOBHTML()
 	a.indexHub.writeTextToAll([]byte(fragment))
-}
-
-func runIndexHubWebSocket(w http.ResponseWriter, r *http.Request, a *App) {
-	conn, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Printf("websocket upgrade: %v", err)
-		return
-	}
-
-	a.indexHub.add(conn, "")
-	a.broadcastLobbyState()
-
-	go func() {
-		defer func() {
-			_ = conn.Close()
-			a.indexHub.remove(conn)
-			a.broadcastLobbyState()
-		}()
-		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
-				return
-			}
-		}
-	}()
 }
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
