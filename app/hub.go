@@ -1,19 +1,26 @@
 package main
 
 import (
-	"sync"
-	"github.com/gorilla/websocket"
-	"log"
-	"strings"
 	"fmt"
 	"html"
+	"log"
 	"sort"
+	"strings"
+	"sync"
+
+	"github.com/gorilla/websocket"
 )
+
 // Hub tracks active WebSocket connections (one browser tab/session) for one room.
 type Hub struct {
 	mu    sync.Mutex
 	conns map[*websocket.Conn]string // display name per connection
 }
+
+func newHub() *Hub {
+	return &Hub{conns: make(map[*websocket.Conn]string)}
+}
+
 func (h *Hub) add(c *websocket.Conn, displayName string) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()

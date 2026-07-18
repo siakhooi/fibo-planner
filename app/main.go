@@ -34,12 +34,6 @@ var upgrader = websocket.Upgrader{
 // roomIdleEvictionDelay is how long a room with zero WebSocket connections may stay before it is removed.
 const roomIdleEvictionDelay = 30 * time.Minute
 
-
-func newHub() *Hub {
-	return &Hub{conns: make(map[*websocket.Conn]string)}
-}
-
-
 // App holds the home-page hub, per-room hubs, and optional display names for rooms created via the form.
 type App struct {
 	mu              sync.Mutex
