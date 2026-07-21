@@ -9,7 +9,8 @@ test:
 	./scripts/test.sh
 build:
 	go mod tidy
-	scripts/build.sh 2>&1 | tee build.log
+	golangci-lint run
+	go build -C app -o ../target/server
 
 all: build docker-build
 
@@ -29,4 +30,4 @@ curl-ws:
 	curl -sS -N  ws://localhost:8080/ws
 
 websocat-ws:
-	 websocat ws://localhost:8080/ws
+	websocat ws://localhost:8080/ws
