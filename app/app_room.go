@@ -56,7 +56,7 @@ func (a *App) evictRoomIfStillEmpty(roomID string, h *Hub) {
 		return
 	}
 	delete(a.roomHubs, roomID)
-	delete(a.roomNames, roomID)
+	delete(a.rooms, roomID)
 	delete(a.roomEvictTimers, roomID)
 	a.mu.Unlock()
 
@@ -90,7 +90,7 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 	}
 	a.roomHubs[id] = newHub()
 	if name != "" {
-		a.roomNames[id] = name
+		a.rooms[id] = newRoom(name)
 	}
 	a.scheduleRoomEvictionLocked(id, a.roomHubs[id])
 	a.mu.Unlock()
@@ -117,7 +117,7 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	a.mu.Lock()
-	name := a.roomNames[roomID]
+	name := a.rooms[roomID].name
 	a.mu.Unlock()
 
 	data := struct {

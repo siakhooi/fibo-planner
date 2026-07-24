@@ -10,15 +10,15 @@ type App struct {
 	mu              sync.Mutex
 	indexHub        *Hub // connections open on "/" (live session count on the index page)
 	roomHubs        map[string]*Hub
-	roomNames       map[string]string
 	roomEvictTimers map[string]*time.Timer // pending idle-eviction per room
+	rooms           map[string]*Room
 }
 
 func newApp() *App {
 	return &App{
 		indexHub:        newHub(),
 		roomHubs:        make(map[string]*Hub),
-		roomNames:       make(map[string]string),
+		rooms:           make(map[string]*Room),
 		roomEvictTimers: make(map[string]*time.Timer),
 	}
 }

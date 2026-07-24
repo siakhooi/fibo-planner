@@ -32,7 +32,7 @@ func (a *App) lobbyOverviewOOBHTML() string {
 	b.WriteString(`</strong></td></tr>`)
 	for _, id := range ids {
 		cnt := a.roomHubs[id].count()
-		nm := a.roomNames[id]
+		nm := a.rooms[id].name
 		disp := nm
 		if disp == "" {
 			disp = "Room " + id
@@ -69,7 +69,7 @@ func (a *App) home(w http.ResponseWriter, r *http.Request) {
 	rooms := make([]LobbyRoomRow, 0, len(ids))
 	for _, id := range ids {
 		cnt := a.roomHubs[id].count()
-		nm := a.roomNames[id]
+		nm := a.rooms[id].name
 		var disp string
 		if nm == "" {
 			disp = "Room " + id
