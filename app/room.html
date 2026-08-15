@@ -20,6 +20,9 @@
       box-sizing: border-box;
     }
     .join-form button { padding: 0.45rem 1rem; }
+    .button-grid { display: grid; grid-template-columns: repeat(4, 80px); gap: 12px; }
+    .button-grid button { width: 80px; height: 80px; font-size: 24px; font-weight: bold; border: 1px solid #888; border-radius: 8px; background: #f5f5f5; cursor: pointer; touch-action: manipulation; }
+    .button-grid button:active { background: #ddd; }
   </style>
 </head>
 <body>
@@ -52,6 +55,16 @@
   <div id="room-main" class="room-main" hidden>
     <p id="welcome-line">Welcome! Share this URL with your team. When everyone has joined, you can start estimating.</p>
 
+    <div class="button-grid">
+      <button>&nbsp;</button>
+      <button>1</button>
+      <button>2</button>
+      <button>3</button>
+      <button>5</button>
+      <button>8</button>
+      <button>13</button>
+      <button>20</button>
+    </div>
     <div
       id="room-ws"
       hx-ext="ws"
@@ -101,4 +114,5 @@
     })();
   </script>
 </body>
+
 </html>
