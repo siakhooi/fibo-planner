@@ -16,9 +16,10 @@ type participant struct {
 
 // Hub tracks active WebSocket connections (one browser tab/session) for one room.
 type Hub struct {
-	mu      sync.Mutex
-	writeMu sync.Mutex
-	conns   map[*websocket.Conn]participant
+	mu              sync.Mutex
+	writeMu         sync.Mutex
+	conns           map[*websocket.Conn]participant
+	alwaysShowVotes bool
 }
 
 func newHub() *Hub {
@@ -59,8 +60,25 @@ func (h *Hub) setPoints(c *websocket.Conn, points string) bool {
 	p.points = points
 	h.conns[c] = p
 	return true
-
 }
+
+func (h *Hub) clearVotes() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	for c, p := range h.conns {
+		p.points = ""
+		h.conns[c] = p
+	}
+}
+
+func (h *Hub) toggleAlwaysShowVotes(){
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	h.alwaysShowVotes = !h.alwaysShowVotes
+}
+
 func (h *Hub) writeTextToAll(payload []byte) {
 	h.mu.Lock()
 	conns := make([]*websocket.Conn, 0, len(h.conns))
@@ -82,6 +100,8 @@ func (h *Hub) broadcastRoomState(voted *websocket.Conn) {
 	h.mu.Lock()
 	n := len(h.conns)
 
+	alwaysShow := h.alwaysShowVotes
+
 	rows := make([]participant, 0, n)
 	for c, p := range h.conns {
 		p.flash = voted != nil && c == voted
@@ -89,5 +109,5 @@ func (h *Hub) broadcastRoomState(voted *websocket.Conn) {
 	}
 
 	h.mu.Unlock()
-	h.writeTextToAll([]byte(roomStateHTML(n, rows)))
+	h.writeTextToAll([]byte(roomStateHTML(n, rows, alwaysShow)))
 }

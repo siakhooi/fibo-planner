@@ -7,7 +7,7 @@ import (
 	"strings"
 )
 
-func roomStateHTML(n int, rows []participant) string {
+func roomStateHTML(n int, rows []participant, alwaysShow bool) string {
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].name != rows[j].name {
 			return rows[i].name < rows[j].name
@@ -15,10 +15,12 @@ func roomStateHTML(n int, rows []participant) string {
 		return rows[i].points < rows[j].points
 	})
 	masked := false
-	for _, row := range rows {
-		if row.points == "" {
-			masked = true
-			break
+	if !alwaysShow {
+		for _, row := range rows {
+			if row.points == "" {
+				masked = true
+				break
+			}
 		}
 	}
 	var listHTML strings.Builder
@@ -37,8 +39,14 @@ func roomStateHTML(n int, rows []participant) string {
 	}
 	listHTML.WriteString("</tbody></table>")
 
+	pressed := "false"
+	if alwaysShow {
+		pressed = "true"
+	}
+
 	return fmt.Sprintf(
-		`<strong id="session-count" hx-swap-oob="true">%d</strong>%s`,
-		n, listHTML.String(),
+		`<strong id="session-count" hx-swap-oob="true">%d</strong>%s`+
+			`<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="%s">Always show votes</button>`,
+		n, listHTML.String(), pressed,
 	)
 }

@@ -11,7 +11,7 @@ func TestRoomStateHTML(t *testing.T) {
 	html := roomStateHTML(2, []participant{
 		{name: "Bob", points: "8"},
 		{name: "Ada", points: "3"},
-	})
+	}, false)
 	if !strings.Contains(html, `id="user-list"`) {
 		t.Fatalf("missing user-list table: %s", html)
 	}
@@ -30,7 +30,7 @@ func TestRoomStateHTML(t *testing.T) {
 		t.Fatalf("missing points cells: %s", html)
 	}
 
-	escaped := roomStateHTML(1, []participant{{name: "<script>alert(1)</script>", points: "1"}})
+	escaped := roomStateHTML(1, []participant{{name: "<script>alert(1)</script>", points: "1"}}, false)
 	if strings.Contains(escaped, "<script>") {
 		t.Fatalf("name was not escaped: %s", escaped)
 	}
@@ -44,7 +44,7 @@ func TestRoomStateHTMLMasksPointsUntilEveryoneVoted(t *testing.T) {
 	html := roomStateHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: ""},
-	})
+	}, false)
 	if !strings.Contains(html, "<td>Ada</td><td>???</td>") {
 		t.Fatalf("Ada's vote should be masked: %s", html)
 	}
@@ -62,7 +62,7 @@ func TestRoomStateHTMLRevealsPointsWhenEveryoneVoted(t *testing.T) {
 	html := roomStateHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: "5"},
-	})
+	}, false)
 	if strings.Contains(html, "???") {
 		t.Fatalf("points should be visible once everyone voted: %s", html)
 	}
@@ -77,11 +77,29 @@ func TestRoomStateHTMLFlashesTheVotedCell(t *testing.T) {
 	html := roomStateHTML(2, []participant{
 		{name: "Ada", points: "8", flash: true},
 		{name: "Bob", points: ""},
-	})
+	}, false)
 	if !strings.Contains(html, `<td>Ada</td><td class="vote-flash">???</td>`) {
 		t.Fatalf("Ada's masked vote should flash: %s", html)
 	}
 	if strings.Contains(html, `Bob</td><td class="vote-flash"`) {
 		t.Fatalf("Bob should not flash: %s", html)
+	}
+}
+
+func TestRoomStateHTMLAlwaysShowVotesSkipsMasking(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(2, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: ""},
+	}, true)
+	if !strings.Contains(html, "<td>Ada</td><td>8</td>") {
+		t.Fatalf("Ada's vote should be visible: %s", html)
+	}
+	if strings.Contains(html, "???") {
+		t.Fatalf("votes should not be masked: %s", html)
+	}
+	if !strings.Contains(html, `id="always-show-votes" hx-swap-oob="true" aria-pressed="true"`) {
+		t.Fatalf("always-show button should be pressed: %s", html)
 	}
 }

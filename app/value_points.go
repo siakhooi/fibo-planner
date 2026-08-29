@@ -15,10 +15,15 @@ var allowedVotePoints = map[string]bool{
 	"13": true,
 	"20": true,
 }
+const (
+	adminAlwaysShowVotes = "always-show-votes"
+	adminClearVotes = "clear-votes"
+)
 
-// expecting something like this
-// {"points":"8","HEADERS":{"HX-Request":"true","HX-Current-URL":"..."}}
 func parseVotePoints(payload []byte) (string, bool) {
+	// expecting something like this
+	// {"points":"8","HEADERS":{"HX-Request":"true","HX-Current-URL":"..."}}
+
 	var m map[string]any
 	if err := json.Unmarshal(payload, &m); err != nil {
 		return "", false
@@ -41,5 +46,27 @@ func parseVotePoints(payload []byte) (string, bool) {
 	}
 
 	return s, true
+
+}
+
+func parseAdminAction(payload []byte)(string, bool){
+	var m map[string]any
+	if err := json.Unmarshal(payload, &m); err != nil {
+		return "", false
+	}
+	v, ok := m["admin"]
+	if !ok {
+		return "", false
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", false
+	}
+	switch s {
+	case adminAlwaysShowVotes, adminClearVotes:
+		return s, true
+	default:
+		return "", false
+	}
 
 }

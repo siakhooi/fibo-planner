@@ -21,6 +21,7 @@ func TestParseVotePoints(t *testing.T) {
 		{name: "unknown value", payload: `{"points":"99"}`, ok: false},
 		{name: "missing points", payload: `{"HEADERS":{}}`, ok: false},
 		{name: "script", payload: `{"points":"<script>"}`, ok: false},
+		{name: "admin is not a vote", payload: `{"admin":"clear-votes"}`, ok: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -31,6 +32,34 @@ func TestParseVotePoints(t *testing.T) {
 			}
 			if ok && got != tt.want {
 				t.Fatalf("points=%q want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestParseAdminAction(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+		want    string
+		ok      bool
+	}{
+		{name: "clear", payload: `{"admin":"clear-votes","HEADERS":{}}`, want: adminClearVotes, ok: true},
+		{name: "always show", payload: `{"admin":"always-show-votes"}`, want: adminAlwaysShowVotes, ok: true},
+		{name: "unknown", payload: `{"admin":"explode"}`, ok: false},
+		{name: "vote", payload: `{"points":"8"}`, ok: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := parseAdminAction([]byte(tt.payload))
+			if ok != tt.ok {
+				t.Fatalf("ok=%v want %v", ok, tt.ok)
+			}
+			if ok && got != tt.want {
+				t.Fatalf("action=%q want %q", got, tt.want)
 			}
 		})
 	}

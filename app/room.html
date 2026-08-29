@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js"></script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    body { font-family: system-ui, sans-serif; max-width: 54rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
     h1 { font-size: 1.5rem; }
     h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 1rem; }
     .meta { color: #444; margin-top: 1rem; }
@@ -34,6 +34,38 @@
       100% { background: transparent; font-weight: inherit; }
     }
     .user-table td.vote-flash { animation: vote-flash 1.6s ease-out; }
+    .room-layout { display: flex; gap: 1.25rem; align-items: flex-start; }
+    .admin-panel {
+      flex: 0 0 12rem;
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 0.75rem;
+      background: #fafafa;
+      box-sizing: border-box;
+    }
+    .admin-panel h3 { font-size: 0.8rem; margin: 0 0 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #444; }
+    .admin-panel form + h3 {
+      margin-top: 1rem;
+      padding-top: 0.85rem;
+      border-top: 1px solid #e5e5e5;
+    }
+    .admin-panel form { margin: 0 0 0.5rem; }
+    .admin-panel form:last-child { margin-bottom: 0; }
+    .admin-panel button {
+      width: 100%;
+      padding: 0.5rem 0.6rem;
+      text-align: left;
+      cursor: pointer;
+      border: 1px solid #888;
+      border-radius: 6px;
+      background: #fff;
+    }
+    .admin-panel button[aria-pressed="true"] { background: #dbeafe; border-color: #2563eb; font-weight: 600; }
+    .room-body { flex: 1; min-width: 0; }
+    @media (max-width: 40rem) {
+      .room-layout { flex-direction: column; }
+      .admin-panel { flex-basis: auto; width: 100%; }
+    }
 </style>
 </head>
 <body>
@@ -65,34 +97,46 @@
   </section>
 
   <div id="room-main" class="room-main" hidden>
-    <h2 id="user-name"></h2>
-
-    <div id="room-ws" hx-ext="ws" class="meta">
-      <form id="points-form" action="#">
-        <input type="hidden" id="points-value" name="points" value="" />
-        <div class="button-grid">
-          <button type="submit" data-points="">&nbsp;</button>
-          <button type="submit" data-points="1">1</button>
-          <button type="submit" data-points="2">2</button>
-          <button type="submit" data-points="3">3</button>
-          <button type="submit" data-points="5">5</button>
-          <button type="submit" data-points="8">8</button>
-          <button type="submit" data-points="13">13</button>
-          <button type="submit" data-points="20">20</button>
-        </div>
-      </form>
-      <p>
-        Users in this room (<strong id="session-count">{{.Count}}</strong>):
-      </p>
-      <table id="user-list" class="user-table">
-        <thread>
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Points</th>
-          </tr>
-        </thread>
-        <tbody></tbody>
-      </table>
+    <div id="room-ws" hx-ext="ws" class="root-layout">
+      <aside class="admin-panel">
+        <h3>Administration</h3>
+        <form id="clear-votes-form" action="#">
+          <input type="hidden" name="admin" value="clear-votes" />
+          <button type="submit" id="clear-votes">Clear votes</button>
+        </form>
+        <form id="always-show-votes-form" action="#">
+          <input type="hidden" name="admin" value="always-show-votes" />
+          <button type="submit" id="always-show-votes" aria-pressed="false">Always show votes</button>
+        </form>
+      </aside>
+      <div class="room-body">
+        <h2 id="user-name"></h2>
+        <form id="points-form" action="#">
+          <input type="hidden" id="points-value" name="points" value="" />
+          <div class="button-grid">
+            <button type="submit" data-points="">&nbsp;</button>
+            <button type="submit" data-points="1">1</button>
+            <button type="submit" data-points="2">2</button>
+            <button type="submit" data-points="3">3</button>
+            <button type="submit" data-points="5">5</button>
+            <button type="submit" data-points="8">8</button>
+            <button type="submit" data-points="13">13</button>
+            <button type="submit" data-points="20">20</button>
+          </div>
+        </form>
+        <p class="meta">
+          Users in this room (<strong id="session-count">{{.Count}}</strong>):
+        </p>
+        <table id="user-list" class="user-table">
+          <thead>
+            <tr>
+              <th scope="col">Name</th>
+              <th scope="col">Points</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
     </div>
   </div>
 
@@ -109,15 +153,21 @@
       var myName = "";
 
       function showMyVote() {
-        var mine = pointsValue.value;
-        if (!mine) return;
         var rows = document.querySelectorAll("#user-list tbody tr");
         for (var i = 0; i < rows.length; i++) {
           var cells = rows[i].cells;
-          if (cells[0].textContent === myName && cells[1].textContent === "???") {
-            cells[1].textContent = mine;
-            break;
+          if (cells[0].textContent !== myName) {
+            continue;
           }
+          if (cells[1].textContent === "") {
+            pointsValue.value = "";
+            return;
+          }
+          var mine = pointsValue.value;
+          if (mine && cells[1].textContent === "???") {
+            cells[1].textContent = mine;
+          }
+          return;
         }
       }
 
@@ -142,6 +192,8 @@
         var el = document.getElementById("room-ws");
         el.setAttribute("ws-connect", "/ws/" + roomID + "?name=" + encodeURIComponent(displayName));
         document.getElementById("points-form").setAttribute("ws-send", "");
+        document.getElementById("always-show-votes-form").setAttribute("ws-send", "");
+        document.getElementById("clear-votes-form").setAttribute("ws-send", "");
         htmx.process(el);
       }
 

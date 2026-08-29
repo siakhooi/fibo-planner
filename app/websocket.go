@@ -69,6 +69,17 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 			if err != nil {
 				return
 			}
+			action, isAdmin := parseAdminAction(msg)
+			if isAdmin {
+				switch action {
+				case adminClearVotes:
+					h.clearVotes()
+				case adminAlwaysShowVotes:
+					h.toggleAlwaysShowVotes()
+				}
+				h.broadcastRoomState(nil)
+				continue
+			}
 			points, ok := parseVotePoints(msg)
 			if !ok {
 				continue

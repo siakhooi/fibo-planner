@@ -33,6 +33,9 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`scope="col">Points`,
 		`id="points-form"`,
 		`data-points="8"`,
+		`Administration`,
+		`id="always-show-votes"`,
+		`id="clear-votes"`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("room page missing %q", want)
@@ -103,6 +106,44 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 		t.Fatalf("bob's vote should be highlighted: %s", revealed)
 	}
 	waitForMessage(t, bob, `<td>Bob</td><td class="vote-flash">5</td>`)
+}
+
+func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	ada := dialRoom(t, srv, roomID, "Ada")
+	waitForMessage(t, ada, "<td>Ada</td><td></td>")
+	bob := dialRoom(t, srv, roomID, "Bob")
+	waitForMessage(t, ada, "<td>Bob</td><td></td>")
+	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
+		t.Fatalf("ada vote: %v", err)
+	}
+	waitForMessage(t, bob, `<td>Ada</td><td class="vote-flash">???</td>`)
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"always-show-votes"}`)); err != nil {
+		t.Fatalf("always show: %v", err)
+	}
+	shown := waitForMessage(t, bob, "<td>Ada</td><td>8</td>")
+	if strings.Contains(shown, "???") {
+		t.Fatalf("votes should be unmasked: %s", shown)
+	}
+	if !strings.Contains(shown, `aria-pressed="true"`) {
+		t.Fatalf("always-show should be on: %s", shown)
+	}
+	waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
+
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"clear-votes"}`)); err != nil {
+		t.Fatalf("clear votes: %v", err)
+	}
+	cleared := waitForMessage(t, ada, "<td>Ada</td><td></td>")
+	if !strings.Contains(cleared, "<td>Bob</td><td></td>") {
+		t.Fatalf("all votes should be blank: %s", cleared)
+	}
+	waitForMessage(t, bob, "<td>Ada</td><td></td>")
 }
 
 func createRoom(t *testing.T, srv *httptest.Server, name string) string {
