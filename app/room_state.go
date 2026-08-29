@@ -14,12 +14,22 @@ func roomStateHTML(n int, rows []participant) string {
 		}
 		return rows[i].points < rows[j].points
 	})
-
+	masked := false
+	for _, row := range rows {
+		if row.points == "" {
+			masked = true
+			break
+		}
+	}
 	var listHTML strings.Builder
 	listHTML.WriteString(`<table id="user-list" class="user-table" hx-swap-oob="true">`)
 	listHTML.WriteString(`<thead><tr><th scope="col">Name</th><th scope="col">Points</th></tr></thead><tbody>`)
 	for _, row := range rows {
-		fmt.Fprintf(&listHTML, "<tr><td>%s</td><td>%s</td></tr>", html.EscapeString(row.name), html.EscapeString(row.points))
+		points := row.points
+		if masked && points != "" {
+			points = "???"
+		}
+		fmt.Fprintf(&listHTML, "<tr><td>%s</td><td>%s</td></tr>", html.EscapeString(row.name), html.EscapeString(points))
 	}
 	listHTML.WriteString("</tbody></table>")
 
