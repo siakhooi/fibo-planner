@@ -12,7 +12,7 @@
     .meta { color: #444; margin-top: 1rem; }
     .crumb { font-size: 0.9rem; margin-bottom: 1rem; }
     .crumb a { color: #2563eb; }
-    ul.user-list { margin: 0.35rem 0 0; padding-left: 1.25rem; }
+
     .join-form { margin-top: 1rem; max-width: 22rem; }
     .join-form label { display: block; margin-bottom: 0.35rem; }
     .join-form input[type="text"] {
@@ -23,6 +23,11 @@
     .button-grid { display: grid; grid-template-columns: repeat(4, 80px); gap: 12px; }
     .button-grid button { width: 80px; height: 80px; font-size: 24px; font-weight: bold; border: 1px solid #888; border-radius: 8px; background: #f5f5f5; cursor: pointer; touch-action: manipulation; }
     .button-grid button:active { background: #ddd; }
+  
+    .user-table { width: 100%; max-width: 28rem; border-collapse: collapse; font-size: 0.95rem; margin: 0.35rem 0 0; }
+    .user-table th, .user-table td { text-align: left; padding: 0.45rem 0.6rem; border: 1px solid #ddd; }
+    .user-table thead th { background: #f5f5f5; font-weight: 600; }
+    .user-table tbody tr:nth-child(even) { background: #fafafa; }
   </style>
 </head>
 <body>
@@ -55,25 +60,32 @@
   <div id="room-main" class="room-main" hidden>
     <p id="welcome-line">Welcome! Share this URL with your team. When everyone has joined, you can start estimating.</p>
 
-    <div class="button-grid">
-      <button>&nbsp;</button>
-      <button>1</button>
-      <button>2</button>
-      <button>3</button>
-      <button>5</button>
-      <button>8</button>
-      <button>13</button>
-      <button>20</button>
-    </div>
-    <div
-      id="room-ws"
-      hx-ext="ws"
-      class="meta"
-    >
+    <div id="room-ws" hx-ext="ws" class="meta">
+      <form id="points-form" action="#">
+        <input type="hidden" id="points-value" name="points" value="" />
+        <div class="button-grid">
+          <button type="submit" data-points="">&nbsp;</button>
+          <button type="submit" data-points="1">1</button>
+          <button type="submit" data-points="2">2</button>
+          <button type="submit" data-points="3">3</button>
+          <button type="submit" data-points="5">5</button>
+          <button type="submit" data-points="8">8</button>
+          <button type="submit" data-points="13">13</button>
+          <button type="submit" data-points="20">20</button>
+        </div>
+      </form>
       <p>
         Users in this room (<strong id="session-count">{{.Count}}</strong>):
       </p>
-      <ul id="user-list" class="user-list"></ul>
+      <table id="user-list" class="user-table">
+        <thread>
+          <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Points</th>
+          </tr>
+        </thread>
+        <tbody></tbody>
+      </table>
     </div>
   </div>
 
@@ -85,6 +97,14 @@
       var main = document.getElementById("room-main");
       var form = document.getElementById("join-form");
       var input = document.getElementById("display-name");
+      var pointsForm = document.getElementById("points-form");
+      var pointsValue = document.getElementById("points-value");
+
+      pointsForm.addEventListener("click", function (e) {
+        var btn = e.target.closest("button[data-points]");
+        if (!btn) return;
+        pointsValue.value = btn.getAttribute("data-points");
+      });
 
       function enterRoom(displayName) {
         displayName = (displayName || "").trim().slice(0, 120);
@@ -99,6 +119,7 @@
           "Welcome, " + displayName + "! Share this URL with your team. When everyone has joined, you can start estimating.";
         var el = document.getElementById("room-ws");
         el.setAttribute("ws-connect", "/ws/" + roomID + "?name=" + encodeURIComponent(displayName));
+        document.getElementById("points-form").setAttribute("ws-send", "");
         htmx.process(el);
       }
 

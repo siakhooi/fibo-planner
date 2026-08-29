@@ -65,8 +65,16 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 			}
 		}()
 		for {
-			if _, _, err := conn.ReadMessage(); err != nil {
+			_, msg, err := conn.ReadMessage()
+			if err != nil {
 				return
+			}
+			points, ok := parseVotePoints(msg)
+			if !ok {
+				continue
+			}
+			if h.setPoints(conn, points) {
+				h.broadcastRoomState()
 			}
 		}
 	}()
