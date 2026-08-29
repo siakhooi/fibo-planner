@@ -97,13 +97,14 @@
   </section>
 
   <div id="room-main" class="room-main" hidden>
-    <div id="room-ws" hx-ext="ws" class="root-layout">
+    <div id="room-ws" hx-ext="ws" class="room-layout">
       <aside class="admin-panel">
         <h3>Administration</h3>
         <form id="clear-votes-form" action="#">
           <input type="hidden" name="admin" value="clear-votes" />
           <button type="submit" id="clear-votes">Clear votes</button>
         </form>
+        <h3>Global Options</h3>
         <form id="always-show-votes-form" action="#">
           <input type="hidden" name="admin" value="always-show-votes" />
           <button type="submit" id="always-show-votes" aria-pressed="false">Always show votes</button>
