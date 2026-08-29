@@ -9,6 +9,9 @@ import (
 
 func roomStateHTML(n int, rows []participant, alwaysShow bool) string {
 	sort.Slice(rows, func(i, j int) bool {
+		if rows[i].observer != rows[j].observer {
+			return !rows[i].observer
+		}
 		if rows[i].name != rows[j].name {
 			return rows[i].name < rows[j].name
 		}
@@ -17,6 +20,9 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool) string {
 	masked := false
 	if !alwaysShow {
 		for _, row := range rows {
+			if row.observer {
+				continue
+			}
 			if row.points == "" {
 				masked = true
 				break
@@ -28,7 +34,9 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool) string {
 	listHTML.WriteString(`<thead><tr><th scope="col">Name</th><th scope="col">Points</th></tr></thead><tbody>`)
 	for _, row := range rows {
 		points := row.points
-		if masked && points != "" {
+		if row.observer {
+			points = "observer"
+		} else if masked && points != "" {
 			points = "???"
 		}
 		flash := ""

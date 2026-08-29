@@ -15,9 +15,11 @@ var allowedVotePoints = map[string]bool{
 	"13": true,
 	"20": true,
 }
+
 const (
 	adminAlwaysShowVotes = "always-show-votes"
-	adminClearVotes = "clear-votes"
+	adminClearVotes      = "clear-votes"
+	adminObserverMode    = "observer-mode"
 )
 
 func parseVotePoints(payload []byte) (string, bool) {
@@ -49,7 +51,7 @@ func parseVotePoints(payload []byte) (string, bool) {
 
 }
 
-func parseAdminAction(payload []byte)(string, bool){
+func parseAdminAction(payload []byte) (string, bool) {
 	var m map[string]any
 	if err := json.Unmarshal(payload, &m); err != nil {
 		return "", false
@@ -63,7 +65,7 @@ func parseAdminAction(payload []byte)(string, bool){
 		return "", false
 	}
 	switch s {
-	case adminAlwaysShowVotes, adminClearVotes:
+	case adminAlwaysShowVotes, adminClearVotes, adminObserverMode:
 		return s, true
 	default:
 		return "", false

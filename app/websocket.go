@@ -76,6 +76,8 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 					h.clearVotes()
 				case adminAlwaysShowVotes:
 					h.toggleAlwaysShowVotes()
+				case adminObserverMode:
+					h.toggleObserver(conn)
 				}
 				h.broadcastRoomState(nil)
 				continue

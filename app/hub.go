@@ -9,9 +9,10 @@ import (
 )
 
 type participant struct {
-	name   string
-	points string
-	flash  bool
+	name     string
+	points   string
+	flash    bool
+	observer bool
 }
 
 // Hub tracks active WebSocket connections (one browser tab/session) for one room.
@@ -54,10 +55,25 @@ func (h *Hub) setPoints(c *websocket.Conn, points string) bool {
 	defer h.mu.Unlock()
 
 	p, ok := h.conns[c]
-	if !ok {
+	if !ok || p.observer {
 		return false
 	}
 	p.points = points
+	h.conns[c] = p
+	return true
+}
+
+func (h *Hub) toggleObserver(c *websocket.Conn) bool {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	p, ok := h.conns[c]
+	if !ok {
+		return false
+	}
+	p.observer = !p.observer
+	if p.observer {
+		p.points = ""
+	}
 	h.conns[c] = p
 	return true
 }
@@ -72,7 +88,7 @@ func (h *Hub) clearVotes() {
 	}
 }
 
-func (h *Hub) toggleAlwaysShowVotes(){
+func (h *Hub) toggleAlwaysShowVotes() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 

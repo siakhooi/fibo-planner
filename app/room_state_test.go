@@ -103,3 +103,31 @@ func TestRoomStateHTMLAlwaysShowVotesSkipsMasking(t *testing.T) {
 		t.Fatalf("always-show button should be pressed: %s", html)
 	}
 }
+
+func TestRoomStateHTMLObserversListedLastAndSkipMasking(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(3, []participant{
+		{name: "Zed", observer: true, points: "8"},
+		{name: "Ada", points: "5"},
+		{name: "Bob", observer: true},
+	}, false)
+	if strings.Contains(html, "???") {
+		t.Fatalf("observer should not keep votes masked: %s", html)
+	}
+	if !strings.Contains(html, "<td>Ada</td><td>5</td>") {
+		t.Fatalf("Ada's vote should be revealed: %s", html)
+	}
+	ada := strings.Index(html, "<td>Ada</td>")
+	zed := strings.Index(html, "<td>Zed</td>")
+	bob := strings.Index(html, "<td>Bob</td>")
+	if ada < 0 || zed < 0 || bob < 0 || ada > bob || bob > zed {
+		t.Fatalf("voters then observers by name, want Ada then Bob, Zed: %s", html)
+	}
+	if !strings.Contains(html, "<td>Zed</td><td>observer</td>") || !strings.Contains(html, "<td>Bob</td><td>observer</td>") {
+		t.Fatalf("observer cells should say observer: %s", html)
+	}
+	if strings.Contains(html, "<td>Zed</td><td>8</td>") {
+		t.Fatalf("observer previous vote should not show: %s", html)
+	}
+}

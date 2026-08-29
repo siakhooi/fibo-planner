@@ -36,6 +36,7 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`Administration`,
 		`id="always-show-votes"`,
 		`id="clear-votes"`,
+		`id="observer-mode"`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("room page missing %q", want)
@@ -144,6 +145,46 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 		t.Fatalf("all votes should be blank: %s", cleared)
 	}
 	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+}
+
+func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	ada := dialRoom(t, srv, roomID, "Ada")
+	waitForMessage(t, ada, "<td>Ada</td><td></td>")
+	bob := dialRoom(t, srv, roomID, "Bob")
+	waitForMessage(t, ada, "<td>Bob</td><td></td>")
+	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
+		t.Fatalf("ada vote: %v", err)
+	}
+	waitForMessage(t, bob, `<td>Ada</td><td class="vote-flash">???</td>`)
+
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"observer-mode"}`)); err != nil {
+		t.Fatalf("observer: %v", err)
+	}
+	revealed := waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
+	if !strings.Contains(revealed, "<td>Bob</td><td>observer</td>") {
+		t.Fatalf("bob should be listed as observer last: %s", revealed)
+	}
+	if strings.Contains(revealed, "???") {
+		t.Fatalf("bob as observer should not keep the round masked: %s", revealed)
+	}
+	waitForMessage(t, bob, "<td>Bob</td><td>observer</td>")
+
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"points":"5"}`)); err != nil {
+		t.Fatalf("observer vote: %v", err)
+	}
+	if err := bob.SetReadDeadline(time.Now().Add(200 * time.Millisecond)); err != nil {
+		t.Fatalf("deadline: %v", err)
+	}
+	_, msg, err := bob.ReadMessage()
+	if err == nil && strings.Contains(string(msg), "<td>Bob</td><td>5</td>") {
+		t.Fatalf("observer must not be able to vote: %s", msg)
+	}
 }
 
 func createRoom(t *testing.T, srv *httptest.Server, name string) string {

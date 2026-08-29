@@ -48,6 +48,7 @@ func TestParseAdminAction(t *testing.T) {
 	}{
 		{name: "clear", payload: `{"admin":"clear-votes","HEADERS":{}}`, want: adminClearVotes, ok: true},
 		{name: "always show", payload: `{"admin":"always-show-votes"}`, want: adminAlwaysShowVotes, ok: true},
+		{name: "observer", payload: `{"admin":"observer-mode"}`, want: adminObserverMode, ok: true},
 		{name: "unknown", payload: `{"admin":"explode"}`, ok: false},
 		{name: "vote", payload: `{"points":"8"}`, ok: false},
 	}

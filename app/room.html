@@ -23,8 +23,8 @@
     .join-form button { padding: 0.45rem 1rem; }
     .button-grid { display: grid; grid-template-columns: repeat(4, 80px); gap: 12px; }
     .button-grid button { width: 80px; height: 80px; font-size: 24px; font-weight: bold; border: 1px solid #888; border-radius: 8px; background: #f5f5f5; cursor: pointer; touch-action: manipulation; }
-    .button-grid button:active { background: #ddd; }
-  
+    .button-grid button:disabled { opacity: 0.4; cursor: not-allowed; background: #eee; }
+
     .user-table { width: 100%; max-width: 28rem; border-collapse: collapse; font-size: 0.95rem; margin: 0.35rem 0 0; }
     .user-table th, .user-table td { text-align: left; padding: 0.45rem 0.6rem; border: 1px solid #ddd; }
     .user-table thead th { background: #f5f5f5; font-weight: 600; }
@@ -104,6 +104,11 @@
           <input type="hidden" name="admin" value="clear-votes" />
           <button type="submit" id="clear-votes">Clear votes</button>
         </form>
+        <h3>My Options</h3>
+        <form id="observer-mode-form" action="#">
+          <input type="hidden" name="admin" value="observer-mode" />
+          <button type="submit" id="observer-mode" aria-pressed="false">I am Observer</button>
+        </form>
         <h3>Global Options</h3>
         <form id="always-show-votes-form" action="#">
           <input type="hidden" name="admin" value="always-show-votes" />
@@ -154,13 +159,20 @@
       var myName = "";
 
       function showMyVote() {
+        var observerBtn = document.getElementById("observer-mode");
+        var voteButtons = pointsForm.querySelectorAll("button");
         var rows = document.querySelectorAll("#user-list tbody tr");
         for (var i = 0; i < rows.length; i++) {
           var cells = rows[i].cells;
           if (cells[0].textContent !== myName) {
             continue;
           }
-          if (cells[1].textContent === "") {
+          var isObserver = cells[1].textContent === "observer";
+          observerBtn.setAttribute("aria-pressed", isObserver ? "true" : "false");
+          for (var j = 0; j < voteButtons.length; j++) {
+            voteButtons[j].disabled = isObserver;
+          }
+          if (isObserver || cells[1].textContent === "") {
             pointsValue.value = "";
             return;
           }
@@ -195,6 +207,7 @@
         document.getElementById("points-form").setAttribute("ws-send", "");
         document.getElementById("always-show-votes-form").setAttribute("ws-send", "");
         document.getElementById("clear-votes-form").setAttribute("ws-send", "");
+        document.getElementById("observer-mode-form").setAttribute("ws-send", "");
         htmx.process(el);
       }
 
