@@ -1,16 +1,11 @@
 run:
 	go run ./app
-curl:
-	curl http://localhost:8080
 
-golangci-lint:
-	golangci-lint run 2>&1 | tee golangci-lint.log
-test:
-	./scripts/test.sh
 build:
 	go mod tidy
-	golangci-lint run
+	golangci-lint run 2>&1 | tee golangci-lint.log
 	go build -C app -o ../target/server
+	./scripts/test.sh
 
 all: build docker-build
 

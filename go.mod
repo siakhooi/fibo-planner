@@ -1,6 +1,6 @@
 module github.com/siakhooi/fibo-planner
 
-go 1.26.2
+go 1.27.0
 
 require (
 	github.com/go-chi/chi/v5 v5.3.2
