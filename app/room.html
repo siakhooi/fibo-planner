@@ -99,6 +99,22 @@
       var input = document.getElementById("display-name");
       var pointsForm = document.getElementById("points-form");
       var pointsValue = document.getElementById("points-value");
+      var myName = "";
+
+      function showMyVote() {
+        var mine = pointsValue.value;
+        if (!mine) return;
+        var rows = document.querySelectorAll("#user-list tbody tr");
+        for (var i = 0; i < rows.length; i++) {
+          var cells = rows[i].cells;
+          if (cells[0].textContent === myName && cells[1].textContent === "???") {
+            cells[1].textContent = mine;
+            break;
+          }
+        }
+      }
+
+      document.getElementById("room-ws").addEventListener("htmx:wsAfterMessage", showMyVote);
 
       pointsForm.addEventListener("click", function (e) {
         var btn = e.target.closest("button[data-points]");
@@ -111,6 +127,7 @@
         if (!displayName) {
           return;
         }
+        myName = displayName;
         localStorage.setItem(key, displayName);
         gate.hidden = true;
         main.hidden = false;
