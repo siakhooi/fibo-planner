@@ -51,14 +51,14 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 	}
 	h.add(conn, displayName)
 	a.cancelRoomEviction(roomID)
-	h.broadcastRoomState()
+	h.broadcastRoomState(nil)
 	a.broadcastLobbyState()
 
 	go func() {
 		defer func() {
 			_ = conn.Close()
 			remaining := h.remove(conn)
-			h.broadcastRoomState()
+			h.broadcastRoomState(nil)
 			a.broadcastLobbyState()
 			if remaining == 0 {
 				a.scheduleRoomEviction(roomID, h)
@@ -74,7 +74,7 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 				continue
 			}
 			if h.setPoints(conn, points) {
-				h.broadcastRoomState()
+				h.broadcastRoomState(conn)
 			}
 		}
 	}()

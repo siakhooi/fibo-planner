@@ -28,7 +28,12 @@
     .user-table th, .user-table td { text-align: left; padding: 0.45rem 0.6rem; border: 1px solid #ddd; }
     .user-table thead th { background: #f5f5f5; font-weight: 600; }
     .user-table tbody tr:nth-child(even) { background: #fafafa; }
-  </style>
+    @keyframes vote-flash {
+      0%, 40% { background: #fde68a; font-weight: 700; }
+      100% { background: transparent; font-weight: inherit; }
+    }
+    .user-table td.vote-flash { animation: vote-flash 1.6s ease-out; }
+</style>
 </head>
 <body>
   <p class="crumb"><a href="/">Fibo Planner</a> · Room</p>

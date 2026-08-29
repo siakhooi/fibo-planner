@@ -29,7 +29,11 @@ func roomStateHTML(n int, rows []participant) string {
 		if masked && points != "" {
 			points = "???"
 		}
-		fmt.Fprintf(&listHTML, "<tr><td>%s</td><td>%s</td></tr>", html.EscapeString(row.name), html.EscapeString(points))
+		flash := ""
+		if row.flash {
+			flash = ` class="vote-flash"`
+		}
+		fmt.Fprintf(&listHTML, "<tr><td>%s</td><td%s>%s</td></tr>", html.EscapeString(row.name), flash, html.EscapeString(points))
 	}
 	listHTML.WriteString("</tbody></table>")
 

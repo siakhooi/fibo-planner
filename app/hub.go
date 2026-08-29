@@ -11,6 +11,7 @@ import (
 type participant struct {
 	name   string
 	points string
+	flash  bool
 }
 
 // Hub tracks active WebSocket connections (one browser tab/session) for one room.
@@ -77,12 +78,13 @@ func (h *Hub) writeTextToAll(payload []byte) {
 }
 
 // broadcastRoomState sends session count and the participant table (room page only).
-func (h *Hub) broadcastRoomState() {
+func (h *Hub) broadcastRoomState(voted *websocket.Conn) {
 	h.mu.Lock()
 	n := len(h.conns)
 
 	rows := make([]participant, 0, n)
-	for _, p := range h.conns {
+	for c, p := range h.conns {
+		p.flash = voted != nil && c == voted
 		rows = append(rows, p)
 	}
 

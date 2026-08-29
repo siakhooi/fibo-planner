@@ -58,8 +58,8 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
 		t.Fatalf("ada vote: %v", err)
 	}
-	gotAda := waitForMessage(t, ada, "<td>Ada</td><td>???</td>")
-	gotBob := waitForMessage(t, bob, "<td>Ada</td><td>???</td>")
+	gotAda := waitForMessage(t, ada, `<td>Ada</td><td class="vote-flash">???</td>`)
+	gotBob := waitForMessage(t, bob, `<td>Ada</td><td class="vote-flash">???</td>`)
 	if !strings.Contains(gotAda, `th scope="col">Points`) {
 		t.Fatalf("table missing Points column: %s", gotAda)
 	}
@@ -71,10 +71,10 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 		t.Fatalf("bob vote: %v", err)
 	}
 	revealed := waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
-	if !strings.Contains(revealed, "<td>Bob</td><td>5</td>") {
-		t.Fatalf("points should be revealed after everyone votes: %s", revealed)
+	if !strings.Contains(revealed, `<td>Bob</td><td class="vote-flash">5</td>`) {
+		t.Fatalf("bob's vote should be highlighted: %s", revealed)
 	}
-	waitForMessage(t, bob, "<td>Bob</td><td>5</td>")
+	waitForMessage(t, bob, `<td>Bob</td><td class="vote-flash">5</td>`)
 }
 
 func createRoom(t *testing.T, srv *httptest.Server, name string) string {

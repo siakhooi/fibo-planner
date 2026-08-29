@@ -70,3 +70,18 @@ func TestRoomStateHTMLRevealsPointsWhenEveryoneVoted(t *testing.T) {
 		t.Fatalf("missing revealed points: %s", html)
 	}
 }
+
+func TestRoomStateHTMLFlashesTheVotedCell(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(2, []participant{
+		{name: "Ada", points: "8", flash: true},
+		{name: "Bob", points: ""},
+	})
+	if !strings.Contains(html, `<td>Ada</td><td class="vote-flash">???</td>`) {
+		t.Fatalf("Ada's masked vote should flash: %s", html)
+	}
+	if strings.Contains(html, `Bob</td><td class="vote-flash"`) {
+		t.Fatalf("Bob should not flash: %s", html)
+	}
+}
