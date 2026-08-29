@@ -43,6 +43,34 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 	}
 }
 
+func TestCreateRoomWithoutName(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "")
+
+	home, err := http.Get(srv.URL + "/")
+	if err != nil {
+		t.Fatalf("home: %v", err)
+	}
+	defer func() { _ = home.Body.Close() }()
+	body, err := io.ReadAll(home.Body)
+	if err != nil {
+		t.Fatalf("read home: %v", err)
+	}
+	if !strings.Contains(string(body), "Room "+roomID) {
+		t.Fatalf("lobby missing unnamed room %s: %s", roomID, body)
+	}
+
+	room, err := http.Get(srv.URL + "/" + roomID)
+	if err != nil {
+		t.Fatalf("room page: %v", err)
+	}
+	defer func() { _ = room.Body.Close() }()
+	if room.StatusCode != http.StatusOK {
+		t.Fatalf("room page status %d", room.StatusCode)
+	}
+}
 func TestVoteBroadcastToAllParticipants(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)

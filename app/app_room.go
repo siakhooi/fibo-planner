@@ -89,9 +89,7 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	a.roomHubs[id] = newHub()
-	if name != "" {
-		a.rooms[id] = newRoom(name)
-	}
+	a.rooms[id] = newRoom(name)
 	a.scheduleRoomEvictionLocked(id, a.roomHubs[id])
 	a.mu.Unlock()
 

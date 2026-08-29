@@ -36,11 +36,12 @@
 </style>
 </head>
 <body>
-  <p class="crumb"><a href="/">Fibo Planner</a> · Room</p>
+  <p class="crumb"><a href="/">Fibo Planner</a> · <a href="/{{.RoomID}}">Room {{.RoomID}}</a></p>
 
-  <h1>Room {{.RoomID}}</h1>
   {{if .RoomName}}
-  <p><strong>{{.RoomName}}</strong></p>
+  <h1>Room {{.RoomName}}</h1>
+  {{else}}
+  <h1>Room {{.RoomID}}</h1>
   {{end}}
 
   <section id="join-gate" class="join-gate">
