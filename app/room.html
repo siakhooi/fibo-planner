@@ -9,6 +9,7 @@
   <style>
     body { font-family: system-ui, sans-serif; max-width: 40rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
     h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 1rem; }
     .meta { color: #444; margin-top: 1rem; }
     .crumb { font-size: 0.9rem; margin-bottom: 1rem; }
     .crumb a { color: #2563eb; }
@@ -64,7 +65,7 @@
   </section>
 
   <div id="room-main" class="room-main" hidden>
-    <p id="welcome-line">Welcome! Share this URL with your team. When everyone has joined, you can start estimating.</p>
+    <h2 id="user-name"></h2>
 
     <div id="room-ws" hx-ext="ws" class="meta">
       <form id="points-form" action="#">
@@ -137,9 +138,7 @@
         localStorage.setItem(key, displayName);
         gate.hidden = true;
         main.hidden = false;
-        var welcome = document.getElementById("welcome-line");
-        welcome.textContent =
-          "Welcome, " + displayName + "! Share this URL with your team. When everyone has joined, you can start estimating.";
+        document.getElementById("user-name").textContent = displayName;
         var el = document.getElementById("room-ws");
         el.setAttribute("ws-connect", "/ws/" + roomID + "?name=" + encodeURIComponent(displayName));
         document.getElementById("points-form").setAttribute("ws-send", "");
