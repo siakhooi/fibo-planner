@@ -78,11 +78,26 @@ func TestRoomStateHTMLFlashesTheVotedCell(t *testing.T) {
 		{name: "Ada", points: "8", flash: true},
 		{name: "Bob", points: ""},
 	}, false)
-	if !strings.Contains(html, `<td>Ada</td><td class="vote-flash">???</td>`) {
+	if !strings.Contains(html, `<td class="vote-flash">Ada</td><td class="vote-flash">???</td>`) {
 		t.Fatalf("Ada's masked vote should flash: %s", html)
 	}
-	if strings.Contains(html, `Bob</td><td class="vote-flash"`) {
+	if strings.Contains(html, `Bob</td><td class="vote-flash"`) || strings.Contains(html, `class="vote-flash">Bob`) {
 		t.Fatalf("Bob should not flash: %s", html)
+	}
+}
+
+func TestRoomStateHTMLFlashesObserverRoleChange(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(2, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", observer: true, flash: true},
+	}, false)
+	if !strings.Contains(html, `<td class="vote-flash">Bob</td><td class="vote-flash">observer</td>`) {
+		t.Fatalf("Bob's observer switch should flash: %s", html)
+	}
+	if strings.Contains(html, `class="vote-flash">Ada`) {
+		t.Fatalf("Ada should not flash: %s", html)
 	}
 }
 

@@ -51,7 +51,7 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 	}
 	h.add(conn, displayName)
 	a.cancelRoomEviction(roomID)
-	h.broadcastRoomState(nil)
+	h.broadcastRoomState(conn)
 	a.broadcastLobbyState()
 
 	go func() {
@@ -71,15 +71,18 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 			}
 			action, isAdmin := parseAdminAction(msg)
 			if isAdmin {
+				var highlight *websocket.Conn
 				switch action {
 				case adminClearVotes:
 					h.clearVotes()
 				case adminAlwaysShowVotes:
 					h.toggleAlwaysShowVotes()
 				case adminObserverMode:
-					h.toggleObserver(conn)
+					if h.toggleObserver(conn) {
+						highlight = conn
+					}
 				}
-				h.broadcastRoomState(nil)
+				h.broadcastRoomState(highlight)
 				continue
 			}
 			points, ok := parseVotePoints(msg)

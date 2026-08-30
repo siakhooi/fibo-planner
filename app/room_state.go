@@ -49,7 +49,7 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool) string {
 		if row.flash {
 			flash = ` class="vote-flash"`
 		}
-		fmt.Fprintf(&listHTML, "<tr><td>%s</td><td%s>%s</td></tr>", html.EscapeString(row.name), flash, html.EscapeString(points))
+		fmt.Fprintf(&listHTML, "<tr><td%s>%s</td><td%s>%s</td></tr>", flash, html.EscapeString(row.name), flash, html.EscapeString(points))
 	}
 	listHTML.WriteString("</tbody></table>")
 

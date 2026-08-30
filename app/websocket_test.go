@@ -85,17 +85,20 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 
 	roomID := createRoom(t, srv, "sprint")
 	ada := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, ada, "<td>Ada</td><td></td>")
+	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
 
 	bob := dialRoom(t, srv, roomID, "Bob")
-	waitForMessage(t, ada, "<td>Bob</td><td></td>")
+	joined := waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
+	if !strings.Contains(joined, "<td>Ada</td><td></td>") {
+		t.Fatalf("Ada should not flash when Bob joins: %s", joined)
+	}
 	waitForMessage(t, bob, "<td>Ada</td><td></td>")
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
 		t.Fatalf("ada vote: %v", err)
 	}
-	gotAda := waitForMessage(t, ada, `<td>Ada</td><td class="vote-flash">???</td>`)
-	gotBob := waitForMessage(t, bob, `<td>Ada</td><td class="vote-flash">???</td>`)
+	gotAda := waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash">???</td>`)
+	gotBob := waitForMessage(t, bob, `<td class="vote-flash">Ada</td><td class="vote-flash">???</td>`)
 	if !strings.Contains(gotAda, `th scope="col">Points`) {
 		t.Fatalf("table missing Points column: %s", gotAda)
 	}
@@ -110,7 +113,7 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 		t.Fatalf("bob vote: %v", err)
 	}
 	revealed := waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
-	if !strings.Contains(revealed, `<td>Bob</td><td class="vote-flash">5</td>`) {
+	if !strings.Contains(revealed, `<td class="vote-flash">Bob</td><td class="vote-flash">5</td>`) {
 		t.Fatalf("bob's vote should be highlighted: %s", revealed)
 	}
 	if strings.Contains(revealed, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
@@ -121,7 +124,7 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 	if five < 0 || eight < 0 || five > eight {
 		t.Fatalf("tied counts should both be highlighted, 5 then 8: %s", revealed)
 	}
-	waitForMessage(t, bob, `<td>Bob</td><td class="vote-flash">5</td>`)
+	waitForMessage(t, bob, `<td class="vote-flash">Bob</td><td class="vote-flash">5</td>`)
 }
 
 func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
@@ -130,15 +133,15 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 
 	roomID := createRoom(t, srv, "sprint")
 	ada := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, ada, "<td>Ada</td><td></td>")
+	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
 	bob := dialRoom(t, srv, roomID, "Bob")
-	waitForMessage(t, ada, "<td>Bob</td><td></td>")
+	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
 	waitForMessage(t, bob, "<td>Ada</td><td></td>")
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
 		t.Fatalf("ada vote: %v", err)
 	}
-	waitForMessage(t, bob, `<td>Ada</td><td class="vote-flash">???</td>`)
+	waitForMessage(t, bob, `<td class="vote-flash">Ada</td><td class="vote-flash">???</td>`)
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"always-show-votes"}`)); err != nil {
 		t.Fatalf("always show: %v", err)
@@ -174,22 +177,22 @@ func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {
 
 	roomID := createRoom(t, srv, "sprint")
 	ada := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, ada, "<td>Ada</td><td></td>")
+	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
 	bob := dialRoom(t, srv, roomID, "Bob")
-	waitForMessage(t, ada, "<td>Bob</td><td></td>")
+	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
 	waitForMessage(t, bob, "<td>Ada</td><td></td>")
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
 		t.Fatalf("ada vote: %v", err)
 	}
-	waitForMessage(t, bob, `<td>Ada</td><td class="vote-flash">???</td>`)
+	waitForMessage(t, bob, `<td class="vote-flash">Ada</td><td class="vote-flash">???</td>`)
 
 	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"observer-mode"}`)); err != nil {
 		t.Fatalf("observer: %v", err)
 	}
-	revealed := waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
-	if !strings.Contains(revealed, "<td>Bob</td><td>observer</td>") {
-		t.Fatalf("bob should be listed as observer last: %s", revealed)
+	revealed := waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash">observer</td>`)
+	if !strings.Contains(revealed, "<td>Ada</td><td>8</td>") {
+		t.Fatalf("Ada's vote should be revealed: %s", revealed)
 	}
 	if strings.Contains(revealed, "???") {
 		t.Fatalf("bob as observer should not keep the round masked: %s", revealed)
@@ -200,7 +203,7 @@ func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {
 	if !strings.Contains(revealed, `<tr class="vote-leader"><td>8</td><td>1</td><td>100%</td></tr>`) {
 		t.Fatalf("results should tally Ada only: %s", revealed)
 	}
-	waitForMessage(t, bob, "<td>Bob</td><td>observer</td>")
+	waitForMessage(t, bob, `<td class="vote-flash">Bob</td><td class="vote-flash">observer</td>`)
 
 	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"points":"5"}`)); err != nil {
 		t.Fatalf("observer vote: %v", err)
@@ -211,6 +214,17 @@ func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {
 	_, msg, err := bob.ReadMessage()
 	if err == nil && strings.Contains(string(msg), "<td>Bob</td><td>5</td>") {
 		t.Fatalf("observer must not be able to vote: %s", msg)
+	}
+
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"observer-mode"}`)); err != nil {
+		t.Fatalf("voter again: %v", err)
+	}
+	voterAgain := waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
+	if strings.Contains(voterAgain, "observer") {
+		t.Fatalf("Bob should be a voter again: %s", voterAgain)
+	}
+	if !strings.Contains(voterAgain, "<td>Ada</td><td>???</td>") {
+		t.Fatalf("Ada's vote should be masked once Bob is a voter again: %s", voterAgain)
 	}
 }
 

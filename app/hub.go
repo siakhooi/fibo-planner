@@ -112,7 +112,8 @@ func (h *Hub) writeTextToAll(payload []byte) {
 }
 
 // broadcastRoomState sends session count and the participant table (room page only).
-func (h *Hub) broadcastRoomState(voted *websocket.Conn) {
+// highlight, if non-nil, is the connection whose row should flash (vote, join, or role change).
+func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	h.mu.Lock()
 	n := len(h.conns)
 
@@ -120,7 +121,7 @@ func (h *Hub) broadcastRoomState(voted *websocket.Conn) {
 
 	rows := make([]participant, 0, n)
 	for c, p := range h.conns {
-		p.flash = voted != nil && c == voted
+		p.flash = highlight != nil && c == highlight
 		rows = append(rows, p)
 	}
 
