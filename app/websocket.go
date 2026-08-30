@@ -73,8 +73,9 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 			if isAdmin {
 				var highlight *websocket.Conn
 				switch action {
-				case adminClearVotes:
-					h.clearVotes()
+				case adminResetTopic:
+					title, clearVotes := parseResetTopic(msg)
+					h.resetTopic(title, clearVotes)
 				case adminAlwaysShowVotes:
 					h.toggleAlwaysShowVotes()
 				case adminObserverMode:

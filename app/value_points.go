@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"strconv"
+	"strings"
 )
 
 var allowedVotePoints = map[string]bool{
@@ -18,7 +19,7 @@ var allowedVotePoints = map[string]bool{
 
 const (
 	adminAlwaysShowVotes = "always-show-votes"
-	adminClearVotes      = "clear-votes"
+	adminResetTopic      = "reset-topic"
 	adminObserverMode    = "observer-mode"
 )
 
@@ -65,10 +66,40 @@ func parseAdminAction(payload []byte) (string, bool) {
 		return "", false
 	}
 	switch s {
-	case adminAlwaysShowVotes, adminClearVotes, adminObserverMode:
+	case adminAlwaysShowVotes, adminResetTopic, adminObserverMode:
 		return s, true
 	default:
 		return "", false
 	}
 
+}
+
+func parseResetTopic(payload []byte) (title string, clearVotes bool) {
+	var m map[string]any
+	if err := json.Unmarshal(payload, &m); err != nil {
+		return "", false
+	}
+	return jsonString(m["topic-title"]), jsonTruthy(m["clear-votes"])
+}
+
+func jsonString(v any) string {
+	s, ok := v.(string)
+	if !ok {
+		return ""
+	}
+	return strings.TrimSpace(s)
+}
+
+func jsonTruthy(v any) bool {
+	switch t := v.(type) {
+	case bool:
+		return t
+	case string:
+		s := strings.ToLower(strings.TrimSpace(t))
+		return s == "on" || s == "true" || s == "yes" || s == "1"
+	case float64:
+		return t != 0
+	default:
+		return false
+	}
 }

@@ -8,8 +8,9 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js"></script>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 68rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
-    h1 { font-size: 1.5rem; }
+    h1 { font-size: 1.5rem; margin-bottom: 0.2rem; }
     h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 1rem; }
+    .topic-title { font-size: 1.25rem; font-weight: 700; margin: 0 0 1rem; color: #111; overflow-wrap: anywhere; }
     .meta { color: #444; margin-top: 1rem; }
     .crumb { font-size: 0.9rem; margin-bottom: 1rem; }
     .crumb a { color: #2563eb; }
@@ -56,6 +57,22 @@
     }
     .admin-panel form { margin: 0 0 0.5rem; }
     .admin-panel form:last-child { margin-bottom: 0; }
+    .admin-panel label { display: block; font-size: 0.85rem; margin-bottom: 0.3rem; }
+    .admin-panel input[type="text"] {
+      width: 100%;
+      box-sizing: border-box;
+      padding: 0.4rem;
+      margin-bottom: 0.55rem;
+    }
+    .admin-panel .check {
+      display: flex;
+      align-items: center;
+      gap: 0.4rem;
+      margin: 0 0 0.55rem;
+      font-size: 0.85rem;
+      cursor: pointer;
+    }
+    .admin-panel input[type="checkbox"] { margin: 0; }
     .admin-panel button {
       width: 100%;
       padding: 0.5rem 0.6rem;
@@ -82,6 +99,7 @@
   {{else}}
   <h1>Room {{.RoomID}}</h1>
   {{end}}
+  <h2 id="topic-title" class="topic-title"{{if not .TopicTitle}} hidden{{end}}>{{.TopicTitle}}</h2>
 
   <section id="join-gate" class="join-gate">
     <p>Enter your name to join this room.</p>
@@ -106,9 +124,22 @@
     <div id="room-ws" hx-ext="ws" class="room-layout">
       <aside class="admin-panel">
         <h3>Administration</h3>
-        <form id="clear-votes-form" action="#">
-          <input type="hidden" name="admin" value="clear-votes" />
-          <button type="submit" id="clear-votes">Clear votes</button>
+        <form id="reset-topic-form" action="#">
+          <input type="hidden" name="admin" value="reset-topic" />
+          <label for="topic-title-input">Topic Title</label>
+          <input
+            id="topic-title-input"
+            type="text"
+            name="topic-title"
+            maxlength="120"
+            autocomplete="off"
+            placeholder="e.g. Login story"
+          />
+          <label class="check">
+            <input type="checkbox" name="clear-votes" value="on" checked />
+            Clear votes
+          </label>
+          <button type="submit" id="reset-topic">Reset Topic</button>
         </form>
         <h3>My Options</h3>
         <form id="observer-mode-form" action="#">
@@ -225,7 +256,7 @@
         el.setAttribute("ws-connect", "/ws/" + roomID + "?name=" + encodeURIComponent(displayName));
         document.getElementById("points-form").setAttribute("ws-send", "");
         document.getElementById("always-show-votes-form").setAttribute("ws-send", "");
-        document.getElementById("clear-votes-form").setAttribute("ws-send", "");
+        document.getElementById("reset-topic-form").setAttribute("ws-send", "");
         document.getElementById("observer-mode-form").setAttribute("ws-send", "");
         htmx.process(el);
       }

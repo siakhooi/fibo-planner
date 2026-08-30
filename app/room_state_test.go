@@ -5,10 +5,14 @@ import (
 	"testing"
 )
 
+func roomHTML(n int, rows []participant, alwaysShow bool) string {
+	return roomStateHTML(n, rows, alwaysShow, "")
+}
+
 func TestRoomStateHTML(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(2, []participant{
+	html := roomHTML(2, []participant{
 		{name: "Bob", points: "8"},
 		{name: "Ada", points: "3"},
 	}, false)
@@ -30,7 +34,7 @@ func TestRoomStateHTML(t *testing.T) {
 		t.Fatalf("missing points cells: %s", html)
 	}
 
-	escaped := roomStateHTML(1, []participant{{name: "<script>alert(1)</script>", points: "1"}}, false)
+	escaped := roomHTML(1, []participant{{name: "<script>alert(1)</script>", points: "1"}}, false)
 	if strings.Contains(escaped, "<script>") {
 		t.Fatalf("name was not escaped: %s", escaped)
 	}
@@ -41,7 +45,7 @@ func TestRoomStateHTML(t *testing.T) {
 func TestRoomStateHTMLMasksPointsUntilEveryoneVoted(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(2, []participant{
+	html := roomHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: ""},
 	}, false)
@@ -59,7 +63,7 @@ func TestRoomStateHTMLMasksPointsUntilEveryoneVoted(t *testing.T) {
 func TestRoomStateHTMLRevealsPointsWhenEveryoneVoted(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(2, []participant{
+	html := roomHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: "5"},
 	}, false)
@@ -74,7 +78,7 @@ func TestRoomStateHTMLRevealsPointsWhenEveryoneVoted(t *testing.T) {
 func TestRoomStateHTMLFlashesTheVotedCell(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(2, []participant{
+	html := roomHTML(2, []participant{
 		{name: "Ada", points: "8", flash: true},
 		{name: "Bob", points: ""},
 	}, false)
@@ -89,7 +93,7 @@ func TestRoomStateHTMLFlashesTheVotedCell(t *testing.T) {
 func TestRoomStateHTMLFlashesObserverRoleChange(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(2, []participant{
+	html := roomHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", observer: true, flash: true},
 	}, false)
@@ -104,7 +108,7 @@ func TestRoomStateHTMLFlashesObserverRoleChange(t *testing.T) {
 func TestRoomStateHTMLAlwaysShowVotesSkipsMasking(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(2, []participant{
+	html := roomHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: ""},
 	}, true)
@@ -122,7 +126,7 @@ func TestRoomStateHTMLAlwaysShowVotesSkipsMasking(t *testing.T) {
 func TestRoomStateHTMLObserversListedLastAndSkipMasking(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(3, []participant{
+	html := roomHTML(3, []participant{
 		{name: "Zed", observer: true, points: "8"},
 		{name: "Ada", points: "5"},
 		{name: "Bob", observer: true},
@@ -153,7 +157,7 @@ const voteResultsVisibleMarkup = `id="vote-results" class="user-table results-ta
 func TestRoomStateHTMLHidesResultsUntilEveryoneVoted(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(2, []participant{
+	html := roomHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: ""},
 	}, false)
@@ -168,7 +172,7 @@ func TestRoomStateHTMLHidesResultsUntilEveryoneVoted(t *testing.T) {
 func TestRoomStateHTMLHidesResultsWhenAlwaysShowButNotEveryoneVoted(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(2, []participant{
+	html := roomHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: ""},
 	}, true)
@@ -180,7 +184,7 @@ func TestRoomStateHTMLHidesResultsWhenAlwaysShowButNotEveryoneVoted(t *testing.T
 func TestRoomStateHTMLHidesResultsWhenOnlyObservers(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(1, []participant{
+	html := roomHTML(1, []participant{
 		{name: "Ada", observer: true},
 	}, false)
 	if !strings.Contains(html, voteResultsHiddenMarkup) {
@@ -191,7 +195,7 @@ func TestRoomStateHTMLHidesResultsWhenOnlyObservers(t *testing.T) {
 func TestRoomStateHTMLShowsResultsOrderedByCount(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(4, []participant{
+	html := roomHTML(4, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: "5"},
 		{name: "Cyd", points: "8"},
@@ -220,7 +224,7 @@ func TestRoomStateHTMLShowsResultsOrderedByCount(t *testing.T) {
 func TestRoomStateHTMLHighlightsTiedHighestCounts(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(4, []participant{
+	html := roomHTML(4, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: "5"},
 		{name: "Cyd", points: "8"},
@@ -239,7 +243,7 @@ func TestRoomStateHTMLHighlightsTiedHighestCounts(t *testing.T) {
 func TestRoomStateHTMLResultsIgnoreObservers(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(3, []participant{
+	html := roomHTML(3, []participant{
 		{name: "Ada", points: "5"},
 		{name: "Bob", observer: true},
 		{name: "Zed", observer: true, points: "8"},
@@ -299,5 +303,26 @@ func TestPercentOf(t *testing.T) {
 		if got := percentOf(c.count, c.total); got != c.want {
 			t.Fatalf("percentOf(%d, %d) = %d, want %d", c.count, c.total, got, c.want)
 		}
+	}
+}
+
+func TestRoomStateHTMLHidesEmptyTopic(t *testing.T) {
+	t.Parallel()
+
+	html := roomHTML(1, []participant{{name: "Ada"}}, false)
+	if !strings.Contains(html, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true" hidden></h2>`) {
+		t.Fatalf("empty topic should be hidden: %s", html)
+	}
+}
+
+func TestRoomStateHTMLShowsEscapedTopic(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(1, []participant{{name: "Ada", points: "1"}}, false, "<script>x</script>")
+	if !strings.Contains(html, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">&lt;script&gt;x&lt;/script&gt;</h2>`) {
+		t.Fatalf("topic should be visible and escaped: %s", html)
+	}
+	if strings.Contains(html, `id="topic-title" class="topic-title" hx-swap-oob="true" hidden`) {
+		t.Fatalf("topic heading should not be hidden: %s", html)
 	}
 }

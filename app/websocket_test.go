@@ -35,7 +35,11 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`data-points="8"`,
 		`Administration`,
 		`id="always-show-votes"`,
-		`id="clear-votes"`,
+		`id="reset-topic"`,
+		`id="topic-title"`,
+		`id="topic-title-input"`,
+		`name="clear-votes"`,
+		`value="on" checked`,
 		`id="observer-mode"`,
 		`class="results-panel"`,
 		`id="vote-results"`,
@@ -158,8 +162,8 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 	}
 	waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
 
-	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"clear-votes"}`)); err != nil {
-		t.Fatalf("clear votes: %v", err)
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"reset-topic","topic-title":"Login page","clear-votes":"on"}`)); err != nil {
+		t.Fatalf("reset topic: %v", err)
 	}
 	cleared := waitForMessage(t, ada, "<td>Ada</td><td></td>")
 	if !strings.Contains(cleared, "<td>Bob</td><td></td>") {
@@ -168,7 +172,42 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 	if !strings.Contains(cleared, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
 		t.Fatalf("results should hide after votes are cleared: %s", cleared)
 	}
+	if !strings.Contains(cleared, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">Login page</h2>`) {
+		t.Fatalf("topic title should be broadcast: %s", cleared)
+	}
 	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+}
+
+func TestResetTopicWithoutClearingVotes(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	ada := dialRoom(t, srv, roomID, "Ada")
+	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
+	bob := dialRoom(t, srv, roomID, "Bob")
+	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
+	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
+		t.Fatalf("ada vote: %v", err)
+	}
+	waitForMessage(t, bob, `<td class="vote-flash">Ada</td><td class="vote-flash">???</td>`)
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"points":"5"}`)); err != nil {
+		t.Fatalf("bob vote: %v", err)
+	}
+	waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"reset-topic","topic-title":"Next story"}`)); err != nil {
+		t.Fatalf("reset topic: %v", err)
+	}
+	updated := waitForMessage(t, ada, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">Next story</h2>`)
+	if !strings.Contains(updated, "<td>Ada</td><td>8</td>") || !strings.Contains(updated, "<td>Bob</td><td>5</td>") {
+		t.Fatalf("votes should remain when clear is unchecked: %s", updated)
+	}
+	if strings.Contains(updated, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
+		t.Fatalf("results should stay visible: %s", updated)
+	}
 }
 
 func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {

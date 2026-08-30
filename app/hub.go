@@ -21,6 +21,7 @@ type Hub struct {
 	writeMu         sync.Mutex
 	conns           map[*websocket.Conn]participant
 	alwaysShowVotes bool
+	topicTitle      string
 }
 
 func newHub() *Hub {
@@ -78,14 +79,30 @@ func (h *Hub) toggleObserver(c *websocket.Conn) bool {
 	return true
 }
 
-func (h *Hub) clearVotes() {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-
+func (h *Hub) clearVotesLocked() {
 	for c, p := range h.conns {
 		p.points = ""
 		h.conns[c] = p
 	}
+}
+
+func (h *Hub) resetTopic(title string, clearVotes bool) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+
+	if len(title) > 120 {
+		title = title[:120]
+	}
+	h.topicTitle = title
+	if clearVotes {
+		h.clearVotesLocked()
+	}
+}
+
+func (h *Hub) topic() string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.topicTitle
 }
 
 func (h *Hub) toggleAlwaysShowVotes() {
@@ -118,6 +135,7 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	n := len(h.conns)
 
 	alwaysShow := h.alwaysShowVotes
+	topic := h.topicTitle
 
 	rows := make([]participant, 0, n)
 	for c, p := range h.conns {
@@ -126,5 +144,5 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	}
 
 	h.mu.Unlock()
-	h.writeTextToAll([]byte(roomStateHTML(n, rows, alwaysShow)))
+	h.writeTextToAll([]byte(roomStateHTML(n, rows, alwaysShow, topic)))
 }

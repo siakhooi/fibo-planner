@@ -13,7 +13,7 @@ type voteTally struct {
 	count  int
 }
 
-func roomStateHTML(n int, rows []participant, alwaysShow bool) string {
+func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string) string {
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].observer != rows[j].observer {
 			return !rows[i].observer
@@ -62,12 +62,21 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool) string {
 		`<strong id="session-count" hx-swap-oob="true">%d</strong>`+
 			"%s"+
 			`<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="%s">Always show votes</button>`+
+			"%s"+
 			"%s",
 		n,
 		listHTML.String(),
 		pressed,
 		voteResultsHTML(rows),
+		topicHeadingHTML(topic),
 	)
+}
+
+func topicHeadingHTML(topic string) string {
+	if topic == "" {
+		return `<h2 id="topic-title" class="topic-title" hx-swap-oob="true" hidden></h2>`
+	}
+	return fmt.Sprintf(`<h2 id="topic-title" class="topic-title" hx-swap-oob="true">%s</h2>`, html.EscapeString(topic))
 }
 
 func allVotersHaveVoted(rows []participant) bool {
