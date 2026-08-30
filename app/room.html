@@ -7,7 +7,7 @@
   <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js"></script>
   <style>
-    body { font-family: system-ui, sans-serif; max-width: 54rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
+    body { font-family: system-ui, sans-serif; max-width: 68rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
     h1 { font-size: 1.5rem; }
     h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 1rem; }
     .meta { color: #444; margin-top: 1rem; }
@@ -29,21 +29,26 @@
     .user-table th, .user-table td { text-align: left; padding: 0.45rem 0.6rem; border: 1px solid #ddd; }
     .user-table thead th { background: #f5f5f5; font-weight: 600; }
     .user-table tbody tr:nth-child(even) { background: #fafafa; }
+    .results-table tbody tr.vote-leader td { background: #fde68a; font-weight: 600; }
     @keyframes vote-flash {
       0%, 40% { background: #fde68a; font-weight: 700; }
       100% { background: transparent; font-weight: inherit; }
     }
     .user-table td.vote-flash { animation: vote-flash 1.6s ease-out; }
     .room-layout { display: flex; gap: 1.25rem; align-items: flex-start; }
-    .admin-panel {
-      flex: 0 0 12rem;
+    .admin-panel,
+    .results-panel {
       border: 1px solid #ddd;
       border-radius: 8px;
       padding: 0.75rem;
       background: #fafafa;
       box-sizing: border-box;
     }
-    .admin-panel h3 { font-size: 0.8rem; margin: 0 0 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #444; }
+    .admin-panel { flex: 0 0 12rem; }
+    .results-panel { flex: 0 0 14rem; }
+    .results-table th, .results-table td { padding: 0.4rem 0.35rem; }
+    .admin-panel h3,
+    .results-panel h3 { font-size: 0.8rem; margin: 0 0 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #444; }
     .admin-panel form + h3 {
       margin-top: 1rem;
       padding-top: 0.85rem;
@@ -64,7 +69,8 @@
     .room-body { flex: 1; min-width: 0; }
     @media (max-width: 40rem) {
       .room-layout { flex-direction: column; }
-      .admin-panel { flex-basis: auto; width: 100%; }
+      .admin-panel,
+      .results-panel { flex-basis: auto; width: 100%; }
     }
 </style>
 </head>
@@ -143,6 +149,19 @@
           <tbody></tbody>
         </table>
       </div>
+      <aside class="results-panel">
+        <h3>Results</h3>
+        <table id="vote-results" class="user-table results-table" hidden>
+          <thead>
+            <tr>
+              <th scope="col">Points</th>
+              <th scope="col">Count</th>
+              <th scope="col">%</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </aside>
     </div>
   </div>
 

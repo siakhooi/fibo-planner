@@ -37,6 +37,10 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`id="always-show-votes"`,
 		`id="clear-votes"`,
 		`id="observer-mode"`,
+		`class="results-panel"`,
+		`id="vote-results"`,
+		`scope="col">Count`,
+		`scope="col">%`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("room page missing %q", want)
@@ -98,6 +102,9 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 	if !strings.Contains(gotBob, "<td>Bob</td><td></td>") {
 		t.Fatalf("bob row should still have empty points: %s", gotBob)
 	}
+	if !strings.Contains(gotAda, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
+		t.Fatalf("results should stay hidden until everyone voted: %s", gotAda)
+	}
 
 	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"points":"5"}`)); err != nil {
 		t.Fatalf("bob vote: %v", err)
@@ -105,6 +112,14 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 	revealed := waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
 	if !strings.Contains(revealed, `<td>Bob</td><td class="vote-flash">5</td>`) {
 		t.Fatalf("bob's vote should be highlighted: %s", revealed)
+	}
+	if strings.Contains(revealed, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
+		t.Fatalf("results should be visible once everyone voted: %s", revealed)
+	}
+	five := strings.Index(revealed, `<tr class="vote-leader"><td>5</td><td>1</td><td>50%</td></tr>`)
+	eight := strings.Index(revealed, `<tr class="vote-leader"><td>8</td><td>1</td><td>50%</td></tr>`)
+	if five < 0 || eight < 0 || five > eight {
+		t.Fatalf("tied counts should both be highlighted, 5 then 8: %s", revealed)
 	}
 	waitForMessage(t, bob, `<td>Bob</td><td class="vote-flash">5</td>`)
 }
@@ -135,6 +150,9 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 	if !strings.Contains(shown, `aria-pressed="true"`) {
 		t.Fatalf("always-show should be on: %s", shown)
 	}
+	if !strings.Contains(shown, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
+		t.Fatalf("always-show must not reveal the results table early: %s", shown)
+	}
 	waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
 
 	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"clear-votes"}`)); err != nil {
@@ -143,6 +161,9 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 	cleared := waitForMessage(t, ada, "<td>Ada</td><td></td>")
 	if !strings.Contains(cleared, "<td>Bob</td><td></td>") {
 		t.Fatalf("all votes should be blank: %s", cleared)
+	}
+	if !strings.Contains(cleared, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
+		t.Fatalf("results should hide after votes are cleared: %s", cleared)
 	}
 	waitForMessage(t, bob, "<td>Ada</td><td></td>")
 }
@@ -172,6 +193,12 @@ func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {
 	}
 	if strings.Contains(revealed, "???") {
 		t.Fatalf("bob as observer should not keep the round masked: %s", revealed)
+	}
+	if strings.Contains(revealed, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
+		t.Fatalf("results should show once the only remaining voter has voted: %s", revealed)
+	}
+	if !strings.Contains(revealed, `<tr class="vote-leader"><td>8</td><td>1</td><td>100%</td></tr>`) {
+		t.Fatalf("results should tally Ada only: %s", revealed)
 	}
 	waitForMessage(t, bob, "<td>Bob</td><td>observer</td>")
 

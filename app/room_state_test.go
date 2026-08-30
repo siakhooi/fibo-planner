@@ -131,3 +131,158 @@ func TestRoomStateHTMLObserversListedLastAndSkipMasking(t *testing.T) {
 		t.Fatalf("observer previous vote should not show: %s", html)
 	}
 }
+
+const voteResultsHiddenMarkup = `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`
+const voteResultsVisibleMarkup = `id="vote-results" class="user-table results-table" hx-swap-oob="true">`
+
+func TestRoomStateHTMLHidesResultsUntilEveryoneVoted(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(2, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: ""},
+	}, false)
+	if !strings.Contains(html, voteResultsHiddenMarkup) {
+		t.Fatalf("results table should be hidden: %s", html)
+	}
+	if strings.Contains(html, `<td>8</td><td>1</td>`) {
+		t.Fatalf("results rows should not be sent before everyone voted: %s", html)
+	}
+}
+
+func TestRoomStateHTMLHidesResultsWhenAlwaysShowButNotEveryoneVoted(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(2, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: ""},
+	}, true)
+	if !strings.Contains(html, voteResultsHiddenMarkup) {
+		t.Fatalf("results should stay hidden until everyone voted: %s", html)
+	}
+}
+
+func TestRoomStateHTMLHidesResultsWhenOnlyObservers(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(1, []participant{
+		{name: "Ada", observer: true},
+	}, false)
+	if !strings.Contains(html, voteResultsHiddenMarkup) {
+		t.Fatalf("results should be hidden with no voters: %s", html)
+	}
+}
+
+func TestRoomStateHTMLShowsResultsOrderedByCount(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(4, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: "5"},
+		{name: "Cyd", points: "8"},
+		{name: "Dee", points: "3"},
+	}, false)
+	if !strings.Contains(html, voteResultsVisibleMarkup) {
+		t.Fatalf("results table should be visible: %s", html)
+	}
+	if strings.Contains(html, voteResultsHiddenMarkup) {
+		t.Fatalf("results table should not be hidden: %s", html)
+	}
+	eight := strings.Index(html, `<tr class="vote-leader"><td>8</td><td>2</td><td>50%</td></tr>`)
+	three := strings.Index(html, `<tr><td>3</td><td>1</td><td>25%</td></tr>`)
+	five := strings.Index(html, `<tr><td>5</td><td>1</td><td>25%</td></tr>`)
+	if eight < 0 || five < 0 || three < 0 {
+		t.Fatalf("missing result rows: %s", html)
+	}
+	if eight > three || three > five {
+		t.Fatalf("want count desc then points asc, got html: %s", html)
+	}
+	if strings.Contains(html, `class="vote-leader"><td>5</td>`) || strings.Contains(html, `class="vote-leader"><td>3</td>`) {
+		t.Fatalf("only the highest count should be highlighted: %s", html)
+	}
+}
+
+func TestRoomStateHTMLHighlightsTiedHighestCounts(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(4, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: "5"},
+		{name: "Cyd", points: "8"},
+		{name: "Dee", points: "5"},
+	}, false)
+	five := strings.Index(html, `<tr class="vote-leader"><td>5</td><td>2</td><td>50%</td></tr>`)
+	eight := strings.Index(html, `<tr class="vote-leader"><td>8</td><td>2</td><td>50%</td></tr>`)
+	if five < 0 || eight < 0 {
+		t.Fatalf("both tied leaders should be highlighted: %s", html)
+	}
+	if five > eight {
+		t.Fatalf("tied counts should list lower points first: %s", html)
+	}
+}
+
+func TestRoomStateHTMLResultsIgnoreObservers(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(3, []participant{
+		{name: "Ada", points: "5"},
+		{name: "Bob", observer: true},
+		{name: "Zed", observer: true, points: "8"},
+	}, false)
+	if !strings.Contains(html, voteResultsVisibleMarkup) {
+		t.Fatalf("Ada is the only voter and has voted, results should show: %s", html)
+	}
+	if !strings.Contains(html, `<tr class="vote-leader"><td>5</td><td>1</td><td>100%</td></tr>`) {
+		t.Fatalf("results should count only Ada: %s", html)
+	}
+	if strings.Contains(html, `<td>8</td><td>1</td>`) {
+		t.Fatalf("observer leftover points must not be tallied: %s", html)
+	}
+}
+
+func TestTallyVotes(t *testing.T) {
+	t.Parallel()
+
+	got := tallyVotes([]participant{
+		{name: "A", points: "13"},
+		{name: "B", points: "8"},
+		{name: "C", points: "8"},
+		{name: "D", observer: true, points: "20"},
+		{name: "E", points: ""},
+		{name: "F", points: "13"},
+		{name: "G", points: "8"},
+	})
+	want := []voteTally{
+		{points: "8", count: 3},
+		{points: "13", count: 2},
+	}
+	if len(got) != len(want) {
+		t.Fatalf("got %#v, want %#v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("index %d: got %#v, want %#v", i, got, want)
+		}
+	}
+}
+
+func TestPercentOf(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		count, total, want int
+	}{
+		{0, 0, 0},
+		{1, 1, 100},
+		{1, 2, 50},
+		{1, 3, 33},
+		{2, 3, 67},
+		{1, 4, 25},
+		{2, 4, 50},
+	}
+	for _, c := range cases {
+		if got := percentOf(c.count, c.total); got != c.want {
+			t.Fatalf("percentOf(%d, %d) = %d, want %d", c.count, c.total, got, c.want)
+		}
+	}
+}
