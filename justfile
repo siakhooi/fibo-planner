@@ -3,6 +3,7 @@ run:
 
 build:
 	go mod tidy
+	gofmt -w -s ./.. 2>&1 | tee gofmt.log
 	golangci-lint run 2>&1 | tee golangci-lint.log
 	go build -C app -o ../target/server
 	./scripts/test.sh
