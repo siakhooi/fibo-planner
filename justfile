@@ -1,21 +1,18 @@
-run:
-	go run ./app
-
+default:
+	@just --list
+all: build docker-build
 build:
 	go mod tidy
 	gofmt -w -s ./.. 2>&1 | tee gofmt.log
 	golangci-lint run 2>&1 | tee golangci-lint.log
 	go build -C app -o ../target/server
 	./scripts/test.sh
-
-all: build docker-build
-
+run:
+	go run ./app
 release:
 	scripts/create-release.sh
-
 clean:
 	rm -f *.log
-
 docker-build:
 	docker build -t siakhooi/fibo-planner -f docker/Dockerfile .
 

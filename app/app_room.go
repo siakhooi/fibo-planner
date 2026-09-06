@@ -119,15 +119,17 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 	a.mu.Unlock()
 
 	data := struct {
-		RoomID     string
-		RoomName   string
-		TopicTitle string
-		Count      int
+		RoomID           string
+		RoomName         string
+		TopicTitle       string
+		Count            int
+		ConsensusPercent int
 	}{
-		RoomID:     roomID,
-		RoomName:   name,
-		TopicTitle: h.topic(),
-		Count:      h.count(),
+		RoomID:           roomID,
+		RoomName:         name,
+		TopicTitle:       h.topic(),
+		Count:            h.count(),
+		ConsensusPercent: h.consensus(),
 	}
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "room.html", data); err != nil {

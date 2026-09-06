@@ -13,7 +13,7 @@ type voteTally struct {
 	count  int
 }
 
-func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string) string {
+func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, consensus int) string {
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].observer != rows[j].observer {
 			return !rows[i].observer
@@ -63,12 +63,33 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string) str
 			"%s"+
 			`<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="%s">Always show votes</button>`+
 			"%s"+
+			"%s"+
 			"%s",
 		n,
 		listHTML.String(),
 		pressed,
-		voteResultsHTML(rows),
+		consensusControlsHTML(consensus),
+		voteResultsHTML(rows, consensus),
 		topicHeadingHTML(topic),
+	)
+}
+
+func consensusControlsHTML(percent int) string {
+	percent = normalizeConsensusPercent(percent)
+	return fmt.Sprintf(
+		`<div id="consensus-controls" hx-swap-oob="true">`+
+			`<label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">%d</output></label>`+
+			`<input type="range" id="consensus-percent" name="percentage" min="%d" max="%d" step="1" value="%d" list="consensus-majors" />`+
+			`<div class="consensus-majors" aria-hidden="true"><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span></div>`+
+			`<datalist id="consensus-majors">`+
+			`<option value="50"></option><option value="60"></option><option value="70"></option>`+
+			`<option value="80"></option><option value="90"></option><option value="100"></option>`+
+			`</datalist>`+
+			`</div>`,
+		percent,
+		minConsensusPercent,
+		maxConsensusPercent,
+		percent,
 	)
 }
 
@@ -125,35 +146,65 @@ func percentOf(count, total int) int {
 	return (count*100 + total/2) / total
 }
 
-func voteResultsHTML(rows []participant) string {
+func agreedPoints(tallies []voteTally, total, consensus int) string {
+	matched := make([]string, 0, len(tallies))
+	for _, t := range tallies {
+		if meetsConsensus(percentOf(t.count, total), consensus) {
+			matched = append(matched, t.points)
+		}
+	}
+	if len(matched) == 0 {
+		return "N/A"
+	}
+	return strings.Join(matched, ", ")
+}
+
+func agreedPointsHTML(points string) string {
+	if points == "" {
+		return `<p id="agreed-points" hx-swap-oob="true" hidden></p>`
+	}
+	kind := "agreed-yes"
+	if points == "N/A" {
+		kind = "agreed-no"
+	}
+	return fmt.Sprintf(
+		`<p id="agreed-points" class="%s" hx-swap-oob="true">Agreed Points: <strong>%s</strong></p>`,
+		kind,
+		html.EscapeString(points),
+	)
+}
+
+func voteResultsHTML(rows []participant, consensus int) string {
 	var b strings.Builder
 	if !allVotersHaveVoted(rows) {
+		b.WriteString(agreedPointsHTML(""))
 		b.WriteString(`<table id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden>`)
 		b.WriteString(voteResultsHead)
 		b.WriteString("<tbody></tbody></table>")
-	} else {
-		b.WriteString(`<table id="vote-results" class="user-table results-table" hx-swap-oob="true">`)
-		b.WriteString(voteResultsHead)
-		b.WriteString("<tbody>")
-
-		tallies := tallyVotes(rows)
-		total := 0
-		maxCount := 0
-		if len(tallies) > 0 {
-			maxCount = tallies[0].count
-		}
-		for _, t := range tallies {
-			total += t.count
-		}
-		for _, t := range tallies {
-			cls := ""
-			if t.count == maxCount {
-				cls = ` class="vote-leader"`
-			}
-			fmt.Fprintf(&b, "<tr%s><td>%s</td><td>%d</td><td>%d%%</td></tr>", cls, html.EscapeString(t.points), t.count, percentOf(t.count, total))
-		}
-
-		b.WriteString("</tbody></table>")
+		return b.String()
 	}
+
+	tallies := tallyVotes(rows)
+	total := 0
+	maxCount := 0
+	if len(tallies) > 0 {
+		maxCount = tallies[0].count
+	}
+	for _, t := range tallies {
+		total += t.count
+	}
+
+	b.WriteString(agreedPointsHTML(agreedPoints(tallies, total, consensus)))
+	b.WriteString(`<table id="vote-results" class="user-table results-table" hx-swap-oob="true">`)
+	b.WriteString(voteResultsHead)
+	b.WriteString("<tbody>")
+	for _, t := range tallies {
+		cls := ""
+		if t.count == maxCount {
+			cls = ` class="vote-leader"`
+		}
+		fmt.Fprintf(&b, "<tr%s><td>%s</td><td>%d</td><td>%d%%</td></tr>", cls, html.EscapeString(t.points), t.count, percentOf(t.count, total))
+	}
+	b.WriteString("</tbody></table>")
 	return b.String()
 }

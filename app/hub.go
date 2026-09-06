@@ -17,15 +17,19 @@ type participant struct {
 
 // Hub tracks active WebSocket connections (one browser tab/session) for one room.
 type Hub struct {
-	mu              sync.Mutex
-	writeMu         sync.Mutex
-	conns           map[*websocket.Conn]participant
-	alwaysShowVotes bool
-	topicTitle      string
+	mu               sync.Mutex
+	writeMu          sync.Mutex
+	conns            map[*websocket.Conn]participant
+	alwaysShowVotes  bool
+	topicTitle       string
+	consensusPercent int
 }
 
 func newHub() *Hub {
-	return &Hub{conns: make(map[*websocket.Conn]participant)}
+	return &Hub{
+		conns:            make(map[*websocket.Conn]participant),
+		consensusPercent: defaultConsensusPercent,
+	}
 }
 
 func (h *Hub) add(c *websocket.Conn, displayName string) int {
@@ -105,6 +109,18 @@ func (h *Hub) topic() string {
 	return h.topicTitle
 }
 
+func (h *Hub) consensus() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return normalizeConsensusPercent(h.consensusPercent)
+}
+
+func (h *Hub) setConsensusPercent(n int) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.consensusPercent = normalizeConsensusPercent(n)
+}
+
 func (h *Hub) toggleAlwaysShowVotes() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -136,6 +152,7 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 
 	alwaysShow := h.alwaysShowVotes
 	topic := h.topicTitle
+	consensus := normalizeConsensusPercent(h.consensusPercent)
 
 	rows := make([]participant, 0, n)
 	for c, p := range h.conns {
@@ -144,5 +161,5 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	}
 
 	h.mu.Unlock()
-	h.writeTextToAll([]byte(roomStateHTML(n, rows, alwaysShow, topic)))
+	h.writeTextToAll([]byte(roomStateHTML(n, rows, alwaysShow, topic, consensus)))
 }
