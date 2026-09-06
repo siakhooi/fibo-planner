@@ -49,6 +49,7 @@ func TestParseAdminAction(t *testing.T) {
 		{name: "reset topic", payload: `{"admin":"reset-topic","HEADERS":{}}`, want: adminResetTopic, ok: true},
 		{name: "always show", payload: `{"admin":"always-show-votes"}`, want: adminAlwaysShowVotes, ok: true},
 		{name: "observer", payload: `{"admin":"observer-mode"}`, want: adminObserverMode, ok: true},
+		{name: "consensus", payload: `{"admin":"consensus-agreement","percentage":"75"}`, want: adminConsensusAgreement, ok: true},
 		{name: "unknown", payload: `{"admin":"explode"}`, ok: false},
 		{name: "vote", payload: `{"points":"8"}`, ok: false},
 	}
@@ -82,5 +83,36 @@ func TestParseResetTopic(t *testing.T) {
 	title, clear = parseResetTopic([]byte(`{"admin":"reset-topic","topic-title":"X","clear-votes":false}`))
 	if title != "X" || clear {
 		t.Fatalf("false should not clear: title=%q clear=%v", title, clear)
+	}
+}
+
+func TestParseConsensusPercent(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+		want    int
+		ok      bool
+	}{
+		{name: "string seventy five", payload: `{"admin":"consensus-agreement","percentage":"75"}`, want: 75, ok: true},
+		{name: "numeric fifty", payload: `{"admin":"consensus-agreement","percentage":50}`, want: 50, ok: true},
+		{name: "hundred", payload: `{"percentage":"100"}`, want: 100, ok: true},
+		{name: "below min", payload: `{"percentage":"49"}`, ok: false},
+		{name: "above max", payload: `{"percentage":"101"}`, ok: false},
+		{name: "not an integer", payload: `{"percentage":"75.5"}`, ok: false},
+		{name: "missing", payload: `{"admin":"consensus-agreement"}`, ok: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := parseConsensusPercent([]byte(tt.payload))
+			if ok != tt.ok {
+				t.Fatalf("ok=%v want %v", ok, tt.ok)
+			}
+			if ok && got != tt.want {
+				t.Fatalf("percent=%d want %d", got, tt.want)
+			}
+		})
 	}
 }

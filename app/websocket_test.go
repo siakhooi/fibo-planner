@@ -43,6 +43,15 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`id="observer-mode"`,
 		`class="results-panel"`,
 		`id="vote-results"`,
+		`id="agreed-points"`,
+		`Consensus Agreement`,
+		`id="consensus-percent"`,
+		`list="consensus-majors"`,
+		`name="percentage"`,
+		`min="50"`,
+		`max="100"`,
+		`step="1"`,
+		`id="consensus-percent-value" for="consensus-percent">100</output>`,
 		`scope="col">Count`,
 		`scope="col">%`,
 	} {
@@ -129,6 +138,64 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 		t.Fatalf("tied counts should both be highlighted, 5 then 8: %s", revealed)
 	}
 	waitForMessage(t, bob, `<td class="vote-flash">Bob</td><td class="vote-flash">5</td>`)
+}
+
+func TestConsensusAgreementBroadcastAndAgreedPoints(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	ada := dialRoom(t, srv, roomID, "Ada")
+	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
+	bob := dialRoom(t, srv, roomID, "Bob")
+	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
+	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+	cyd := dialRoom(t, srv, roomID, "Cyd")
+	waitForMessage(t, ada, `<td class="vote-flash">Cyd</td><td class="vote-flash"></td>`)
+	waitForMessage(t, bob, `<td class="vote-flash">Cyd</td><td class="vote-flash"></td>`)
+	waitForMessage(t, cyd, "<td>Ada</td><td></td>")
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"consensus-agreement","percentage":"75"}`)); err != nil {
+		t.Fatalf("consensus: %v", err)
+	}
+	synced := waitForMessage(t, bob, `value="75"`)
+	if !strings.Contains(synced, `id="consensus-percent"`) {
+		t.Fatalf("bob should receive the consensus slider: %s", synced)
+	}
+	if !strings.Contains(synced, `>75</output>`) {
+		t.Fatalf("bob's percentage readout should be 75: %s", synced)
+	}
+	waitForMessage(t, ada, `value="75"`)
+	waitForMessage(t, cyd, `value="75"`)
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
+		t.Fatalf("ada vote: %v", err)
+	}
+	waitForMessage(t, bob, `<td class="vote-flash">Ada</td>`)
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
+		t.Fatalf("bob vote: %v", err)
+	}
+	waitForMessage(t, ada, `<td class="vote-flash">Bob</td>`)
+	if err := cyd.WriteMessage(websocket.TextMessage, []byte(`{"points":"5"}`)); err != nil {
+		t.Fatalf("cyd vote: %v", err)
+	}
+	revealed := waitForMessage(t, ada, `<td class="vote-flash">Cyd</td><td class="vote-flash">5</td>`)
+	if !strings.Contains(revealed, "Agreed Points: <strong>N/A</strong>") {
+		t.Fatalf("67%% should not meet 75%% consensus: %s", revealed)
+	}
+
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"consensus-agreement","percentage":"67"}`)); err != nil {
+		t.Fatalf("lower consensus: %v", err)
+	}
+	agreed := waitForMessage(t, ada, "Agreed Points: <strong>8</strong>")
+	if !strings.Contains(agreed, `value="67"`) {
+		t.Fatalf("slider should move to 67: %s", agreed)
+	}
+	if !strings.Contains(agreed, `class="agreed-yes"`) {
+		t.Fatalf("matched consensus should be emphasized as yes: %s", agreed)
+	}
+	waitForMessage(t, bob, "Agreed Points: <strong>8</strong>")
+	waitForMessage(t, cyd, "Agreed Points: <strong>8</strong>")
 }
 
 func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {

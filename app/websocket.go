@@ -78,6 +78,10 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 					h.resetTopic(title, clearVotes)
 				case adminAlwaysShowVotes:
 					h.toggleAlwaysShowVotes()
+				case adminConsensusAgreement:
+					if p, ok := parseConsensusPercent(msg); ok {
+						h.setConsensusPercent(p)
+					}
 				case adminObserverMode:
 					if h.toggleObserver(conn) {
 						highlight = conn

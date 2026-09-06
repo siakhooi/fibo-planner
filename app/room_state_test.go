@@ -6,7 +6,7 @@ import (
 )
 
 func roomHTML(n int, rows []participant, alwaysShow bool) string {
-	return roomStateHTML(n, rows, alwaysShow, "")
+	return roomStateHTML(n, rows, alwaysShow, "", defaultConsensusPercent)
 }
 
 func TestRoomStateHTML(t *testing.T) {
@@ -24,6 +24,9 @@ func TestRoomStateHTML(t *testing.T) {
 	}
 	if !strings.Contains(html, `<strong id="session-count" hx-swap-oob="true">2</strong>`) {
 		t.Fatalf("missing session count: %s", html)
+	}
+	if !strings.Contains(html, `step="1" value="100"`) {
+		t.Fatalf("consensus slider should default to 100: %s", html)
 	}
 	ada := strings.Index(html, "Ada")
 	bob := strings.Index(html, "Bob")
@@ -318,11 +321,120 @@ func TestRoomStateHTMLHidesEmptyTopic(t *testing.T) {
 func TestRoomStateHTMLShowsEscapedTopic(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(1, []participant{{name: "Ada", points: "1"}}, false, "<script>x</script>")
+	html := roomStateHTML(1, []participant{{name: "Ada", points: "1"}}, false, "<script>x</script>", defaultConsensusPercent)
 	if !strings.Contains(html, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">&lt;script&gt;x&lt;/script&gt;</h2>`) {
 		t.Fatalf("topic should be visible and escaped: %s", html)
 	}
 	if strings.Contains(html, `id="topic-title" class="topic-title" hx-swap-oob="true" hidden`) {
 		t.Fatalf("topic heading should not be hidden: %s", html)
+	}
+}
+
+func TestMeetsConsensus(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		percent, threshold int
+		want               bool
+	}{
+		{50, 50, false},
+		{51, 50, true},
+		{100, 50, true},
+		{74, 75, false},
+		{75, 75, true},
+		{100, 75, true},
+		{99, 100, false},
+		{100, 100, true},
+	}
+	for _, c := range cases {
+		if got := meetsConsensus(c.percent, c.threshold); got != c.want {
+			t.Fatalf("meetsConsensus(%d, %d) = %v, want %v", c.percent, c.threshold, got, c.want)
+		}
+	}
+}
+
+func TestRoomStateHTMLHidesAgreedPointsUntilEveryoneVoted(t *testing.T) {
+	t.Parallel()
+
+	html := roomHTML(2, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: ""},
+	}, false)
+	if !strings.Contains(html, `<p id="agreed-points" hx-swap-oob="true" hidden></p>`) {
+		t.Fatalf("agreed points should stay hidden: %s", html)
+	}
+	if strings.Contains(html, "Agreed Points:") {
+		t.Fatalf("agreed points leaked before everyone voted: %s", html)
+	}
+}
+
+func TestRoomStateHTMLShowsAgreedPointsWhenShareMeetsThreshold(t *testing.T) {
+	t.Parallel()
+
+	rows := []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: "8"},
+		{name: "Cyd", points: "5"},
+	}
+	html := roomStateHTML(3, rows, false, "", 50)
+	if !strings.Contains(html, `<p id="agreed-points" class="agreed-yes" hx-swap-oob="true">Agreed Points: <strong>8</strong></p>`) {
+		t.Fatalf("67%% is > 50, want agreed 8: %s", html)
+	}
+
+	html = roomStateHTML(3, rows, false, "", 67)
+	if !strings.Contains(html, `class="agreed-yes"`) || !strings.Contains(html, `Agreed Points: <strong>8</strong>`) {
+		t.Fatalf("67%% is >= 67, want agreed 8: %s", html)
+	}
+
+	html = roomStateHTML(3, rows, false, "", 68)
+	if !strings.Contains(html, `<p id="agreed-points" class="agreed-no" hx-swap-oob="true">Agreed Points: <strong>N/A</strong></p>`) {
+		t.Fatalf("67%% is not >= 68, want N/A: %s", html)
+	}
+}
+
+func TestRoomStateHTMLFiftyMeansStrictMajority(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(2, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: "5"},
+	}, false, "", 50)
+	if !strings.Contains(html, `<p id="agreed-points" class="agreed-no" hx-swap-oob="true">Agreed Points: <strong>N/A</strong></p>`) {
+		t.Fatalf("50%% split should show N/A at threshold 50: %s", html)
+	}
+}
+
+func TestRoomStateHTMLHundredMeansUnanimous(t *testing.T) {
+	t.Parallel()
+
+	split := roomStateHTML(2, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: "5"},
+	}, false, "", 100)
+	if !strings.Contains(split, `<p id="agreed-points" class="agreed-no" hx-swap-oob="true">Agreed Points: <strong>N/A</strong></p>`) {
+		t.Fatalf("split vote is not 100%%, want N/A: %s", split)
+	}
+
+	unanimous := roomStateHTML(2, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: "8"},
+	}, false, "", 100)
+	if !strings.Contains(unanimous, `<p id="agreed-points" class="agreed-yes" hx-swap-oob="true">Agreed Points: <strong>8</strong></p>`) {
+		t.Fatalf("unanimous 8 should agree at 100: %s", unanimous)
+	}
+}
+
+func TestRoomStateHTMLSyncsConsensusSlider(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(1, []participant{{name: "Ada", points: "1"}}, false, "", 80)
+	if !strings.Contains(html, `id="consensus-percent"`) {
+		t.Fatalf("missing consensus slider: %s", html)
+	}
+	if !strings.Contains(html, `value="80"`) {
+		t.Fatalf("slider should be 80: %s", html)
+	}
+	if !strings.Contains(html, `>80</output>`) {
+		t.Fatalf("percentage readout should be 80: %s", html)
 	}
 }

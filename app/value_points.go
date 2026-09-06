@@ -18,9 +18,13 @@ var allowedVotePoints = map[string]bool{
 }
 
 const (
-	adminAlwaysShowVotes = "always-show-votes"
-	adminResetTopic      = "reset-topic"
-	adminObserverMode    = "observer-mode"
+	adminAlwaysShowVotes    = "always-show-votes"
+	adminResetTopic         = "reset-topic"
+	adminObserverMode       = "observer-mode"
+	adminConsensusAgreement = "consensus-agreement"
+	minConsensusPercent     = 50
+	maxConsensusPercent     = 100
+	defaultConsensusPercent = 100
 )
 
 func parseVotePoints(payload []byte) (string, bool) {
@@ -66,12 +70,61 @@ func parseAdminAction(payload []byte) (string, bool) {
 		return "", false
 	}
 	switch s {
-	case adminAlwaysShowVotes, adminResetTopic, adminObserverMode:
+	case adminAlwaysShowVotes, adminResetTopic, adminObserverMode, adminConsensusAgreement:
 		return s, true
 	default:
 		return "", false
 	}
 
+}
+
+func parseConsensusPercent(payload []byte) (int, bool) {
+	var m map[string]any
+	if err := json.Unmarshal(payload, &m); err != nil {
+		return 0, false
+	}
+	n, ok := jsonInt(m["percentage"])
+	if !ok || n < minConsensusPercent || n > maxConsensusPercent {
+		return 0, false
+	}
+	return n, true
+}
+
+func jsonInt(v any) (int, bool) {
+	switch t := v.(type) {
+	case string:
+		n, err := strconv.Atoi(strings.TrimSpace(t))
+		if err != nil {
+			return 0, false
+		}
+		return n, true
+	case float64:
+		n := int(t)
+		if float64(n) != t {
+			return 0, false
+		}
+		return n, true
+	default:
+		return 0, false
+	}
+}
+
+func normalizeConsensusPercent(n int) int {
+	if n < minConsensusPercent || n > maxConsensusPercent {
+		return defaultConsensusPercent
+	}
+	return n
+}
+
+func meetsConsensus(percent, threshold int) bool {
+	switch {
+	case threshold <= minConsensusPercent:
+		return percent > minConsensusPercent
+	case threshold >= maxConsensusPercent:
+		return percent == maxConsensusPercent
+	default:
+		return percent >= threshold
+	}
 }
 
 func parseResetTopic(payload []byte) (title string, clearVotes bool) {

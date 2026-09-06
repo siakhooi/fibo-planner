@@ -45,7 +45,7 @@
       background: #fafafa;
       box-sizing: border-box;
     }
-    .admin-panel { flex: 0 0 12rem; }
+    .admin-panel { flex: 0 0 14rem; }
     .results-panel { flex: 0 0 14rem; }
     .results-table th, .results-table td { padding: 0.4rem 0.35rem; }
     .admin-panel h3,
@@ -88,6 +88,57 @@
       .room-layout { flex-direction: column; }
       .admin-panel,
       .results-panel { flex-basis: auto; width: 100%; }
+    }
+    #consensus-controls { margin-top: 0.15rem; }
+    #consensus-controls label {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      gap: 0.5rem;
+    }
+    #consensus-percent-value {
+      font-variant-numeric: tabular-nums;
+      font-weight: 600;
+    }
+    #consensus-percent {
+      width: 100%;
+      margin: 0.15rem 0 0;
+      padding: 0;
+      accent-color: #2563eb;
+    }
+    .consensus-majors {
+      display: flex;
+      justify-content: space-between;
+      font-size: 0.65rem;
+      color: #666;
+      margin-top: 0.1rem;
+    }
+    #agreed-points {
+      margin: 0 0 0.75rem;
+      padding: 0.7rem 0.6rem;
+      font-size: 1.2rem;
+      font-weight: 700;
+      line-height: 1.25;
+      text-align: center;
+      border-radius: 8px;
+      border: 2px solid;
+    }
+    #agreed-points strong {
+      display: block;
+      margin-top: 0.15rem;
+      font-size: 1.7rem;
+      font-weight: 800;
+      letter-spacing: 0.02em;
+    }
+    #agreed-points.agreed-yes {
+      color: #14532d;
+      background: #dcfce7;
+      border-color: #22c55e;
+    }
+    #agreed-points.agreed-no {
+      color: #7f1d1d;
+      background: #fee2e2;
+      border-color: #ef4444;
     }
 </style>
 </head>
@@ -151,6 +202,34 @@
           <input type="hidden" name="admin" value="always-show-votes" />
           <button type="submit" id="always-show-votes" aria-pressed="false">Always show votes</button>
         </form>
+        <h3>Consensus Agreement</h3>
+        <form id="consensus-form" action="#">
+          <input type="hidden" name="admin" value="consensus-agreement" />
+          <div id="consensus-controls">
+            <label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">{{.ConsensusPercent}}</output></label>
+            <input
+              type="range"
+              id="consensus-percent"
+              name="percentage"
+              min="50"
+              max="100"
+              step="1"
+              value="{{.ConsensusPercent}}"
+              list="consensus-majors"
+            />
+            <div class="consensus-majors" aria-hidden="true">
+              <span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span>
+            </div>
+            <datalist id="consensus-majors">
+              <option value="50"></option>
+              <option value="60"></option>
+              <option value="70"></option>
+              <option value="80"></option>
+              <option value="90"></option>
+              <option value="100"></option>
+            </datalist>
+          </div>
+        </form>
       </aside>
       <div class="room-body">
         <h2 id="user-name"></h2>
@@ -182,6 +261,7 @@
       </div>
       <aside class="results-panel">
         <h3>Results</h3>
+        <p id="agreed-points" hidden></p>
         <table id="vote-results" class="user-table results-table" hidden>
           <thead>
             <tr>
@@ -258,8 +338,29 @@
         document.getElementById("always-show-votes-form").setAttribute("ws-send", "");
         document.getElementById("reset-topic-form").setAttribute("ws-send", "");
         document.getElementById("observer-mode-form").setAttribute("ws-send", "");
+        document.getElementById("consensus-form").setAttribute("ws-send", "");
         htmx.process(el);
       }
+
+      var consensusForm = document.getElementById("consensus-form");
+      consensusForm.addEventListener("input", function (e) {
+        if (e.target.id !== "consensus-percent") {
+          return;
+        }
+        var out = document.getElementById("consensus-percent-value");
+        if (out) {
+          out.textContent = e.target.value;
+        }
+      });
+      consensusForm.addEventListener("change", function (e) {
+        if (e.target.id !== "consensus-percent") {
+          return;
+        }
+        if (consensusForm.getAttribute("ws-send") === null) {
+          return;
+        }
+        consensusForm.requestSubmit();
+      });
 
       var stored = localStorage.getItem(key);
       if (stored && stored.trim()) {
