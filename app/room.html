@@ -115,6 +115,31 @@
       color: #666;
       margin-top: 0.1rem;
     }
+    .maturity-presets {
+      margin-top: 0.85rem;
+      padding-top: 0.75rem;
+      border-top: 1px solid #e5e5e5;
+    }
+    .maturity-presets h4 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin: 0 0 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #444;
+    }
+    .maturity-presets ul {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 0.35rem;
+    }
+    .maturity-presets button {
+      font-size: 0.78rem;
+      padding: 0.35rem 0.5rem;
+    }
     #agreed-points {
       margin: 0 0 0.35rem;
       padding: 0.7rem 0.6rem;
@@ -216,57 +241,7 @@
         <h3>Consensus Agreement</h3>
         <form id="consensus-form" action="#">
           <input type="hidden" name="admin" value="consensus-agreement" />
-          <div id="consensus-controls">
-            <div class="consensus-slider">
-              <label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">{{.ConsensusPercent}}</output></label>
-              <input
-                type="range"
-                id="consensus-percent"
-                name="percentage"
-                min="50"
-                max="100"
-                step="1"
-                value="{{.ConsensusPercent}}"
-                list="consensus-majors"
-              />
-              <div class="consensus-majors" aria-hidden="true">
-                <span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span>
-              </div>
-              <datalist id="consensus-majors">
-                <option value="50"></option>
-                <option value="60"></option>
-                <option value="70"></option>
-                <option value="80"></option>
-                <option value="90"></option>
-                <option value="100"></option>
-              </datalist>
-            </div>
-            <div class="consensus-slider">
-              <label for="consensus-max-spread">Max Spread <output id="consensus-max-spread-value" for="consensus-max-spread">{{.MaxSpread}}</output></label>
-              <input
-                type="range"
-                id="consensus-max-spread"
-                name="max-spread"
-                min="0"
-                max="6"
-                step="1"
-                value="{{.MaxSpread}}"
-                list="consensus-spread-ticks"
-              />
-              <div class="consensus-majors" aria-hidden="true">
-                <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
-              </div>
-              <datalist id="consensus-spread-ticks">
-                <option value="0"></option>
-                <option value="1"></option>
-                <option value="2"></option>
-                <option value="3"></option>
-                <option value="4"></option>
-                <option value="5"></option>
-                <option value="6"></option>
-              </datalist>
-            </div>
-          </div>
+          {{.ConsensusControlsHTML}}
         </form>
       </aside>
       <div class="room-body">
@@ -402,6 +377,24 @@
         if (!sliderOutputs[e.target.id]) {
           return;
         }
+        if (consensusForm.getAttribute("ws-send") === null) {
+          return;
+        }
+        consensusForm.requestSubmit();
+      });
+      consensusForm.addEventListener("click", function (e) {
+        var btn = e.target.closest("button.maturity-preset");
+        if (!btn) {
+          return;
+        }
+        var percent = btn.getAttribute("data-percentage");
+        var spread = btn.getAttribute("data-max-spread");
+        var percentInput = document.getElementById("consensus-percent");
+        var spreadInput = document.getElementById("consensus-max-spread");
+        percentInput.value = percent;
+        spreadInput.value = spread;
+        document.getElementById("consensus-percent-value").textContent = percent;
+        document.getElementById("consensus-max-spread-value").textContent = spread;
         if (consensusForm.getAttribute("ws-send") === null) {
           return;
         }

@@ -458,6 +458,42 @@ func TestRoomStateHTMLSyncsConsensusSlider(t *testing.T) {
 	if !strings.Contains(html, `id="consensus-max-spread-value" for="consensus-max-spread">3</output>`) {
 		t.Fatalf("max spread readout should be 3: %s", html)
 	}
+	if !strings.Contains(html, `Team Maturity(presets)`) {
+		t.Fatalf("missing maturity presets: %s", html)
+	}
+	if !strings.Contains(html, `data-percentage="80" data-max-spread="2" aria-pressed="false"`) {
+		t.Fatalf("good preset should be present but not selected at 80/3: %s", html)
+	}
+	if strings.Contains(html, `data-percentage="80" data-max-spread="2" aria-pressed="true"`) {
+		t.Fatalf("80%% / spread 3 should not match the good preset: %s", html)
+	}
+}
+
+func TestMaturityPresetsHighlightMatchingValues(t *testing.T) {
+	t.Parallel()
+
+	full := maturityPresetsHTML(100, 0)
+	if !strings.Contains(full, `data-percentage="100" data-max-spread="0" aria-pressed="true">full (100%, 0 spread)</button>`) {
+		t.Fatalf("full should be selected: %s", full)
+	}
+	if strings.Count(full, `aria-pressed="true"`) != 1 {
+		t.Fatalf("exactly one preset should be selected: %s", full)
+	}
+
+	good := maturityPresetsHTML(80, 2)
+	if !strings.Contains(good, `data-percentage="80" data-max-spread="2" aria-pressed="true">good (80%, 2 spreads)</button>`) {
+		t.Fatalf("good should be selected: %s", good)
+	}
+
+	relaxed := maturityPresetsHTML(50, 3)
+	if !strings.Contains(relaxed, `data-percentage="50" data-max-spread="3" aria-pressed="true">relaxed (50%, 3 spreads)</button>`) {
+		t.Fatalf("relaxed should be selected: %s", relaxed)
+	}
+
+	custom := maturityPresetsHTML(75, 2)
+	if strings.Contains(custom, `aria-pressed="true"`) {
+		t.Fatalf("custom values should not select a preset: %s", custom)
+	}
 }
 
 func TestVoteScaleCoversRanks(t *testing.T) {
