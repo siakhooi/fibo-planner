@@ -46,6 +46,8 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`value="on" checked`,
 		`id="observer-mode"`,
 		`id="user-name">Your name</h2>`,
+		`tr.current-user td`,
+		`classList.add("current-user")`,
 		`class="results-panel"`,
 		`aria-labelledby="results-heading"`,
 		`id="vote-results"`,
