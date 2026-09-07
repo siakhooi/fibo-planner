@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rand"
 	"fmt"
+	"html/template"
 	"log"
 	"math/big"
 	"net/http"
@@ -119,19 +120,17 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 	a.mu.Unlock()
 
 	data := struct {
-		RoomID           string
-		RoomName         string
-		TopicTitle       string
-		Count            int
-		ConsensusPercent int
-		MaxSpread        int
+		RoomID                string
+		RoomName              string
+		TopicTitle            string
+		Count                 int
+		ConsensusControlsHTML template.HTML
 	}{
-		RoomID:           roomID,
-		RoomName:         name,
-		TopicTitle:       h.topic(),
-		Count:            h.count(),
-		ConsensusPercent: h.consensus(),
-		MaxSpread:        h.allowedMaxSpread(),
+		RoomID:                roomID,
+		RoomName:              name,
+		TopicTitle:            h.topic(),
+		Count:                 h.count(),
+		ConsensusControlsHTML: template.HTML(consensusControlsHTML(h.consensus(), h.allowedMaxSpread())),
 	}
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "room.html", data); err != nil {

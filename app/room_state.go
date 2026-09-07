@@ -74,6 +74,18 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, con
 	)
 }
 
+type maturityPreset struct {
+	label   string
+	percent int
+	spread  int
+}
+
+var teamMaturityPresets = []maturityPreset{
+	{label: "full (100%, 0 spread)", percent: 100, spread: 0},
+	{label: "good (80%, 2 spreads)", percent: 80, spread: 2},
+	{label: "relaxed (50%, 3 spreads)", percent: 50, spread: 3},
+}
+
 func consensusControlsHTML(percent, maxSpread int) string {
 	percent = normalizeConsensusPercent(percent)
 	maxSpread = normalizeMaxSpread(maxSpread)
@@ -98,6 +110,7 @@ func consensusControlsHTML(percent, maxSpread int) string {
 			`<option value="6"></option>`+
 			`</datalist>`+
 			`</div>`+
+			"%s"+
 			`</div>`,
 		percent,
 		minConsensusPercent,
@@ -107,7 +120,31 @@ func consensusControlsHTML(percent, maxSpread int) string {
 		minMaxSpread,
 		maxMaxSpread,
 		maxSpread,
+		maturityPresetsHTML(percent, maxSpread),
 	)
+}
+
+func maturityPresetsHTML(percent, maxSpread int) string {
+	var b strings.Builder
+	b.WriteString(`<div class="maturity-presets">`)
+	b.WriteString(`<h4 id="maturity-presets-heading">Team Maturity(presets)</h4>`)
+	b.WriteString(`<ul aria-labelledby="maturity-presets-heading">`)
+	for _, p := range teamMaturityPresets {
+		pressed := "false"
+		if p.percent == percent && p.spread == maxSpread {
+			pressed = "true"
+		}
+		fmt.Fprintf(
+			&b,
+			`<li><button type="button" class="maturity-preset" data-percentage="%d" data-max-spread="%d" aria-pressed="%s">%s</button></li>`,
+			p.percent,
+			p.spread,
+			pressed,
+			html.EscapeString(p.label),
+		)
+	}
+	b.WriteString(`</ul></div>`)
+	return b.String()
 }
 
 func topicHeadingHTML(topic string) string {
