@@ -124,12 +124,14 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 		TopicTitle       string
 		Count            int
 		ConsensusPercent int
+		MaxSpread        int
 	}{
 		RoomID:           roomID,
 		RoomName:         name,
 		TopicTitle:       h.topic(),
 		Count:            h.count(),
 		ConsensusPercent: h.consensus(),
+		MaxSpread:        h.allowedMaxSpread(),
 	}
 	var buf bytes.Buffer
 	if err := tmpl.ExecuteTemplate(&buf, "room.html", data); err != nil {

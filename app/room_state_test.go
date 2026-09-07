@@ -6,7 +6,7 @@ import (
 )
 
 func roomHTML(n int, rows []participant, alwaysShow bool) string {
-	return roomStateHTML(n, rows, alwaysShow, "", defaultConsensusPercent)
+	return roomStateHTML(n, rows, alwaysShow, "", defaultConsensusPercent, defaultMaxSpread)
 }
 
 func TestRoomStateHTML(t *testing.T) {
@@ -27,6 +27,12 @@ func TestRoomStateHTML(t *testing.T) {
 	}
 	if !strings.Contains(html, `step="1" value="100"`) {
 		t.Fatalf("consensus slider should default to 100: %s", html)
+	}
+	if !strings.Contains(html, `id="consensus-max-spread"`) {
+		t.Fatalf("missing max spread slider: %s", html)
+	}
+	if !strings.Contains(html, `name="max-spread" min="0" max="6" step="1" value="0"`) {
+		t.Fatalf("max spread slider should default to 0: %s", html)
 	}
 	ada := strings.Index(html, "Ada")
 	bob := strings.Index(html, "Bob")
@@ -321,7 +327,7 @@ func TestRoomStateHTMLHidesEmptyTopic(t *testing.T) {
 func TestRoomStateHTMLShowsEscapedTopic(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(1, []participant{{name: "Ada", points: "1"}}, false, "<script>x</script>", defaultConsensusPercent)
+	html := roomStateHTML(1, []participant{{name: "Ada", points: "1"}}, false, "<script>x</script>", defaultConsensusPercent, defaultMaxSpread)
 	if !strings.Contains(html, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">&lt;script&gt;x&lt;/script&gt;</h2>`) {
 		t.Fatalf("topic should be visible and escaped: %s", html)
 	}
@@ -363,8 +369,14 @@ func TestRoomStateHTMLHidesAgreedPointsUntilEveryoneVoted(t *testing.T) {
 	if !strings.Contains(html, `<p id="agreed-points" hx-swap-oob="true" hidden></p>`) {
 		t.Fatalf("agreed points should stay hidden: %s", html)
 	}
+	if !strings.Contains(html, `<p id="agreement-status" class="agreement-status" hx-swap-oob="true" hidden></p>`) {
+		t.Fatalf("agreement status should stay hidden: %s", html)
+	}
 	if strings.Contains(html, "Agreed Points:") {
 		t.Fatalf("agreed points leaked before everyone voted: %s", html)
+	}
+	if strings.Contains(html, "spread =") {
+		t.Fatalf("agreement status leaked before everyone voted: %s", html)
 	}
 }
 
@@ -376,17 +388,17 @@ func TestRoomStateHTMLShowsAgreedPointsWhenShareMeetsThreshold(t *testing.T) {
 		{name: "Bob", points: "8"},
 		{name: "Cyd", points: "5"},
 	}
-	html := roomStateHTML(3, rows, false, "", 50)
+	html := roomStateHTML(3, rows, false, "", 50, maxMaxSpread)
 	if !strings.Contains(html, `<p id="agreed-points" class="agreed-yes" hx-swap-oob="true">Agreed Points: <strong>8</strong></p>`) {
 		t.Fatalf("67%% is > 50, want agreed 8: %s", html)
 	}
 
-	html = roomStateHTML(3, rows, false, "", 67)
+	html = roomStateHTML(3, rows, false, "", 67, maxMaxSpread)
 	if !strings.Contains(html, `class="agreed-yes"`) || !strings.Contains(html, `Agreed Points: <strong>8</strong>`) {
 		t.Fatalf("67%% is >= 67, want agreed 8: %s", html)
 	}
 
-	html = roomStateHTML(3, rows, false, "", 68)
+	html = roomStateHTML(3, rows, false, "", 68, maxMaxSpread)
 	if !strings.Contains(html, `<p id="agreed-points" class="agreed-no" hx-swap-oob="true">Agreed Points: <strong>N/A</strong></p>`) {
 		t.Fatalf("67%% is not >= 68, want N/A: %s", html)
 	}
@@ -398,7 +410,7 @@ func TestRoomStateHTMLFiftyMeansStrictMajority(t *testing.T) {
 	html := roomStateHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: "5"},
-	}, false, "", 50)
+	}, false, "", 50, maxMaxSpread)
 	if !strings.Contains(html, `<p id="agreed-points" class="agreed-no" hx-swap-oob="true">Agreed Points: <strong>N/A</strong></p>`) {
 		t.Fatalf("50%% split should show N/A at threshold 50: %s", html)
 	}
@@ -410,7 +422,7 @@ func TestRoomStateHTMLHundredMeansUnanimous(t *testing.T) {
 	split := roomStateHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: "5"},
-	}, false, "", 100)
+	}, false, "", 100, maxMaxSpread)
 	if !strings.Contains(split, `<p id="agreed-points" class="agreed-no" hx-swap-oob="true">Agreed Points: <strong>N/A</strong></p>`) {
 		t.Fatalf("split vote is not 100%%, want N/A: %s", split)
 	}
@@ -418,7 +430,7 @@ func TestRoomStateHTMLHundredMeansUnanimous(t *testing.T) {
 	unanimous := roomStateHTML(2, []participant{
 		{name: "Ada", points: "8"},
 		{name: "Bob", points: "8"},
-	}, false, "", 100)
+	}, false, "", 100, defaultMaxSpread)
 	if !strings.Contains(unanimous, `<p id="agreed-points" class="agreed-yes" hx-swap-oob="true">Agreed Points: <strong>8</strong></p>`) {
 		t.Fatalf("unanimous 8 should agree at 100: %s", unanimous)
 	}
@@ -427,7 +439,7 @@ func TestRoomStateHTMLHundredMeansUnanimous(t *testing.T) {
 func TestRoomStateHTMLSyncsConsensusSlider(t *testing.T) {
 	t.Parallel()
 
-	html := roomStateHTML(1, []participant{{name: "Ada", points: "1"}}, false, "", 80)
+	html := roomStateHTML(1, []participant{{name: "Ada", points: "1"}}, false, "", 80, 3)
 	if !strings.Contains(html, `id="consensus-percent"`) {
 		t.Fatalf("missing consensus slider: %s", html)
 	}
@@ -436,5 +448,110 @@ func TestRoomStateHTMLSyncsConsensusSlider(t *testing.T) {
 	}
 	if !strings.Contains(html, `>80</output>`) {
 		t.Fatalf("percentage readout should be 80: %s", html)
+	}
+	if !strings.Contains(html, `id="consensus-max-spread"`) {
+		t.Fatalf("missing max spread slider: %s", html)
+	}
+	if !strings.Contains(html, `name="max-spread" min="0" max="6" step="1" value="3"`) {
+		t.Fatalf("max spread slider should be 3: %s", html)
+	}
+	if !strings.Contains(html, `id="consensus-max-spread-value" for="consensus-max-spread">3</output>`) {
+		t.Fatalf("max spread readout should be 3: %s", html)
+	}
+}
+
+func TestVoteScaleCoversRanks(t *testing.T) {
+	t.Parallel()
+
+	if len(voteScale)-1 != maxMaxSpread {
+		t.Fatalf("max spread %d should equal last rank %d", maxMaxSpread, len(voteScale)-1)
+	}
+	for _, p := range voteScale {
+		if !allowedVotePoints[p] {
+			t.Fatalf("voteScale value %q missing from allowedVotePoints", p)
+		}
+	}
+}
+
+func TestVoteSpread(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name string
+		rows []participant
+		want int
+	}{
+		{name: "3 and 5", rows: []participant{{points: "3"}, {points: "5"}}, want: 1},
+		{name: "3 and 8", rows: []participant{{points: "3"}, {points: "8"}}, want: 2},
+		{name: "20 and 1", rows: []participant{{points: "20"}, {points: "1"}}, want: 6},
+		{name: "unanimous", rows: []participant{{points: "8"}, {points: "8"}}, want: 0},
+		{name: "ignores observers", rows: []participant{{points: "3"}, {points: "20", observer: true}}, want: 0},
+		{name: "ignores empty", rows: []participant{{points: "5"}, {points: ""}}, want: 0},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			t.Parallel()
+			if got := voteSpread(c.rows); got != c.want {
+				t.Fatalf("voteSpread = %d, want %d", got, c.want)
+			}
+		})
+	}
+}
+
+func TestRoomStateHTMLSpreadBlocksAgreedPoints(t *testing.T) {
+	t.Parallel()
+
+	rows := []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: "8"},
+		{name: "Cyd", points: "5"},
+	}
+	html := roomStateHTML(3, rows, false, "", 50, 0)
+	if !strings.Contains(html, `<p id="agreed-points" class="agreed-no" hx-swap-oob="true">Agreed Points: <strong>N/A</strong></p>`) {
+		t.Fatalf("67%% should still be N/A when spread 1 exceeds max 0: %s", html)
+	}
+	if !strings.Contains(html, `<span class="met">✓ 67% (require >50%)</span>`) {
+		t.Fatalf("percentage should be met: %s", html)
+	}
+	if !strings.Contains(html, `<span class="unmet">X spread = 1 (require=0)</span>`) {
+		t.Fatalf("spread should fail with require=0: %s", html)
+	}
+
+	html = roomStateHTML(3, rows, false, "", 50, 1)
+	if !strings.Contains(html, `<p id="agreed-points" class="agreed-yes" hx-swap-oob="true">Agreed Points: <strong>8</strong></p>`) {
+		t.Fatalf("spread 1 should agree when max is 1: %s", html)
+	}
+	if !strings.Contains(html, `<span class="met">✓ spread = 1 (require <=1)</span>`) {
+		t.Fatalf("spread should be met: %s", html)
+	}
+}
+
+func TestRoomStateHTMLAgreementStatus(t *testing.T) {
+	t.Parallel()
+
+	html := roomStateHTML(3, []participant{
+		{name: "Ada", points: "8"},
+		{name: "Bob", points: "8"},
+		{name: "Cyd", points: "5"},
+	}, false, "", 90, 2)
+	if !strings.Contains(html, `<span class="unmet">X 67% (require >=90%)</span>`) {
+		t.Fatalf("want unmet percentage line: %s", html)
+	}
+	if !strings.Contains(html, `<span class="met">✓ spread = 1 (require <=2)</span>`) {
+		t.Fatalf("want met spread line: %s", html)
+	}
+	if !strings.Contains(html, `Agreed Points: <strong>N/A</strong>`) {
+		t.Fatalf("percent unmet should keep N/A: %s", html)
+	}
+
+	wide := roomStateHTML(2, []participant{
+		{name: "Ada", points: "1"},
+		{name: "Bob", points: "20"},
+	}, false, "", 50, 5)
+	if !strings.Contains(wide, `<span class="unmet">X spread = 6 (require <=5)</span>`) {
+		t.Fatalf("1 and 20 should be spread 6: %s", wide)
+	}
+	if strings.Contains(wide, `Agreed Points: <strong>`) && strings.Contains(wide, `class="agreed-yes"`) {
+		t.Fatalf("wide spread should not agree: %s", wide)
 	}
 }

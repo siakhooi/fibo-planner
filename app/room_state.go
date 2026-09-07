@@ -13,7 +13,7 @@ type voteTally struct {
 	count  int
 }
 
-func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, consensus int) string {
+func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, consensus, maxSpread int) string {
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].observer != rows[j].observer {
 			return !rows[i].observer
@@ -68,16 +68,18 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, con
 		n,
 		listHTML.String(),
 		pressed,
-		consensusControlsHTML(consensus),
-		voteResultsHTML(rows, consensus),
+		consensusControlsHTML(consensus, maxSpread),
+		voteResultsHTML(rows, consensus, maxSpread),
 		topicHeadingHTML(topic),
 	)
 }
 
-func consensusControlsHTML(percent int) string {
+func consensusControlsHTML(percent, maxSpread int) string {
 	percent = normalizeConsensusPercent(percent)
+	maxSpread = normalizeMaxSpread(maxSpread)
 	return fmt.Sprintf(
 		`<div id="consensus-controls" hx-swap-oob="true">`+
+			`<div class="consensus-slider">`+
 			`<label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">%d</output></label>`+
 			`<input type="range" id="consensus-percent" name="percentage" min="%d" max="%d" step="1" value="%d" list="consensus-majors" />`+
 			`<div class="consensus-majors" aria-hidden="true"><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span></div>`+
@@ -85,11 +87,26 @@ func consensusControlsHTML(percent int) string {
 			`<option value="50"></option><option value="60"></option><option value="70"></option>`+
 			`<option value="80"></option><option value="90"></option><option value="100"></option>`+
 			`</datalist>`+
+			`</div>`+
+			`<div class="consensus-slider">`+
+			`<label for="consensus-max-spread">Max Spread <output id="consensus-max-spread-value" for="consensus-max-spread">%d</output></label>`+
+			`<input type="range" id="consensus-max-spread" name="max-spread" min="%d" max="%d" step="1" value="%d" list="consensus-spread-ticks" />`+
+			`<div class="consensus-majors" aria-hidden="true"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>`+
+			`<datalist id="consensus-spread-ticks">`+
+			`<option value="0"></option><option value="1"></option><option value="2"></option>`+
+			`<option value="3"></option><option value="4"></option><option value="5"></option>`+
+			`<option value="6"></option>`+
+			`</datalist>`+
+			`</div>`+
 			`</div>`,
 		percent,
 		minConsensusPercent,
 		maxConsensusPercent,
 		percent,
+		maxSpread,
+		minMaxSpread,
+		maxMaxSpread,
+		maxSpread,
 	)
 }
 
@@ -146,7 +163,65 @@ func percentOf(count, total int) int {
 	return (count*100 + total/2) / total
 }
 
-func agreedPoints(tallies []voteTally, total, consensus int) string {
+func voteSpread(rows []participant) int {
+	minRank, maxRank := -1, -1
+	for _, row := range rows {
+		if row.observer || row.points == "" {
+			continue
+		}
+		rank, ok := pointsRank(row.points)
+		if !ok {
+			continue
+		}
+		if minRank < 0 || rank < minRank {
+			minRank = rank
+		}
+		if maxRank < 0 || rank > maxRank {
+			maxRank = rank
+		}
+	}
+	if minRank < 0 {
+		return 0
+	}
+	return maxRank - minRank
+}
+
+func meetsSpread(spread, maxSpread int) bool {
+	return spread <= maxSpread
+}
+
+func percentRequireLabel(threshold int) string {
+	if threshold <= minConsensusPercent {
+		return "require >50%"
+	}
+	return fmt.Sprintf("require >=%d%%", threshold)
+}
+
+func spreadRequireLabel(maxSpread int) string {
+	if maxSpread == 0 {
+		return "require=0"
+	}
+	return fmt.Sprintf("require <=%d", maxSpread)
+}
+
+func agreementMark(ok bool) string {
+	if ok {
+		return "✓"
+	}
+	return "X"
+}
+
+func agreementKind(ok bool) string {
+	if ok {
+		return "met"
+	}
+	return "unmet"
+}
+
+func agreedPoints(tallies []voteTally, total, consensus, spread, maxSpread int) string {
+	if !meetsSpread(spread, maxSpread) {
+		return "N/A"
+	}
 	matched := make([]string, 0, len(tallies))
 	for _, t := range tallies {
 		if meetsConsensus(percentOf(t.count, total), consensus) {
@@ -174,10 +249,33 @@ func agreedPointsHTML(points string) string {
 	)
 }
 
-func voteResultsHTML(rows []participant, consensus int) string {
+func agreementStatusHTML(show bool, leadingPercent, consensus, spread, maxSpread int) string {
+	if !show {
+		return `<p id="agreement-status" class="agreement-status" hx-swap-oob="true" hidden></p>`
+	}
+	percentOK := meetsConsensus(leadingPercent, consensus)
+	spreadOK := meetsSpread(spread, maxSpread)
+	return fmt.Sprintf(
+		`<p id="agreement-status" class="agreement-status" hx-swap-oob="true">`+
+			`<span class="%s">%s %d%% (%s)</span>`+
+			`<span class="%s">%s spread = %d (%s)</span>`+
+			`</p>`,
+		agreementKind(percentOK),
+		agreementMark(percentOK),
+		leadingPercent,
+		percentRequireLabel(consensus),
+		agreementKind(spreadOK),
+		agreementMark(spreadOK),
+		spread,
+		spreadRequireLabel(maxSpread),
+	)
+}
+
+func voteResultsHTML(rows []participant, consensus, maxSpread int) string {
 	var b strings.Builder
 	if !allVotersHaveVoted(rows) {
 		b.WriteString(agreedPointsHTML(""))
+		b.WriteString(agreementStatusHTML(false, 0, consensus, 0, maxSpread))
 		b.WriteString(`<table id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden>`)
 		b.WriteString(voteResultsHead)
 		b.WriteString("<tbody></tbody></table>")
@@ -193,8 +291,14 @@ func voteResultsHTML(rows []participant, consensus int) string {
 	for _, t := range tallies {
 		total += t.count
 	}
+	leadingPercent := 0
+	if total > 0 && len(tallies) > 0 {
+		leadingPercent = percentOf(tallies[0].count, total)
+	}
+	spread := voteSpread(rows)
 
-	b.WriteString(agreedPointsHTML(agreedPoints(tallies, total, consensus)))
+	b.WriteString(agreedPointsHTML(agreedPoints(tallies, total, consensus, spread, maxSpread)))
+	b.WriteString(agreementStatusHTML(true, leadingPercent, consensus, spread, maxSpread))
 	b.WriteString(`<table id="vote-results" class="user-table results-table" hx-swap-oob="true">`)
 	b.WriteString(voteResultsHead)
 	b.WriteString("<tbody>")

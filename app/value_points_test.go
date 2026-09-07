@@ -116,3 +116,34 @@ func TestParseConsensusPercent(t *testing.T) {
 		})
 	}
 }
+
+func TestParseMaxSpread(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+		want    int
+		ok      bool
+	}{
+		{name: "string two", payload: `{"admin":"consensus-agreement","max-spread":"2"}`, want: 2, ok: true},
+		{name: "numeric zero", payload: `{"admin":"consensus-agreement","max-spread":0}`, want: 0, ok: true},
+		{name: "six", payload: `{"max-spread":"6"}`, want: 6, ok: true},
+		{name: "below min", payload: `{"max-spread":"-1"}`, ok: false},
+		{name: "above max", payload: `{"max-spread":"7"}`, ok: false},
+		{name: "not an integer", payload: `{"max-spread":"1.5"}`, ok: false},
+		{name: "missing", payload: `{"admin":"consensus-agreement","percentage":"75"}`, ok: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := parseMaxSpread([]byte(tt.payload))
+			if ok != tt.ok {
+				t.Fatalf("ok=%v want %v", ok, tt.ok)
+			}
+			if ok && got != tt.want {
+				t.Fatalf("spread=%d want %d", got, tt.want)
+			}
+		})
+	}
+}

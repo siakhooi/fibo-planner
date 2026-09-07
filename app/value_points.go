@@ -17,6 +17,10 @@ var allowedVotePoints = map[string]bool{
 	"20": true,
 }
 
+// voteScale is Fibonacci story points in rank order. Spread is the rank
+// distance between the lowest and highest votes (3 and 5 → 1, 1 and 20 → 6).
+var voteScale = []string{"1", "2", "3", "5", "8", "13", "20"}
+
 const (
 	adminAlwaysShowVotes    = "always-show-votes"
 	adminResetTopic         = "reset-topic"
@@ -25,6 +29,9 @@ const (
 	minConsensusPercent     = 50
 	maxConsensusPercent     = 100
 	defaultConsensusPercent = 100
+	minMaxSpread            = 0
+	maxMaxSpread            = 6
+	defaultMaxSpread        = 0
 )
 
 func parseVotePoints(payload []byte) (string, bool) {
@@ -90,6 +97,18 @@ func parseConsensusPercent(payload []byte) (int, bool) {
 	return n, true
 }
 
+func parseMaxSpread(payload []byte) (int, bool) {
+	var m map[string]any
+	if err := json.Unmarshal(payload, &m); err != nil {
+		return 0, false
+	}
+	n, ok := jsonInt(m["max-spread"])
+	if !ok || n < minMaxSpread || n > maxMaxSpread {
+		return 0, false
+	}
+	return n, true
+}
+
 func jsonInt(v any) (int, bool) {
 	switch t := v.(type) {
 	case string:
@@ -114,6 +133,22 @@ func normalizeConsensusPercent(n int) int {
 		return defaultConsensusPercent
 	}
 	return n
+}
+
+func normalizeMaxSpread(n int) int {
+	if n < minMaxSpread || n > maxMaxSpread {
+		return defaultMaxSpread
+	}
+	return n
+}
+
+func pointsRank(points string) (int, bool) {
+	for i, p := range voteScale {
+		if p == points {
+			return i, true
+		}
+	}
+	return 0, false
 }
 
 func meetsConsensus(percent, threshold int) bool {
