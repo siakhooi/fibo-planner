@@ -4,8 +4,8 @@
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>Room {{.RoomID}} · Fibo Planner</title>
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
+  <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js" integrity="sha384-nIP+hMv+/j0KKPtmqpKlRK1ibiKk/4JWLfgfEC+HRGkMQUK2RMiK3/L2oU1RcJMb" crossorigin="anonymous"></script>
   <style>
     body { font-family: system-ui, sans-serif; max-width: 68rem; margin: 2rem auto; padding: 0 1rem; line-height: 1.5; }
     h1 { font-size: 1.5rem; margin-bottom: 0.2rem; }
@@ -183,8 +183,8 @@
 
   <div id="room-main" class="room-main" hidden>
     <div id="room-ws" hx-ext="ws" class="room-layout">
-      <aside class="admin-panel">
-        <h3>Administration</h3>
+      <aside class="admin-panel" aria-labelledby="admin-heading">
+        <h3 id="admin-heading">Administration</h3>
         <form id="reset-topic-form" action="#">
           <input type="hidden" name="admin" value="reset-topic" />
           <label for="topic-title-input">Topic Title</label>
@@ -269,7 +269,7 @@
         </form>
       </aside>
       <div class="room-body">
-        <h2 id="user-name"></h2>
+        <h2 id="user-name">Your name</h2>
         <form id="points-form" action="#">
           <input type="hidden" id="points-value" name="points" value="" />
           <div class="button-grid">
@@ -296,8 +296,8 @@
           <tbody></tbody>
         </table>
       </div>
-      <aside class="results-panel">
-        <h3>Results</h3>
+      <aside class="results-panel" aria-labelledby="results-heading">
+        <h3 id="results-heading">Results</h3>
         <p id="agreed-points" hidden></p>
         <p id="agreement-status" class="agreement-status" hidden></p>
         <table id="vote-results" class="user-table results-table" hidden>
@@ -330,15 +330,15 @@
         var observerBtn = document.getElementById("observer-mode");
         var voteButtons = pointsForm.querySelectorAll("button");
         var rows = document.querySelectorAll("#user-list tbody tr");
-        for (var i = 0; i < rows.length; i++) {
-          var cells = rows[i].cells;
+        for (var row of rows) {
+          var cells = row.cells;
           if (cells[0].textContent !== myName) {
             continue;
           }
           var isObserver = cells[1].textContent === "observer";
           observerBtn.setAttribute("aria-pressed", isObserver ? "true" : "false");
-          for (var j = 0; j < voteButtons.length; j++) {
-            voteButtons[j].disabled = isObserver;
+          for (var voteBtn of voteButtons) {
+            voteBtn.disabled = isObserver;
           }
           if (isObserver || cells[1].textContent === "") {
             pointsValue.value = "";
@@ -357,7 +357,7 @@
       pointsForm.addEventListener("click", function (e) {
         var btn = e.target.closest("button[data-points]");
         if (!btn) return;
-        pointsValue.value = btn.getAttribute("data-points");
+        pointsValue.value = btn.dataset.points;
       });
 
       function enterRoom(displayName) {

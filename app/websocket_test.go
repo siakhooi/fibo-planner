@@ -32,8 +32,12 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`class="user-table"`,
 		`scope="col">Points`,
 		`id="points-form"`,
+		`integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"`,
+		`integrity="sha384-nIP+hMv+/j0KKPtmqpKlRK1ibiKk/4JWLfgfEC+HRGkMQUK2RMiK3/L2oU1RcJMb"`,
+		`crossorigin="anonymous"`,
 		`data-points="8"`,
 		`Administration`,
+		`aria-labelledby="admin-heading"`,
 		`id="always-show-votes"`,
 		`id="reset-topic"`,
 		`id="topic-title"`,
@@ -41,7 +45,9 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`name="clear-votes"`,
 		`value="on" checked`,
 		`id="observer-mode"`,
+		`id="user-name">Your name</h2>`,
 		`class="results-panel"`,
+		`aria-labelledby="results-heading"`,
 		`id="vote-results"`,
 		`id="agreed-points"`,
 		`Consensus Agreement`,
@@ -83,8 +89,14 @@ func TestCreateRoomWithoutName(t *testing.T) {
 	if err != nil {
 		t.Fatalf("read home: %v", err)
 	}
-	if !strings.Contains(string(body), "Room "+roomID) {
-		t.Fatalf("lobby missing unnamed room %s: %s", roomID, body)
+	page := string(body)
+	if !strings.Contains(page, "Room "+roomID) {
+		t.Fatalf("lobby missing unnamed room %s: %s", roomID, page)
+	}
+	if !strings.Contains(page, `integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"`) ||
+		!strings.Contains(page, `integrity="sha384-nIP+hMv+/j0KKPtmqpKlRK1ibiKk/4JWLfgfEC+HRGkMQUK2RMiK3/L2oU1RcJMb"`) ||
+		!strings.Contains(page, `crossorigin="anonymous"`) {
+		t.Fatalf("lobby scripts should use SRI: %s", page)
 	}
 
 	room, err := http.Get(srv.URL + "/" + roomID)
