@@ -30,6 +30,7 @@
     .user-table th, .user-table td { text-align: left; padding: 0.45rem 0.6rem; border: 1px solid #ddd; }
     .user-table thead th { background: #f5f5f5; font-weight: 600; }
     .user-table tbody tr:nth-child(even) { background: #fafafa; }
+    .user-table tbody tr.current-user td { background: #dbeafe; }
     .results-table tbody tr.vote-leader td { background: #fde68a; font-weight: 600; }
     @keyframes vote-flash {
       0%, 40% { background: #fde68a; font-weight: 700; }
@@ -333,8 +334,10 @@
         for (var row of rows) {
           var cells = row.cells;
           if (cells[0].textContent !== myName) {
+            row.classList.remove("current-user");
             continue;
           }
+          row.classList.add("current-user");
           var isObserver = cells[1].textContent === "observer";
           observerBtn.setAttribute("aria-pressed", isObserver ? "true" : "false");
           for (var voteBtn of voteButtons) {
