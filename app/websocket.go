@@ -82,6 +82,9 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 					if p, ok := parseConsensusPercent(msg); ok {
 						h.setConsensusPercent(p)
 					}
+					if s, ok := parseMaxSpread(msg); ok {
+						h.setMaxSpread(s)
+					}
 				case adminObserverMode:
 					if h.toggleObserver(conn) {
 						highlight = conn

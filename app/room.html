@@ -90,17 +90,18 @@
       .results-panel { flex-basis: auto; width: 100%; }
     }
     #consensus-controls { margin-top: 0.15rem; }
+    #consensus-controls .consensus-slider + .consensus-slider { margin-top: 0.85rem; }
     #consensus-controls label {
       display: flex;
       justify-content: space-between;
       align-items: baseline;
       gap: 0.5rem;
     }
-    #consensus-percent-value {
+    #consensus-controls output {
       font-variant-numeric: tabular-nums;
       font-weight: 600;
     }
-    #consensus-percent {
+    #consensus-controls input[type="range"] {
       width: 100%;
       margin: 0.15rem 0 0;
       padding: 0;
@@ -114,7 +115,7 @@
       margin-top: 0.1rem;
     }
     #agreed-points {
-      margin: 0 0 0.75rem;
+      margin: 0 0 0.35rem;
       padding: 0.7rem 0.6rem;
       font-size: 1.2rem;
       font-weight: 700;
@@ -123,6 +124,15 @@
       border-radius: 8px;
       border: 2px solid;
     }
+    .agreement-status {
+      margin: 0 0 0.75rem;
+      font-size: 0.95rem;
+      font-weight: 600;
+      line-height: 1.45;
+    }
+    .agreement-status span { display: block; }
+    .agreement-status .met { color: #14532d; }
+    .agreement-status .unmet { color: #7f1d1d; }
     #agreed-points strong {
       display: block;
       margin-top: 0.15rem;
@@ -206,28 +216,55 @@
         <form id="consensus-form" action="#">
           <input type="hidden" name="admin" value="consensus-agreement" />
           <div id="consensus-controls">
-            <label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">{{.ConsensusPercent}}</output></label>
-            <input
-              type="range"
-              id="consensus-percent"
-              name="percentage"
-              min="50"
-              max="100"
-              step="1"
-              value="{{.ConsensusPercent}}"
-              list="consensus-majors"
-            />
-            <div class="consensus-majors" aria-hidden="true">
-              <span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span>
+            <div class="consensus-slider">
+              <label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">{{.ConsensusPercent}}</output></label>
+              <input
+                type="range"
+                id="consensus-percent"
+                name="percentage"
+                min="50"
+                max="100"
+                step="1"
+                value="{{.ConsensusPercent}}"
+                list="consensus-majors"
+              />
+              <div class="consensus-majors" aria-hidden="true">
+                <span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span>
+              </div>
+              <datalist id="consensus-majors">
+                <option value="50"></option>
+                <option value="60"></option>
+                <option value="70"></option>
+                <option value="80"></option>
+                <option value="90"></option>
+                <option value="100"></option>
+              </datalist>
             </div>
-            <datalist id="consensus-majors">
-              <option value="50"></option>
-              <option value="60"></option>
-              <option value="70"></option>
-              <option value="80"></option>
-              <option value="90"></option>
-              <option value="100"></option>
-            </datalist>
+            <div class="consensus-slider">
+              <label for="consensus-max-spread">Max Spread <output id="consensus-max-spread-value" for="consensus-max-spread">{{.MaxSpread}}</output></label>
+              <input
+                type="range"
+                id="consensus-max-spread"
+                name="max-spread"
+                min="0"
+                max="6"
+                step="1"
+                value="{{.MaxSpread}}"
+                list="consensus-spread-ticks"
+              />
+              <div class="consensus-majors" aria-hidden="true">
+                <span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>
+              </div>
+              <datalist id="consensus-spread-ticks">
+                <option value="0"></option>
+                <option value="1"></option>
+                <option value="2"></option>
+                <option value="3"></option>
+                <option value="4"></option>
+                <option value="5"></option>
+                <option value="6"></option>
+              </datalist>
+            </div>
           </div>
         </form>
       </aside>
@@ -262,6 +299,7 @@
       <aside class="results-panel">
         <h3>Results</h3>
         <p id="agreed-points" hidden></p>
+        <p id="agreement-status" class="agreement-status" hidden></p>
         <table id="vote-results" class="user-table results-table" hidden>
           <thead>
             <tr>
@@ -343,17 +381,22 @@
       }
 
       var consensusForm = document.getElementById("consensus-form");
+      var sliderOutputs = {
+        "consensus-percent": "consensus-percent-value",
+        "consensus-max-spread": "consensus-max-spread-value"
+      };
       consensusForm.addEventListener("input", function (e) {
-        if (e.target.id !== "consensus-percent") {
+        var outId = sliderOutputs[e.target.id];
+        if (!outId) {
           return;
         }
-        var out = document.getElementById("consensus-percent-value");
+        var out = document.getElementById(outId);
         if (out) {
           out.textContent = e.target.value;
         }
       });
       consensusForm.addEventListener("change", function (e) {
-        if (e.target.id !== "consensus-percent") {
+        if (!sliderOutputs[e.target.id]) {
           return;
         }
         if (consensusForm.getAttribute("ws-send") === null) {

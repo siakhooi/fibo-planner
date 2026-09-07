@@ -23,12 +23,14 @@ type Hub struct {
 	alwaysShowVotes  bool
 	topicTitle       string
 	consensusPercent int
+	maxSpread        int
 }
 
 func newHub() *Hub {
 	return &Hub{
 		conns:            make(map[*websocket.Conn]participant),
 		consensusPercent: defaultConsensusPercent,
+		maxSpread:        defaultMaxSpread,
 	}
 }
 
@@ -121,6 +123,18 @@ func (h *Hub) setConsensusPercent(n int) {
 	h.consensusPercent = normalizeConsensusPercent(n)
 }
 
+func (h *Hub) allowedMaxSpread() int {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return normalizeMaxSpread(h.maxSpread)
+}
+
+func (h *Hub) setMaxSpread(n int) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.maxSpread = normalizeMaxSpread(n)
+}
+
 func (h *Hub) toggleAlwaysShowVotes() {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -153,6 +167,7 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	alwaysShow := h.alwaysShowVotes
 	topic := h.topicTitle
 	consensus := normalizeConsensusPercent(h.consensusPercent)
+	maxSpread := normalizeMaxSpread(h.maxSpread)
 
 	rows := make([]participant, 0, n)
 	for c, p := range h.conns {
@@ -161,5 +176,5 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	}
 
 	h.mu.Unlock()
-	h.writeTextToAll([]byte(roomStateHTML(n, rows, alwaysShow, topic, consensus)))
+	h.writeTextToAll([]byte(roomStateHTML(n, rows, alwaysShow, topic, consensus, maxSpread)))
 }

@@ -52,6 +52,10 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`max="100"`,
 		`step="1"`,
 		`id="consensus-percent-value" for="consensus-percent">100</output>`,
+		`id="consensus-max-spread"`,
+		`name="max-spread"`,
+		`id="consensus-max-spread-value" for="consensus-max-spread">0</output>`,
+		`id="agreement-status"`,
 		`scope="col">Count`,
 		`scope="col">%`,
 	} {
@@ -187,12 +191,26 @@ func TestConsensusAgreementBroadcastAndAgreedPoints(t *testing.T) {
 	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"consensus-agreement","percentage":"67"}`)); err != nil {
 		t.Fatalf("lower consensus: %v", err)
 	}
+	stillNA := waitForMessage(t, ada, `value="67"`)
+	if !strings.Contains(stillNA, "Agreed Points: <strong>N/A</strong>") {
+		t.Fatalf("67%% should stay N/A while max spread is 0: %s", stillNA)
+	}
+	if !strings.Contains(stillNA, `X spread = 1 (require=0)`) {
+		t.Fatalf("spread status should be unmet at 0: %s", stillNA)
+	}
+
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"consensus-agreement","max-spread":"1"}`)); err != nil {
+		t.Fatalf("max spread: %v", err)
+	}
 	agreed := waitForMessage(t, ada, "Agreed Points: <strong>8</strong>")
-	if !strings.Contains(agreed, `value="67"`) {
-		t.Fatalf("slider should move to 67: %s", agreed)
+	if !strings.Contains(agreed, `name="max-spread" min="0" max="6" step="1" value="1"`) {
+		t.Fatalf("max spread slider should move to 1: %s", agreed)
 	}
 	if !strings.Contains(agreed, `class="agreed-yes"`) {
 		t.Fatalf("matched consensus should be emphasized as yes: %s", agreed)
+	}
+	if !strings.Contains(agreed, `✓ spread = 1 (require <=1)`) {
+		t.Fatalf("spread status should be met: %s", agreed)
 	}
 	waitForMessage(t, bob, "Agreed Points: <strong>8</strong>")
 	waitForMessage(t, cyd, "Agreed Points: <strong>8</strong>")
