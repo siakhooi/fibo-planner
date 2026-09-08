@@ -82,7 +82,7 @@ type maturityPreset struct {
 
 var teamMaturityPresets = []maturityPreset{
 	{label: "full (100%, 0 spread)", percent: 100, spread: 0},
-	{label: "good (80%, 2 spreads)", percent: 80, spread: 2},
+	{label: "good (80%, 1 spread)", percent: 80, spread: 1},
 	{label: "relaxed (50%, 3 spreads)", percent: 50, spread: 3},
 }
 
