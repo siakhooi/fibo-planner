@@ -92,7 +92,13 @@ func (h *Hub) clearVotesLocked() {
 	}
 }
 
-func (h *Hub) resetTopic(title string, clearVotes bool) {
+func (h *Hub) clearVotes() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.clearVotesLocked()
+}
+
+func (h *Hub) setTopic(title string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
@@ -100,9 +106,6 @@ func (h *Hub) resetTopic(title string, clearVotes bool) {
 		title = title[:120]
 	}
 	h.topicTitle = title
-	if clearVotes {
-		h.clearVotesLocked()
-	}
 }
 
 func (h *Hub) topic() string {
