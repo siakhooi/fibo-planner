@@ -21,7 +21,7 @@ func TestParseVotePoints(t *testing.T) {
 		{name: "unknown value", payload: `{"points":"99"}`, ok: false},
 		{name: "missing points", payload: `{"HEADERS":{}}`, ok: false},
 		{name: "script", payload: `{"points":"<script>"}`, ok: false},
-		{name: "admin is not a vote", payload: `{"admin":"reset-topic"}`, ok: false},
+		{name: "admin is not a vote", payload: `{"admin":"set-topic"}`, ok: false},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -46,7 +46,8 @@ func TestParseAdminAction(t *testing.T) {
 		want    string
 		ok      bool
 	}{
-		{name: "reset topic", payload: `{"admin":"reset-topic","HEADERS":{}}`, want: adminResetTopic, ok: true},
+		{name: "clear votes", payload: `{"admin":"clear-votes","HEADERS":{}}`, want: adminClearVotes, ok: true},
+		{name: "set topic", payload: `{"admin":"set-topic","HEADERS":{}}`, want: adminSetTopic, ok: true},
 		{name: "always show", payload: `{"admin":"always-show-votes"}`, want: adminAlwaysShowVotes, ok: true},
 		{name: "observer", payload: `{"admin":"observer-mode"}`, want: adminObserverMode, ok: true},
 		{name: "consensus", payload: `{"admin":"consensus-agreement","percentage":"75"}`, want: adminConsensusAgreement, ok: true},
@@ -67,22 +68,14 @@ func TestParseAdminAction(t *testing.T) {
 	}
 }
 
-func TestParseResetTopic(t *testing.T) {
+func TestParseTopicTitle(t *testing.T) {
 	t.Parallel()
 
-	title, clear := parseResetTopic([]byte(`{"admin":"reset-topic","topic-title":" Login ","clear-votes":"on"}`))
-	if title != "Login" || !clear {
-		t.Fatalf("got title=%q clear=%v", title, clear)
+	if got := parseTopicTitle([]byte(`{"admin":"set-topic","topic-title":" Login "}`)); got != "Login" {
+		t.Fatalf("got title=%q", got)
 	}
-
-	title, clear = parseResetTopic([]byte(`{"admin":"reset-topic","topic-title":"Keep votes"}`))
-	if title != "Keep votes" || clear {
-		t.Fatalf("unchecked should not clear: title=%q clear=%v", title, clear)
-	}
-
-	title, clear = parseResetTopic([]byte(`{"admin":"reset-topic","topic-title":"X","clear-votes":false}`))
-	if title != "X" || clear {
-		t.Fatalf("false should not clear: title=%q clear=%v", title, clear)
+	if got := parseTopicTitle([]byte(`{"admin":"set-topic"}`)); got != "" {
+		t.Fatalf("missing title should be empty, got %q", got)
 	}
 }
 

@@ -23,7 +23,8 @@ var voteScale = []string{"1", "2", "3", "5", "8", "13", "20"}
 
 const (
 	adminAlwaysShowVotes    = "always-show-votes"
-	adminResetTopic         = "reset-topic"
+	adminClearVotes         = "clear-votes"
+	adminSetTopic           = "set-topic"
 	adminObserverMode       = "observer-mode"
 	adminConsensusAgreement = "consensus-agreement"
 	minConsensusPercent     = 50
@@ -77,7 +78,7 @@ func parseAdminAction(payload []byte) (string, bool) {
 		return "", false
 	}
 	switch s {
-	case adminAlwaysShowVotes, adminResetTopic, adminObserverMode, adminConsensusAgreement:
+	case adminAlwaysShowVotes, adminClearVotes, adminSetTopic, adminObserverMode, adminConsensusAgreement:
 		return s, true
 	default:
 		return "", false
@@ -162,12 +163,12 @@ func meetsConsensus(percent, threshold int) bool {
 	}
 }
 
-func parseResetTopic(payload []byte) (title string, clearVotes bool) {
+func parseTopicTitle(payload []byte) string {
 	var m map[string]any
 	if err := json.Unmarshal(payload, &m); err != nil {
-		return "", false
+		return ""
 	}
-	return jsonString(m["topic-title"]), jsonTruthy(m["clear-votes"])
+	return jsonString(m["topic-title"])
 }
 
 func jsonString(v any) string {
@@ -176,18 +177,4 @@ func jsonString(v any) string {
 		return ""
 	}
 	return strings.TrimSpace(s)
-}
-
-func jsonTruthy(v any) bool {
-	switch t := v.(type) {
-	case bool:
-		return t
-	case string:
-		s := strings.ToLower(strings.TrimSpace(t))
-		return s == "on" || s == "true" || s == "yes" || s == "1"
-	case float64:
-		return t != 0
-	default:
-		return false
-	}
 }

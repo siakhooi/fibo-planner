@@ -39,11 +39,10 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`Administration`,
 		`aria-labelledby="admin-heading"`,
 		`id="always-show-votes"`,
-		`id="reset-topic"`,
+		`id="clear-votes"`,
+		`id="set-topic"`,
 		`id="topic-title"`,
 		`id="topic-title-input"`,
-		`name="clear-votes"`,
-		`value="on" checked`,
 		`id="observer-mode"`,
 		`id="user-name">Your name</h2>`,
 		`tr.current-user td`,
@@ -282,8 +281,8 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 	}
 	waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
 
-	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"reset-topic","topic-title":"Login page","clear-votes":"on"}`)); err != nil {
-		t.Fatalf("reset topic: %v", err)
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"admin":"clear-votes"}`)); err != nil {
+		t.Fatalf("clear votes: %v", err)
 	}
 	cleared := waitForMessage(t, ada, "<td>Ada</td><td></td>")
 	if !strings.Contains(cleared, "<td>Bob</td><td></td>") {
@@ -292,13 +291,10 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 	if !strings.Contains(cleared, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
 		t.Fatalf("results should hide after votes are cleared: %s", cleared)
 	}
-	if !strings.Contains(cleared, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">Login page</h2>`) {
-		t.Fatalf("topic title should be broadcast: %s", cleared)
-	}
 	waitForMessage(t, bob, "<td>Ada</td><td></td>")
 }
 
-func TestResetTopicWithoutClearingVotes(t *testing.T) {
+func TestSetTopicKeepsVotes(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
@@ -318,12 +314,12 @@ func TestResetTopicWithoutClearingVotes(t *testing.T) {
 	}
 	waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
 
-	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"reset-topic","topic-title":"Next story"}`)); err != nil {
-		t.Fatalf("reset topic: %v", err)
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"set-topic","topic-title":"Next story"}`)); err != nil {
+		t.Fatalf("set topic: %v", err)
 	}
 	updated := waitForMessage(t, ada, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">Next story</h2>`)
 	if !strings.Contains(updated, "<td>Ada</td><td>8</td>") || !strings.Contains(updated, "<td>Bob</td><td>5</td>") {
-		t.Fatalf("votes should remain when clear is unchecked: %s", updated)
+		t.Fatalf("set topic should not clear votes: %s", updated)
 	}
 	if strings.Contains(updated, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
 		t.Fatalf("results should stay visible: %s", updated)
