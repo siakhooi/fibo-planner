@@ -387,8 +387,8 @@
         if (!btn) {
           return;
         }
-        var percent = btn.getAttribute("data-percentage");
-        var spread = btn.getAttribute("data-max-spread");
+        var percent = btn.dataset.percentage;
+        var spread = btn.dataset.maxSpread;
         var percentInput = document.getElementById("consensus-percent");
         var spreadInput = document.getElementById("consensus-max-spread");
         percentInput.value = percent;
