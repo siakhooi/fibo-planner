@@ -66,7 +66,7 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`id="agreement-status"`,
 		`Team Maturity(presets)`,
 		`class="maturity-preset" data-percentage="100" data-max-spread="0" aria-pressed="true">full (100%, 0 spread)</button>`,
-		`class="maturity-preset" data-percentage="80" data-max-spread="2" aria-pressed="false">good (80%, 2 spreads)</button>`,
+		`class="maturity-preset" data-percentage="80" data-max-spread="1" aria-pressed="false">good (80%, 1 spread)</button>`,
 		`class="maturity-preset" data-percentage="50" data-max-spread="3" aria-pressed="false">relaxed (50%, 3 spreads)</button>`,
 		`closest("button.maturity-preset")`,
 		`scope="col">Count`,
@@ -234,21 +234,21 @@ func TestConsensusAgreementBroadcastAndAgreedPoints(t *testing.T) {
 	waitForMessage(t, bob, "Agreed Points: <strong>8</strong>")
 	waitForMessage(t, cyd, "Agreed Points: <strong>8</strong>")
 
-	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"consensus-agreement","percentage":"80","max-spread":"2"}`)); err != nil {
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"consensus-agreement","percentage":"80","max-spread":"1"}`)); err != nil {
 		t.Fatalf("good preset: %v", err)
 	}
-	preset := waitForMessage(t, bob, `data-percentage="80" data-max-spread="2" aria-pressed="true"`)
+	preset := waitForMessage(t, bob, `data-percentage="80" data-max-spread="1" aria-pressed="true"`)
 	if !strings.Contains(preset, `name="percentage" min="50" max="100" step="1" value="80"`) {
 		t.Fatalf("percentage slider should move to 80: %s", preset)
 	}
-	if !strings.Contains(preset, `name="max-spread" min="0" max="6" step="1" value="2"`) {
-		t.Fatalf("max spread slider should move to 2: %s", preset)
+	if !strings.Contains(preset, `name="max-spread" min="0" max="6" step="1" value="1"`) {
+		t.Fatalf("max spread slider should move to 1: %s", preset)
 	}
 	if !strings.Contains(preset, `data-percentage="100" data-max-spread="0" aria-pressed="false"`) {
 		t.Fatalf("full preset should no longer be selected: %s", preset)
 	}
-	waitForMessage(t, ada, `data-percentage="80" data-max-spread="2" aria-pressed="true"`)
-	waitForMessage(t, cyd, `data-percentage="80" data-max-spread="2" aria-pressed="true"`)
+	waitForMessage(t, ada, `data-percentage="80" data-max-spread="1" aria-pressed="true"`)
+	waitForMessage(t, cyd, `data-percentage="80" data-max-spread="1" aria-pressed="true"`)
 }
 
 func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
