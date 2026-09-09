@@ -1,10 +1,80 @@
 # Fibo Planner
 
-Stage: Alpha
+Fibo Planner is a lightweight, real-time planning poker app for agile teams. Open a room, share the link, and estimate stories with Fibonacci cards until the team agrees on effort.
 
-Fibo Planner helps agile teams run the planning poker technique—using Fibonacci cards to estimate stories and align on effort quickly.
+No accounts, no database, no extra services. A single Go binary (or Docker image) serves the UI and keeps everyone in sync over WebSockets.
 
-## Reference:
+## Key features
+
+### Rooms and lobby
+
+- **Create a room in one click.** Optional display name (for example, “Sprint 42 backlog”) plus a random 6-digit ID and a shareable URL (`/123456`).
+- **Live lobby.** The home page lists every open room with current user counts. Counts update while the page is open.
+- **Named join.** Each person enters a display name before voting. The name is remembered in the browser for that room.
+- **Idle cleanup.** Empty rooms are removed after 30 minutes so the lobby does not fill with abandoned sessions.
+
+### Planning poker
+
+- **Fibonacci cards:** 1, 2, 3, 5, 8, 13, 20, plus a blank card to clear your vote.
+- **Hidden votes by default.** Other people’s points stay masked (`???`) until every voter has picked a card, so nobody anchors on the first vote.
+- **Always show votes.** Flip a room-wide switch when you want scores visible as they come in.
+- **Observer mode.** Join as a facilitator or stakeholder without voting. Observers are listed separately and do not block reveal.
+- **Topic title.** Set the story or ticket the room is estimating; it updates live for everyone.
+- **Preloaded topic queue.** Paste a backlog (one title per line, up to 200). Load Next Topic advances the queue, sets the heading, and clears votes for the next round.
+
+### Consensus and results
+
+Results appear only after every voter has voted:
+
+- **Tally table** with point value, count, and percentage. The leading value is highlighted.
+- **Agreed points** when the room meets both consensus rules; otherwise `N/A`.
+- **Agreement status** showing whether the leading vote meets the percentage threshold and whether the spread is within the allowed range.
+
+You can tune what “agreement” means:
+
+| Control        | Meaning                                                                                                 | Range   |
+| -------------- | ------------------------------------------------------------------------------------------------------- | ------- |
+| **Percentage** | Share of voters that must land on the same value                                                        | 50–100% |
+| **Max spread** | Allowed distance on the Fibonacci scale between the lowest and highest vote (3 and 5 → 1; 1 and 20 → 6) | 0–6     |
+
+Team maturity presets apply both knobs at once:
+
+- **Full** — 100% agreement, 0 spread (everyone on the same card)
+- **Good** — 80% agreement, spread of 1
+- **Relaxed** — 50% agreement, spread of 3
+
+### Live, self-contained app
+
+- Instant updates for votes, joins, role changes, and lobby counts (WebSocket + HTMX).
+- One process on port `8080`. HTML is embedded in the binary; the Docker image is built `FROM scratch`.
+- MIT licensed.
+
+## Run it
+
+```bash
+go run ./app
+```
+
+Or with Docker:
+
+```bash
+docker run -p 8080:8080 siakhooi/fibo-planner
+```
+
+Then open [http://localhost:8080](http://localhost:8080).
+
+With [just](https://github.com/casey/just): `just run` or `just docker-run`.
+
+## Typical session
+
+1. Create a room from the home page and share the URL.
+2. Teammates join with their names.
+3. Set a topic (or load the next preloaded title).
+4. Everyone votes. Votes stay hidden until the last voter submits (unless always-show is on).
+5. Read the tally, agreed points, and agreement status. Adjust consensus rules if the team wants a looser or tighter bar.
+6. Clear votes or load the next topic and repeat.
+
+## Reference
 
 ### Deliverables
 
