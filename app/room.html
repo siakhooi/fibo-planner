@@ -480,8 +480,8 @@
       preloadedForm.addEventListener("submit", function () {
         var lines = preloadedInput.value.split(/\r?\n/);
         var kept = [];
-        for (var i = 0; i < lines.length; i++) {
-          var line = lines[i].trim();
+        for (var raw of lines) {
+          var line = raw.trim();
           if (line) {
             kept.push(line.slice(0, 120));
           }
