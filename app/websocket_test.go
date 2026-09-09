@@ -43,6 +43,16 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`id="set-topic"`,
 		`id="topic-title"`,
 		`id="topic-title-input"`,
+		`id="load-next-topic"`,
+		`id="edit-preloaded-topics"`,
+		`id="preloaded-topics-dialog"`,
+		`id="preloaded-topics-data"`,
+		`Load Next Topic`,
+		`Edit Preloaded Topic`,
+		`fillPreloadedEditor`,
+		`remainingPreloadedTopics`,
+		`data.textContent`,
+		`showModal`,
 		`id="observer-mode"`,
 		`id="user-name">Your name</h2>`,
 		`tr.current-user td`,
@@ -323,6 +333,78 @@ func TestSetTopicKeepsVotes(t *testing.T) {
 	}
 	if strings.Contains(updated, `id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden`) {
 		t.Fatalf("results should stay visible: %s", updated)
+	}
+}
+
+func TestPreloadedTopicsBroadcastAndLoadNext(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	ada := dialRoom(t, srv, roomID, "Ada")
+	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
+	bob := dialRoom(t, srv, roomID, "Bob")
+	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
+	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte("{\"admin\":\"set-preloaded-topics\",\"preloaded-topics\":\"Alpha\\n\\nBeta\\n  \\nGamma\"}")); err != nil {
+		t.Fatalf("set preloaded: %v", err)
+	}
+	listed := waitForMessage(t, bob, `>Load Next Topic [3]</button>`)
+	if !strings.Contains(listed, `title="Next Topic: Alpha"`) {
+		t.Fatalf("tooltip should show the first preloaded topic: %s", listed)
+	}
+	if !strings.Contains(listed, "<pre id=\"preloaded-topics-data\" hx-swap-oob=\"true\" hidden>Alpha\nBeta\nGamma</pre>") {
+		t.Fatalf("broadcast should store remaining topics for every editor: %s", listed)
+	}
+	waitForMessage(t, ada, `>Load Next Topic [3]</button>`)
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
+		t.Fatalf("ada vote: %v", err)
+	}
+	waitForMessage(t, bob, `<td class="vote-flash">Ada</td><td class="vote-flash">???</td>`)
+	if err := bob.WriteMessage(websocket.TextMessage, []byte(`{"points":"5"}`)); err != nil {
+		t.Fatalf("bob vote: %v", err)
+	}
+	waitForMessage(t, ada, "<td>Ada</td><td>8</td>")
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"load-next-topic"}`)); err != nil {
+		t.Fatalf("load next: %v", err)
+	}
+	loaded := waitForMessage(t, bob, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">Alpha</h2>`)
+	if !strings.Contains(loaded, "<td>Ada</td><td></td>") || !strings.Contains(loaded, "<td>Bob</td><td></td>") {
+		t.Fatalf("load next should clear votes: %s", loaded)
+	}
+	if !strings.Contains(loaded, `>Load Next Topic [2]</button>`) {
+		t.Fatalf("count should drop after load: %s", loaded)
+	}
+	if !strings.Contains(loaded, `title="Next Topic: Beta"`) {
+		t.Fatalf("tooltip should advance to the next topic: %s", loaded)
+	}
+	if strings.Contains(loaded, "Alpha\nBeta\nGamma") {
+		t.Fatalf("loaded topic should be removed from the list: %s", loaded)
+	}
+	if !strings.Contains(loaded, "<pre id=\"preloaded-topics-data\" hx-swap-oob=\"true\" hidden>Beta\nGamma</pre>") {
+		t.Fatalf("remaining topics should still be broadcast for every editor: %s", loaded)
+	}
+	waitForMessage(t, ada, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">Alpha</h2>`)
+
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"load-next-topic"}`)); err != nil {
+		t.Fatalf("load next 2: %v", err)
+	}
+	waitForMessage(t, bob, `title="Next Topic: Gamma"`)
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"load-next-topic"}`)); err != nil {
+		t.Fatalf("load next 3: %v", err)
+	}
+	empty := waitForMessage(t, bob, `<button type="submit" id="load-next-topic" hx-swap-oob="true" disabled>Load Next Topic</button>`)
+	if !strings.Contains(empty, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true">Gamma</h2>`) {
+		t.Fatalf("last preloaded topic should become the current topic: %s", empty)
+	}
+	if strings.Contains(empty, `id="load-next-topic" hx-swap-oob="true" title=`) {
+		t.Fatalf("empty list should not keep a next-topic tooltip: %s", empty)
+	}
+	if !strings.Contains(empty, `<pre id="preloaded-topics-data" hx-swap-oob="true" hidden></pre>`) {
+		t.Fatalf("empty remaining list should clear the shared editor source: %s", empty)
 	}
 }
 

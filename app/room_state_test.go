@@ -322,6 +322,49 @@ func TestRoomStateHTMLHidesEmptyTopic(t *testing.T) {
 	if !strings.Contains(html, `<h2 id="topic-title" class="topic-title" hx-swap-oob="true" hidden></h2>`) {
 		t.Fatalf("empty topic should be hidden: %s", html)
 	}
+	if !strings.Contains(html, `<button type="submit" id="load-next-topic" hx-swap-oob="true" disabled>Load Next Topic</button>`) {
+		t.Fatalf("empty preloaded topics should disable load-next: %s", html)
+	}
+}
+
+func TestLoadNextTopicButtonHTML(t *testing.T) {
+	t.Parallel()
+
+	empty := loadNextTopicButtonHTML(nil)
+	if strings.Contains(empty, "title=") {
+		t.Fatalf("disabled button should have no tooltip: %s", empty)
+	}
+	if !strings.Contains(empty, " disabled>") {
+		t.Fatalf("empty list should disable the button: %s", empty)
+	}
+
+	got := loadNextTopicButtonHTML([]string{"Login story", "Logout"})
+	if !strings.Contains(got, `title="Next Topic: Login story"`) {
+		t.Fatalf("tooltip should show the next topic: %s", got)
+	}
+	if !strings.Contains(got, ">Load Next Topic [2]</button>") {
+		t.Fatalf("label should include remaining count: %s", got)
+	}
+	if strings.Contains(got, " disabled") {
+		t.Fatalf("non-empty list should enable the button: %s", got)
+	}
+
+	escaped := loadNextTopicButtonHTML([]string{`<script>x</script>`})
+	if strings.Contains(escaped, "<script>") {
+		t.Fatalf("tooltip was not escaped: %s", escaped)
+	}
+	if !strings.Contains(escaped, `title="Next Topic: &lt;script&gt;x&lt;/script&gt;"`) {
+		t.Fatalf("expected escaped tooltip: %s", escaped)
+	}
+}
+
+func TestPreloadedTopicsDataHTML(t *testing.T) {
+	t.Parallel()
+
+	got := preloadedTopicsDataHTML([]string{"Login", "Pay <now>"})
+	if !strings.Contains(got, `<pre id="preloaded-topics-data" hx-swap-oob="true" hidden>Login`+"\n"+`Pay &lt;now&gt;</pre>`) {
+		t.Fatalf("remaining topics should join lines and escape: %s", got)
+	}
 }
 
 func TestRoomStateHTMLShowsEscapedTopic(t *testing.T) {

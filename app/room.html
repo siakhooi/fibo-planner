@@ -74,7 +74,41 @@
       border-radius: 6px;
       background: #fff;
     }
+    .admin-panel button:disabled { opacity: 0.4; cursor: not-allowed; background: #eee; }
     .admin-panel button[aria-pressed="true"] { background: #dbeafe; border-color: #2563eb; font-weight: 600; }
+    #preloaded-topics-dialog {
+      border: 1px solid #ddd;
+      border-radius: 8px;
+      padding: 1rem;
+      width: min(32rem, calc(100% - 2rem));
+      font-family: inherit;
+    }
+    #preloaded-topics-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
+    #preloaded-topics-dialog h3 { font-size: 1.05rem; margin: 0 0 0.75rem; }
+    #preloaded-topics-dialog label { display: block; font-size: 0.9rem; margin-bottom: 0.35rem; }
+    #preloaded-topics-dialog textarea {
+      width: 100%;
+      min-height: 14rem;
+      box-sizing: border-box;
+      padding: 0.5rem;
+      margin-bottom: 0.75rem;
+      font: inherit;
+      line-height: 1.4;
+    }
+    #preloaded-topics-dialog .dialog-actions {
+      display: flex;
+      gap: 0.5rem;
+      justify-content: flex-end;
+    }
+    #preloaded-topics-dialog .dialog-actions button {
+      width: auto;
+      text-align: center;
+      padding: 0.45rem 0.9rem;
+      cursor: pointer;
+      border: 1px solid #888;
+      border-radius: 6px;
+      background: #fff;
+    }
     .room-body { flex: 1; min-width: 0; }
     @media (max-width: 40rem) {
       .room-layout { flex-direction: column; }
@@ -218,6 +252,14 @@
           />
           <button type="submit" id="set-topic">Set Topic</button>
         </form>
+        <h3>Preloaded Topics</h3>
+        <form id="load-next-topic-form" action="#">
+          <input type="hidden" name="admin" value="load-next-topic" />
+          <button type="submit" id="load-next-topic" disabled>Load Next Topic</button>
+        </form>
+        <form id="edit-preloaded-topics-form" action="#">
+          <button type="button" id="edit-preloaded-topics">Edit Preloaded Topic</button>
+        </form>
         <h3>My Options</h3>
         <form id="observer-mode-form" action="#">
           <input type="hidden" name="admin" value="observer-mode" />
@@ -278,6 +320,24 @@
           <tbody></tbody>
         </table>
       </aside>
+      <pre id="preloaded-topics-data" hidden></pre>
+      <dialog id="preloaded-topics-dialog" aria-labelledby="preloaded-topics-heading">
+        <form id="set-preloaded-topics-form" action="#">
+          <h3 id="preloaded-topics-heading">Edit Preloaded Topic</h3>
+          <input type="hidden" name="admin" value="set-preloaded-topics" />
+          <label for="preloaded-topics-input">One topic per line</label>
+          <textarea
+            id="preloaded-topics-input"
+            name="preloaded-topics"
+            autocomplete="off"
+            spellcheck="false"
+          ></textarea>
+          <div class="dialog-actions">
+            <button type="button" id="preloaded-topics-cancel">Cancel</button>
+            <button type="submit" id="save-preloaded-topics">Save</button>
+          </div>
+        </form>
+      </dialog>
     </div>
   </div>
 
@@ -345,6 +405,8 @@
         document.getElementById("always-show-votes-form").setAttribute("ws-send", "");
         document.getElementById("clear-votes-form").setAttribute("ws-send", "");
         document.getElementById("set-topic-form").setAttribute("ws-send", "");
+        document.getElementById("load-next-topic-form").setAttribute("ws-send", "");
+        document.getElementById("set-preloaded-topics-form").setAttribute("ws-send", "");
         document.getElementById("observer-mode-form").setAttribute("ws-send", "");
         document.getElementById("consensus-form").setAttribute("ws-send", "");
         htmx.process(el);
@@ -391,6 +453,45 @@
           return;
         }
         consensusForm.requestSubmit();
+      });
+
+      var preloadedDialog = document.getElementById("preloaded-topics-dialog");
+      var preloadedInput = document.getElementById("preloaded-topics-input");
+      var preloadedForm = document.getElementById("set-preloaded-topics-form");
+
+      function remainingPreloadedTopics() {
+        var data = document.getElementById("preloaded-topics-data");
+        return data ? data.textContent : "";
+      }
+
+      function fillPreloadedEditor() {
+        preloadedInput.value = remainingPreloadedTopics();
+      }
+
+      document.getElementById("edit-preloaded-topics").addEventListener("click", function () {
+        fillPreloadedEditor();
+        if (!preloadedDialog.open) {
+          preloadedDialog.showModal();
+        }
+      });
+      document.getElementById("preloaded-topics-cancel").addEventListener("click", function () {
+        preloadedDialog.close();
+      });
+      preloadedForm.addEventListener("submit", function () {
+        var lines = preloadedInput.value.split(/\r?\n/);
+        var kept = [];
+        for (var raw of lines) {
+          var line = raw.trim();
+          if (line) {
+            kept.push(line.slice(0, 120));
+          }
+        }
+        preloadedInput.value = kept.join("\n");
+        var data = document.getElementById("preloaded-topics-data");
+        if (data) {
+          data.textContent = preloadedInput.value;
+        }
+        preloadedDialog.close();
       });
 
       var stored = localStorage.getItem(key);

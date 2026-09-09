@@ -22,6 +22,7 @@ type Hub struct {
 	conns            map[*websocket.Conn]participant
 	alwaysShowVotes  bool
 	topicTitle       string
+	preloadedTopics  []string
 	consensusPercent int
 	maxSpread        int
 }
@@ -102,10 +103,33 @@ func (h *Hub) setTopic(title string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if len(title) > 120 {
-		title = title[:120]
+	if len(title) > maxTopicTitleLen {
+		title = title[:maxTopicTitleLen]
 	}
 	h.topicTitle = title
+}
+
+func (h *Hub) setPreloadedTopics(topics []string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	h.preloadedTopics = append([]string(nil), topics...)
+}
+
+func (h *Hub) loadNextTopic() {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	if len(h.preloadedTopics) == 0 {
+		return
+	}
+	title := h.preloadedTopics[0]
+	if len(title) > maxTopicTitleLen {
+		title = title[:maxTopicTitleLen]
+	}
+	h.topicTitle = title
+	next := make([]string, len(h.preloadedTopics)-1)
+	copy(next, h.preloadedTopics[1:])
+	h.preloadedTopics = next
+	h.clearVotesLocked()
 }
 
 func (h *Hub) topic() string {
@@ -169,6 +193,7 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 
 	alwaysShow := h.alwaysShowVotes
 	topic := h.topicTitle
+	preloaded := append([]string(nil), h.preloadedTopics...)
 	consensus := normalizeConsensusPercent(h.consensusPercent)
 	maxSpread := normalizeMaxSpread(h.maxSpread)
 
@@ -179,5 +204,5 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	}
 
 	h.mu.Unlock()
-	h.writeTextToAll([]byte(roomStateHTML(n, rows, alwaysShow, topic, consensus, maxSpread)))
+	h.writeTextToAll([]byte(renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, preloaded)))
 }

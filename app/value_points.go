@@ -27,12 +27,16 @@ const (
 	adminSetTopic           = "set-topic"
 	adminObserverMode       = "observer-mode"
 	adminConsensusAgreement = "consensus-agreement"
+	adminLoadNextTopic      = "load-next-topic"
+	adminSetPreloadedTopics = "set-preloaded-topics"
 	minConsensusPercent     = 50
 	maxConsensusPercent     = 100
 	defaultConsensusPercent = 100
 	minMaxSpread            = 0
 	maxMaxSpread            = 6
 	defaultMaxSpread        = 0
+	maxTopicTitleLen        = 120
+	maxPreloadedTopicCount  = 200
 )
 
 func parseVotePoints(payload []byte) (string, bool) {
@@ -78,7 +82,7 @@ func parseAdminAction(payload []byte) (string, bool) {
 		return "", false
 	}
 	switch s {
-	case adminAlwaysShowVotes, adminClearVotes, adminSetTopic, adminObserverMode, adminConsensusAgreement:
+	case adminAlwaysShowVotes, adminClearVotes, adminSetTopic, adminObserverMode, adminConsensusAgreement, adminLoadNextTopic, adminSetPreloadedTopics:
 		return s, true
 	default:
 		return "", false
@@ -169,6 +173,35 @@ func parseTopicTitle(payload []byte) string {
 		return ""
 	}
 	return jsonString(m["topic-title"])
+}
+
+func parsePreloadedTopics(payload []byte) []string {
+	var m map[string]any
+	if err := json.Unmarshal(payload, &m); err != nil {
+		return nil
+	}
+	return normalizePreloadedTopics(jsonString(m["preloaded-topics"]))
+}
+
+func normalizePreloadedTopics(raw string) []string {
+	raw = strings.ReplaceAll(raw, "\r\n", "\n")
+	raw = strings.ReplaceAll(raw, "\r", "\n")
+	lines := strings.Split(raw, "\n")
+	out := make([]string, 0, len(lines))
+	for _, line := range lines {
+		line = strings.TrimSpace(line)
+		if line == "" {
+			continue
+		}
+		if len(line) > maxTopicTitleLen {
+			line = line[:maxTopicTitleLen]
+		}
+		out = append(out, line)
+		if len(out) >= maxPreloadedTopicCount {
+			break
+		}
+	}
+	return out
 }
 
 func jsonString(v any) string {
