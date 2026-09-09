@@ -1,6 +1,7 @@
 package main
 
 import (
+	"strings"
 	"testing"
 )
 
@@ -51,6 +52,8 @@ func TestParseAdminAction(t *testing.T) {
 		{name: "always show", payload: `{"admin":"always-show-votes"}`, want: adminAlwaysShowVotes, ok: true},
 		{name: "observer", payload: `{"admin":"observer-mode"}`, want: adminObserverMode, ok: true},
 		{name: "consensus", payload: `{"admin":"consensus-agreement","percentage":"75"}`, want: adminConsensusAgreement, ok: true},
+		{name: "load next topic", payload: `{"admin":"load-next-topic"}`, want: adminLoadNextTopic, ok: true},
+		{name: "set preloaded topics", payload: `{"admin":"set-preloaded-topics","preloaded-topics":"A"}`, want: adminSetPreloadedTopics, ok: true},
 		{name: "unknown", payload: `{"admin":"explode"}`, ok: false},
 		{name: "vote", payload: `{"points":"8"}`, ok: false},
 	}
@@ -76,6 +79,45 @@ func TestParseTopicTitle(t *testing.T) {
 	}
 	if got := parseTopicTitle([]byte(`{"admin":"set-topic"}`)); got != "" {
 		t.Fatalf("missing title should be empty, got %q", got)
+	}
+}
+
+func TestParsePreloadedTopics(t *testing.T) {
+	t.Parallel()
+
+	got := parsePreloadedTopics([]byte("{\"admin\":\"set-preloaded-topics\",\"preloaded-topics\":\"  Alpha  \\n\\nBeta\\n  \\nGamma  \"}"))
+	want := []string{"Alpha", "Beta", "Gamma"}
+	if len(got) != len(want) {
+		t.Fatalf("got %v want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v want %v", got, want)
+		}
+	}
+
+	crlf := parsePreloadedTopics([]byte("{\"preloaded-topics\":\"One\\r\\n\\r\\nTwo\"}"))
+	if len(crlf) != 2 || crlf[0] != "One" || crlf[1] != "Two" {
+		t.Fatalf("CRLF should split and drop blanks: %v", crlf)
+	}
+
+	long := strings.Repeat("a", maxTopicTitleLen+5)
+	trimmed := normalizePreloadedTopics(long)
+	if len(trimmed) != 1 || trimmed[0] != strings.Repeat("a", maxTopicTitleLen) {
+		t.Fatalf("title should truncate to %d, got %#v", maxTopicTitleLen, trimmed)
+	}
+
+	if got := parsePreloadedTopics([]byte(`{"admin":"set-preloaded-topics"}`)); len(got) != 0 {
+		t.Fatalf("missing field should be empty, got %v", got)
+	}
+
+	var b strings.Builder
+	for i := 0; i < maxPreloadedTopicCount+3; i++ {
+		b.WriteString("t\n")
+	}
+	capped := normalizePreloadedTopics(b.String())
+	if len(capped) != maxPreloadedTopicCount {
+		t.Fatalf("got %d topics, want cap %d", len(capped), maxPreloadedTopicCount)
 	}
 }
 

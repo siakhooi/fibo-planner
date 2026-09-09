@@ -14,6 +14,10 @@ type voteTally struct {
 }
 
 func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, consensus, maxSpread int) string {
+	return renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, nil)
+}
+
+func renderRoomState(n int, rows []participant, alwaysShow bool, topic string, consensus, maxSpread int, preloaded []string) string {
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].observer != rows[j].observer {
 			return !rows[i].observer
@@ -64,6 +68,8 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, con
 			`<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="%s">Always show votes</button>`+
 			"%s"+
 			"%s"+
+			"%s"+
+			"%s"+
 			"%s",
 		n,
 		listHTML.String(),
@@ -71,6 +77,8 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, con
 		consensusControlsHTML(consensus, maxSpread),
 		voteResultsHTML(rows, consensus, maxSpread),
 		topicHeadingHTML(topic),
+		loadNextTopicButtonHTML(preloaded),
+		preloadedTopicsDataHTML(preloaded),
 	)
 }
 
@@ -152,6 +160,24 @@ func topicHeadingHTML(topic string) string {
 		return `<h2 id="topic-title" class="topic-title" hx-swap-oob="true" hidden></h2>`
 	}
 	return fmt.Sprintf(`<h2 id="topic-title" class="topic-title" hx-swap-oob="true">%s</h2>`, html.EscapeString(topic))
+}
+
+func loadNextTopicButtonHTML(topics []string) string {
+	if len(topics) == 0 {
+		return `<button type="submit" id="load-next-topic" hx-swap-oob="true" disabled>Load Next Topic</button>`
+	}
+	return fmt.Sprintf(
+		`<button type="submit" id="load-next-topic" hx-swap-oob="true" title="Next Topic: %s">Load Next Topic [%d]</button>`,
+		html.EscapeString(topics[0]),
+		len(topics),
+	)
+}
+
+func preloadedTopicsDataHTML(topics []string) string {
+	return fmt.Sprintf(
+		`<pre id="preloaded-topics-data" hx-swap-oob="true" hidden>%s</pre>`,
+		html.EscapeString(strings.Join(topics, "\n")),
+	)
 }
 
 func allVotersHaveVoted(rows []participant) bool {

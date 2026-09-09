@@ -77,6 +77,10 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 					h.clearVotes()
 				case adminSetTopic:
 					h.setTopic(parseTopicTitle(msg))
+				case adminLoadNextTopic:
+					h.loadNextTopic()
+				case adminSetPreloadedTopics:
+					h.setPreloadedTopics(parsePreloadedTopics(msg))
 				case adminAlwaysShowVotes:
 					h.toggleAlwaysShowVotes()
 				case adminConsensusAgreement:
