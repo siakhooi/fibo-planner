@@ -486,17 +486,17 @@
         }
         if (desktopAdmin.matches) {
           adminPanel.setAttribute("open", "");
-          adminPanel.removeAttribute("data-user-toggled");
+          delete adminPanel.dataset.userToggled;
           return;
         }
-        if (!adminPanel.hasAttribute("data-user-toggled")) {
+        if (!("userToggled" in adminPanel.dataset)) {
           adminPanel.removeAttribute("open");
         }
       }
       if (adminPanel) {
         adminPanel.addEventListener("toggle", function () {
           if (!desktopAdmin.matches) {
-            adminPanel.setAttribute("data-user-toggled", "");
+            adminPanel.dataset.userToggled = "";
           }
         });
         if (desktopAdmin.addEventListener) {
