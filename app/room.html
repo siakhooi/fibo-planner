@@ -22,8 +22,25 @@
       box-sizing: border-box;
     }
     .join-form button { padding: 0.45rem 1rem; }
-    .button-grid { display: grid; grid-template-columns: repeat(4, 80px); gap: 12px; }
-    .button-grid button { width: 80px; height: 80px; font-size: 24px; font-weight: bold; border: 1px solid #888; border-radius: 8px; background: #f5f5f5; cursor: pointer; touch-action: manipulation; }
+    .button-grid {
+      display: grid;
+      grid-template-columns: repeat(4, minmax(0, 1fr));
+      gap: 0.75rem;
+      max-width: 22.5rem;
+    }
+    .button-grid button {
+      width: 100%;
+      aspect-ratio: 1;
+      height: auto;
+      min-height: 3.25rem;
+      font-size: 1.5rem;
+      font-weight: bold;
+      border: 1px solid #888;
+      border-radius: 8px;
+      background: #f5f5f5;
+      cursor: pointer;
+      touch-action: manipulation;
+    }
     .button-grid button:disabled { opacity: 0.4; cursor: not-allowed; background: #eee; }
 
     .user-table { width: 100%; max-width: 28rem; border-collapse: collapse; font-size: 0.95rem; margin: 0.35rem 0 0; }
@@ -37,7 +54,22 @@
       100% { background: transparent; font-weight: inherit; }
     }
     .user-table td.vote-flash { animation: vote-flash 1.6s ease-out; }
-    .room-layout { display: flex; gap: 1.25rem; align-items: flex-start; }
+    .room-layout {
+      display: grid;
+      grid-template-columns: 14rem minmax(0, 1fr) 14rem;
+      gap: 1.25rem;
+      align-items: start;
+    }
+    .admin-panel { grid-column: 1; }
+    .main-stack {
+      grid-column: 2;
+      min-width: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 1.25rem;
+    }
+    .results-panel { grid-column: 3; }
+    .users-panel .meta { margin-top: 0; }
     .admin-panel,
     .results-panel {
       border: 1px solid #ddd;
@@ -46,11 +78,54 @@
       background: #fafafa;
       box-sizing: border-box;
     }
-    .admin-panel { flex: 0 0 14rem; }
-    .results-panel { flex: 0 0 14rem; }
     .results-table th, .results-table td { padding: 0.4rem 0.35rem; }
     .admin-panel h3,
-    .results-panel h3 { font-size: 0.8rem; margin: 0 0 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; color: #444; }
+    .admin-panel > summary,
+    .results-panel h3 {
+      font-size: 0.8rem;
+      font-weight: 600;
+      margin: 0 0 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: #444;
+    }
+    .admin-panel > summary {
+      list-style: none;
+      display: block;
+      cursor: default;
+      pointer-events: none;
+    }
+    .admin-panel > summary::-webkit-details-marker { display: none; }
+    .admin-panel::details-content {
+      display: block;
+      content-visibility: visible;
+    }
+    .voter-toolbar {
+      display: flex;
+      flex-wrap: wrap;
+      align-items: baseline;
+      justify-content: flex-start;
+      gap: 0.35rem 0.85rem;
+      margin: 0 0 1rem;
+      max-width: 22.5rem;
+    }
+    .voter-toolbar h2 { margin: 0; }
+    .observer-form { margin: 0; }
+    #observer-mode {
+      padding: 0.15rem 0.55rem;
+      min-height: 2.25rem;
+      cursor: pointer;
+      border: 1px solid #888;
+      border-radius: 6px;
+      background: #fff;
+      font: inherit;
+      font-size: 0.85rem;
+    }
+    #observer-mode[aria-pressed="true"] {
+      background: #dbeafe;
+      border-color: #2563eb;
+      font-weight: 600;
+    }
     .admin-panel form + h3 {
       margin-top: 1rem;
       padding-top: 0.85rem;
@@ -81,6 +156,8 @@
       border-radius: 8px;
       padding: 1rem;
       width: min(32rem, calc(100% - 2rem));
+      max-height: min(36rem, calc(100dvh - 2rem));
+      overflow: auto;
       font-family: inherit;
     }
     #preloaded-topics-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
@@ -88,7 +165,8 @@
     #preloaded-topics-dialog label { display: block; font-size: 0.9rem; margin-bottom: 0.35rem; }
     #preloaded-topics-dialog textarea {
       width: 100%;
-      min-height: 14rem;
+      min-height: 10rem;
+      max-height: 40vh;
       box-sizing: border-box;
       padding: 0.5rem;
       margin-bottom: 0.75rem;
@@ -109,11 +187,52 @@
       border-radius: 6px;
       background: #fff;
     }
-    .room-body { flex: 1; min-width: 0; }
+    @media (max-width: 60rem) {
+      body { margin: 0.75rem auto 1.5rem; padding: 0 0.75rem; }
+      h1 { font-size: 1.2rem; }
+      .crumb { margin-bottom: 0.5rem; }
+      .admin-panel::details-content {
+        display: none;
+        content-visibility: hidden;
+      }
+      .admin-panel[open]::details-content {
+        display: block;
+        content-visibility: visible;
+      }
+      .admin-panel > summary {
+        cursor: pointer;
+        pointer-events: auto;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 0.5rem;
+        min-height: 2.5rem;
+      }
+      .admin-panel > summary::after {
+        content: "▾";
+        font-size: 0.85rem;
+        color: #666;
+      }
+      .admin-panel:not([open]) > summary::after { content: "▸"; }
+      .admin-panel:not([open]) { padding: 0.4rem 0.75rem; }
+      .admin-panel:not([open]) > summary { margin: 0; }
+      .room-layout {
+        grid-template-columns: minmax(0, 1fr) minmax(10rem, 14rem);
+      }
+      .admin-panel { grid-column: 1 / -1; }
+      .main-stack { grid-column: 1; }
+      .results-panel { grid-column: 2; grid-row: 2; }
+    }
     @media (max-width: 40rem) {
-      .room-layout { flex-direction: column; }
+      .room-layout { grid-template-columns: 1fr; }
       .admin-panel,
-      .results-panel { flex-basis: auto; width: 100%; }
+      .main-stack,
+      .results-panel { grid-column: 1; }
+      .main-stack { display: contents; }
+      .admin-panel { order: 0; }
+      .room-body { order: 1; }
+      .results-panel { order: 2; grid-row: auto; }
+      .users-panel { order: 3; }
     }
     #consensus-controls { margin-top: 0.15rem; }
     #consensus-controls .consensus-slider + .consensus-slider { margin-top: 0.85rem; }
@@ -232,9 +351,10 @@
   </section>
 
   <div id="room-main" class="room-main" hidden>
-    <div id="room-ws" hx-ext="ws" class="room-layout">
-      <aside class="admin-panel" aria-labelledby="admin-heading">
-        <h3 id="admin-heading">Administration</h3>
+    <div id="room-ws" hx-ext="ws">
+      <div class="room-layout">
+      <details class="admin-panel" aria-labelledby="admin-heading">
+        <summary id="admin-heading">Administration</summary>
         <form id="clear-votes-form" action="#">
           <input type="hidden" name="admin" value="clear-votes" />
           <button type="submit" id="clear-votes">Clear votes</button>
@@ -260,11 +380,6 @@
         <form id="edit-preloaded-topics-form" action="#">
           <button type="button" id="edit-preloaded-topics">Edit Preloaded Topic</button>
         </form>
-        <h3>My Options</h3>
-        <form id="observer-mode-form" action="#">
-          <input type="hidden" name="admin" value="observer-mode" />
-          <button type="submit" id="observer-mode" aria-pressed="false">I am Observer</button>
-        </form>
         <h3>Global Options</h3>
         <form id="always-show-votes-form" action="#">
           <input type="hidden" name="admin" value="always-show-votes" />
@@ -275,10 +390,17 @@
           <input type="hidden" name="admin" value="consensus-agreement" />
           {{.ConsensusControlsHTML}}
         </form>
-      </aside>
+      </details>
+      <div class="main-stack">
       <div class="room-body">
         <h2 id="topic-title" class="topic-title"{{if not .TopicTitle}} hidden{{end}}>{{.TopicTitle}}</h2>
-        <h2 id="user-name">Your name</h2>
+        <div class="voter-toolbar">
+          <h2 id="user-name">Your name</h2>
+          <form id="observer-mode-form" class="observer-form" action="#">
+            <input type="hidden" name="admin" value="observer-mode" />
+            <button type="submit" id="observer-mode" aria-pressed="false">I am Observer</button>
+          </form>
+        </div>
         <form id="points-form" action="#">
           <input type="hidden" id="points-value" name="points" value="" />
           <div class="button-grid">
@@ -292,6 +414,8 @@
             <button type="submit" data-points="20">20</button>
           </div>
         </form>
+      </div>
+      <section class="users-panel" aria-label="Users in this room">
         <p class="meta">
           Users in this room (<strong id="session-count">{{.Count}}</strong>):
         </p>
@@ -304,6 +428,7 @@
           </thead>
           <tbody></tbody>
         </table>
+      </section>
       </div>
       <aside class="results-panel" aria-labelledby="results-heading">
         <h3 id="results-heading">Results</h3>
@@ -320,6 +445,7 @@
           <tbody></tbody>
         </table>
       </aside>
+      </div>
       <pre id="preloaded-topics-data" hidden></pre>
       <dialog id="preloaded-topics-dialog" aria-labelledby="preloaded-topics-heading">
         <form id="set-preloaded-topics-form" action="#">
@@ -351,33 +477,56 @@
       var input = document.getElementById("display-name");
       var pointsForm = document.getElementById("points-form");
       var pointsValue = document.getElementById("points-value");
-      var myName = "";
+
+      var adminPanel = document.querySelector("details.admin-panel");
+      var desktopAdmin = window.matchMedia("(min-width: 60.01rem)");
+      function syncAdminPanelOpen() {
+        if (!adminPanel) {
+          return;
+        }
+        if (desktopAdmin.matches) {
+          adminPanel.setAttribute("open", "");
+          delete adminPanel.dataset.userToggled;
+          return;
+        }
+        if (!("userToggled" in adminPanel.dataset)) {
+          adminPanel.removeAttribute("open");
+        }
+      }
+      if (adminPanel) {
+        adminPanel.addEventListener("toggle", function () {
+          if (!desktopAdmin.matches) {
+            adminPanel.dataset.userToggled = "";
+          }
+        });
+        if (desktopAdmin.addEventListener) {
+          desktopAdmin.addEventListener("change", syncAdminPanelOpen);
+        } else if (desktopAdmin.addListener) {
+          desktopAdmin.addListener(syncAdminPanelOpen);
+        }
+        syncAdminPanelOpen();
+      }
 
       function showMyVote() {
         var observerBtn = document.getElementById("observer-mode");
         var voteButtons = pointsForm.querySelectorAll("button");
-        var rows = document.querySelectorAll("#user-list tbody tr");
-        for (var row of rows) {
-          var cells = row.cells;
-          if (cells[0].textContent !== myName) {
-            row.classList.remove("current-user");
-            continue;
-          }
-          row.classList.add("current-user");
-          var isObserver = cells[1].textContent === "observer";
-          observerBtn.setAttribute("aria-pressed", isObserver ? "true" : "false");
-          for (var voteBtn of voteButtons) {
-            voteBtn.disabled = isObserver;
-          }
-          if (isObserver || cells[1].textContent === "") {
-            pointsValue.value = "";
-            return;
-          }
-          var mine = pointsValue.value;
-          if (mine && cells[1].textContent === "???") {
-            cells[1].textContent = mine;
-          }
+        var me = document.querySelector("#user-list tbody tr.current-user");
+        if (!me) {
           return;
+        }
+        var cells = me.cells;
+        var isObserver = cells[1].textContent === "observer";
+        observerBtn.setAttribute("aria-pressed", isObserver ? "true" : "false");
+        for (var voteBtn of voteButtons) {
+          voteBtn.disabled = isObserver;
+        }
+        if (isObserver || cells[1].textContent === "") {
+          pointsValue.value = "";
+          return;
+        }
+        var mine = pointsValue.value;
+        if (mine && cells[1].textContent === "???") {
+          cells[1].textContent = mine;
         }
       }
 
@@ -394,7 +543,6 @@
         if (!displayName) {
           return;
         }
-        myName = displayName;
         localStorage.setItem(key, displayName);
         gate.hidden = true;
         main.hidden = false;

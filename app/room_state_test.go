@@ -114,6 +114,35 @@ func TestRoomStateHTMLFlashesObserverRoleChange(t *testing.T) {
 	}
 }
 
+func TestRoomStateHTMLMarksSelfRowAndObserverButton(t *testing.T) {
+	t.Parallel()
+
+	voter := roomHTML(2, []participant{
+		{name: "Alex", self: true},
+		{name: "Alex", observer: true},
+	}, false)
+	if !strings.Contains(voter, `<tr class="current-user"><td>Alex</td><td></td></tr>`) {
+		t.Fatalf("self row should be marked current-user: %s", voter)
+	}
+	if !strings.Contains(voter, `<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="false">I am Observer</button>`) {
+		t.Fatalf("self voter should receive an unpressed observer button: %s", voter)
+	}
+	if strings.Contains(voter, `<tr class="current-user"><td>Alex</td><td>observer</td></tr>`) {
+		t.Fatalf("the other Alex must not be marked as self: %s", voter)
+	}
+
+	observer := roomHTML(2, []participant{
+		{name: "Alex"},
+		{name: "Alex", observer: true, self: true, flash: true},
+	}, false)
+	if !strings.Contains(observer, `<tr class="current-user"><td class="vote-flash">Alex</td><td class="vote-flash">observer</td></tr>`) {
+		t.Fatalf("self observer row should be marked current-user: %s", observer)
+	}
+	if !strings.Contains(observer, `<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="true">I am Observer</button>`) {
+		t.Fatalf("self observer should receive a pressed observer button: %s", observer)
+	}
+}
+
 func TestRoomStateHTMLAlwaysShowVotesSkipsMasking(t *testing.T) {
 	t.Parallel()
 

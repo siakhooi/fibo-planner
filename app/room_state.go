@@ -49,11 +49,15 @@ func renderRoomState(n int, rows []participant, alwaysShow bool, topic string, c
 		} else if masked && points != "" {
 			points = "???"
 		}
+		trClass := ""
+		if row.self {
+			trClass = ` class="current-user"`
+		}
 		flash := ""
 		if row.flash {
 			flash = ` class="vote-flash"`
 		}
-		fmt.Fprintf(&listHTML, "<tr><td%s>%s</td><td%s>%s</td></tr>", flash, html.EscapeString(row.name), flash, html.EscapeString(points))
+		fmt.Fprintf(&listHTML, "<tr%s><td%s>%s</td><td%s>%s</td></tr>", trClass, flash, html.EscapeString(row.name), flash, html.EscapeString(points))
 	}
 	listHTML.WriteString("</tbody></table>")
 
@@ -61,11 +65,19 @@ func renderRoomState(n int, rows []participant, alwaysShow bool, topic string, c
 	if alwaysShow {
 		pressed = "true"
 	}
+	observerPressed := "false"
+	for _, row := range rows {
+		if row.self && row.observer {
+			observerPressed = "true"
+			break
+		}
+	}
 
 	return fmt.Sprintf(
 		`<strong id="session-count" hx-swap-oob="true">%d</strong>`+
 			"%s"+
 			`<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="%s">Always show votes</button>`+
+			`<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="%s">I am Observer</button>`+
 			"%s"+
 			"%s"+
 			"%s"+
@@ -74,6 +86,7 @@ func renderRoomState(n int, rows []participant, alwaysShow bool, topic string, c
 		n,
 		listHTML.String(),
 		pressed,
+		observerPressed,
 		consensusControlsHTML(consensus, maxSpread),
 		voteResultsHTML(rows, consensus, maxSpread),
 		topicHeadingHTML(topic),
