@@ -65,6 +65,31 @@ Then open [http://localhost:8080](http://localhost:8080).
 
 With [just](https://github.com/casey/just): `just run` or `just docker-run`.
 
+### Custom HTML
+
+Set `FIBO_PLANNER_CUSTOM_HTML_DIR` to a directory of optional snippets. Each file that exists is inserted into every full page at process start:
+
+| File              | Insertion point                              |
+| ----------------- | -------------------------------------------- |
+| `head.html`       | last line of `<head>`, just before `</head>` |
+| `body-start.html` | first line of `<body>`, just after `<body>`  |
+| `body-end.html`   | last line of `<body>`, just before `</body>` |
+
+Missing files are skipped. Snippets are inserted as-is (not escaped); only use a directory you control. Restart the process after changing files.
+
+```bash
+FIBO_PLANNER_CUSTOM_HTML_DIR=/path/to/custom-html go run ./app
+```
+
+Docker (`FROM scratch`) can still read a mounted directory:
+
+```bash
+docker run -p 8080:8080 \
+  -e FIBO_PLANNER_CUSTOM_HTML_DIR=/custom \
+  -v /path/to/custom-html:/custom:ro \
+  siakhooi/fibo-planner
+```
+
 ## Typical session
 
 1. Create a room from the home page and share the URL.
