@@ -13,6 +13,7 @@ type participant struct {
 	points   string
 	flash    bool
 	observer bool
+	self     bool
 }
 
 // Hub tracks active WebSocket connections (one browser tab/session) for one room.
@@ -187,22 +188,39 @@ func (h *Hub) writeTextToAll(payload []byte) {
 
 // broadcastRoomState sends session count and the participant table (room page only).
 // highlight, if non-nil, is the connection whose row should flash (vote, join, or role change).
+// Each connection receives a payload with its own row marked current-user.
 func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	h.mu.Lock()
 	n := len(h.conns)
-
 	alwaysShow := h.alwaysShowVotes
 	topic := h.topicTitle
 	preloaded := append([]string(nil), h.preloadedTopics...)
 	consensus := normalizeConsensusPercent(h.consensusPercent)
 	maxSpread := normalizeMaxSpread(h.maxSpread)
 
-	rows := make([]participant, 0, n)
-	for c, p := range h.conns {
-		p.flash = highlight != nil && c == highlight
-		rows = append(rows, p)
+	type connSnap struct {
+		c *websocket.Conn
+		p participant
 	}
-
+	snaps := make([]connSnap, 0, n)
+	for c, p := range h.conns {
+		snaps = append(snaps, connSnap{c: c, p: p})
+	}
 	h.mu.Unlock()
-	h.writeTextToAll([]byte(renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, preloaded)))
+
+	h.writeMu.Lock()
+	defer h.writeMu.Unlock()
+	for _, recipient := range snaps {
+		rows := make([]participant, 0, n)
+		for _, s := range snaps {
+			p := s.p
+			p.flash = highlight != nil && s.c == highlight
+			p.self = s.c == recipient.c
+			rows = append(rows, p)
+		}
+		payload := []byte(renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, preloaded))
+		if err := recipient.c.WriteMessage(websocket.TextMessage, payload); err != nil {
+			log.Printf("websocket write: %v", err)
+		}
+	}
 }

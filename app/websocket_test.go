@@ -56,7 +56,7 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`id="observer-mode"`,
 		`id="user-name">Your name</h2>`,
 		`tr.current-user td`,
-		`classList.add("current-user")`,
+		`#user-list tbody tr.current-user`,
 		`class="results-panel"`,
 		`aria-labelledby="results-heading"`,
 		`id="vote-results"`,
@@ -87,6 +87,54 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 	}
 	if strings.Contains(page, `class="user-list"`) {
 		t.Fatal("room page still has the old user-list ul")
+	}
+}
+
+func TestRoomPageResponsiveLayout(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	resp, err := http.Get(srv.URL + "/" + roomID)
+	if err != nil {
+		t.Fatalf("room page: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read: %v", err)
+	}
+	page := string(body)
+
+	for _, want := range []string{
+		`<details class="admin-panel"`,
+		`<summary id="admin-heading">Administration</summary>`,
+		`class="users-panel"`,
+		`class="main-stack"`,
+		`class="voter-toolbar"`,
+		`display: contents`,
+		`minmax(0, 1fr)`,
+		`@media (max-width: 60rem)`,
+		`syncAdminPanelOpen`,
+	} {
+		if !strings.Contains(page, want) {
+			t.Fatalf("room page missing %q", want)
+		}
+	}
+
+	adminAt := strings.Index(page, `class="admin-panel"`)
+	bodyAt := strings.Index(page, `class="room-body"`)
+	resultsAt := strings.Index(page, `class="results-panel"`)
+	usersAt := strings.Index(page, `class="users-panel"`)
+	observerAt := strings.Index(page, `id="observer-mode"`)
+	if adminAt < 0 || bodyAt < 0 || resultsAt < 0 || usersAt < 0 || observerAt < 0 {
+		t.Fatal("room page missing layout landmarks")
+	}
+	if observerAt < bodyAt || observerAt > usersAt {
+		t.Fatal("observer control should live in the main room body, not the admin panel")
+	}
+	if adminAt >= bodyAt || bodyAt >= usersAt || usersAt >= resultsAt {
+		t.Fatal("expected DOM order admin, body, users, results")
 	}
 }
 
@@ -457,11 +505,41 @@ func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {
 		t.Fatalf("voter again: %v", err)
 	}
 	voterAgain := waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
-	if strings.Contains(voterAgain, "observer") {
+	if strings.Contains(voterAgain, ">observer</td>") {
 		t.Fatalf("Bob should be a voter again: %s", voterAgain)
 	}
 	if !strings.Contains(voterAgain, "<td>Ada</td><td>???</td>") {
 		t.Fatalf("Ada's vote should be masked once Bob is a voter again: %s", voterAgain)
+	}
+}
+
+func TestObserverModeDuplicateNamesSyncsOnlySelf(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	first := dialRoom(t, srv, roomID, "Alex")
+	waitForMessage(t, first, `<tr class="current-user"><td class="vote-flash">Alex</td><td class="vote-flash"></td></tr>`)
+
+	second := dialRoom(t, srv, roomID, "Alex")
+	waitForMessage(t, second, `<tr class="current-user">`)
+	waitForMessage(t, first, `<td class="vote-flash">Alex</td><td class="vote-flash"></td>`)
+
+	if err := second.WriteMessage(websocket.TextMessage, []byte(`{"admin":"observer-mode"}`)); err != nil {
+		t.Fatalf("observer: %v", err)
+	}
+
+	secondMsg := waitForMessage(t, second, `id="observer-mode" hx-swap-oob="true" aria-pressed="true"`)
+	if !strings.Contains(secondMsg, `<tr class="current-user"><td class="vote-flash">Alex</td><td class="vote-flash">observer</td></tr>`) {
+		t.Fatalf("second Alex should see itself as observer: %s", secondMsg)
+	}
+
+	firstMsg := waitForMessage(t, first, `<td class="vote-flash">Alex</td><td class="vote-flash">observer</td>`)
+	if !strings.Contains(firstMsg, `id="observer-mode" hx-swap-oob="true" aria-pressed="false"`) {
+		t.Fatalf("first Alex should stay a voter: %s", firstMsg)
+	}
+	if strings.Contains(firstMsg, `<tr class="current-user"><td class="vote-flash">Alex</td><td class="vote-flash">observer</td></tr>`) {
+		t.Fatalf("first Alex must not treat the other Alex as self: %s", firstMsg)
 	}
 }
 
