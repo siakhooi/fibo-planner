@@ -19,6 +19,7 @@
       background: #f5f5f5;
       border-top: 1px solid #ccc;
     }
+    .copyright a { color: #2563eb; }
   </style>
 </head>
 <body>
@@ -26,8 +27,6 @@
   <h1>Room does not exist</h1>
   <p>There is no room <strong>{{.RoomID}}</strong>. It may have been removed after everyone left, or the link may be wrong.</p>
   <p><a href="/">Create or open a room from the home page</a></p>
-  <footer class="copyright">
-      © 2026 Fibo Planner Open source under the MIT License
-  </footer>
+  {{template "site-footer"}}
 </body>
 </html>
