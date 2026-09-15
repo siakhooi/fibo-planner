@@ -56,7 +56,7 @@ func TestParseAppTemplatesAllSnippetsOnAllPages(t *testing.T) {
 		t.Fatalf("parse: %v", err)
 	}
 
-	for _, name := range []string{"index.html", "room.html", "room_not_found.html"} {
+	for _, name := range []string{"index.html", "room.html", "room_not_found.html", "disclaimer.html", "privacy.html", "terms.html"} {
 		page := executeNamed(t, tmpl, name)
 		assertSnippetPositions(t, name, page,
 			"<!--HEAD-MARK-->",
@@ -166,6 +166,8 @@ func executeNamed(t *testing.T, tmpl *template.Template, name string) string {
 		}
 	case "room_not_found.html":
 		data = struct{ RoomID string }{RoomID: "123456"}
+	case "disclaimer.html", "privacy.html", "terms.html":
+		data = nil
 	default:
 		t.Fatalf("unknown template %s", name)
 	}
@@ -188,6 +190,30 @@ func assertStockPages(t *testing.T, tmpl *template.Template) {
 	missing := executeNamed(t, tmpl, "room_not_found.html")
 	if !strings.Contains(missing, "Room does not exist") {
 		t.Fatal("room_not_found.html missing copy")
+	}
+	disclaimer := executeNamed(t, tmpl, "disclaimer.html")
+	if !strings.Contains(disclaimer, "<title>Disclaimer · Fibo Planner</title>") {
+		t.Fatal("disclaimer.html missing title")
+	}
+	privacy := executeNamed(t, tmpl, "privacy.html")
+	if !strings.Contains(privacy, "<title>Privacy Policy · Fibo Planner</title>") {
+		t.Fatal("privacy.html missing title")
+	}
+	terms := executeNamed(t, tmpl, "terms.html")
+	if !strings.Contains(terms, "<title>Terms of Use · Fibo Planner</title>") {
+		t.Fatal("terms.html missing title")
+	}
+	for _, page := range []string{index, room, missing, disclaimer, privacy, terms} {
+		for _, want := range []string{
+			`href="https://github.com/siakhooi/fibo-planner">GitHub</a>`,
+			`href="/disclaimer">Disclaimer</a>`,
+			`href="/privacy">Privacy Policy</a>`,
+			`href="/terms">Terms of Use</a>`,
+		} {
+			if !strings.Contains(page, want) {
+				t.Errorf("page missing footer link %q", want)
+			}
+		}
 	}
 }
 
