@@ -49,6 +49,14 @@ Team maturity presets apply both knobs at once:
 - One process on port `8080`. HTML is embedded in the binary; the Docker image is built `FROM scratch`.
 - MIT licensed.
 
+## Try it
+
+A public sample is hosted on [Google Cloud Run](https://cloud.google.com/run):
+
+**[https://fibo-planner-189393002108.asia-southeast1.run.app/](https://fibo-planner-189393002108.asia-southeast1.run.app/)**
+
+Create a room, share the link, and run a planning session there. Empty rooms are still removed after 30 minutes of idle time.
+
 ## Run it
 
 ```bash
@@ -108,6 +116,7 @@ docker run -p 8080:8080 \
 
 ### Deliverables
 
+- https://fibo-planner-189393002108.asia-southeast1.run.app/
 - https://hub.docker.com/r/siakhooi/fibo-planner
 
 ### Quality
