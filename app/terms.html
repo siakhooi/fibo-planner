@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Terms of Use · Fibo Planner</title>
+  <style>
+    html, body { min-height: 100%; }
+    body { display: flex; flex-direction: column; box-sizing: border-box; font-family: system-ui, sans-serif; max-width: 40rem; min-height: 100vh; margin: 0 auto; padding: 2rem 1rem; line-height: 1.5; }
+    h1 { font-size: 1.5rem; }
+    .crumb { font-size: 0.9rem; margin-bottom: 1rem; }
+    a { color: #2563eb; }
+    p { color: #444; }
+    .copyright {
+      margin-top: auto;
+      padding: 10px;
+      width: 100%;
+      text-align: center;
+      background: #f5f5f5;
+      border-top: 1px solid #ccc;
+    }
+    .copyright a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <p class="crumb"><a href="/">Fibo Planner</a> · Terms of Use</p>
+  <h1>Terms of Use</h1>
+  {{if hasCustomLegal "terms.html"}}{{customLegal "terms.html"}}{{else}}
+  <p>By using Fibo Planner, you agree to use the service responsibly and in accordance with applicable laws.</p>
+  <p>You must not use Fibo Planner to conduct unlawful activities, interfere with the service, or attempt to gain unauthorized access to the service or its infrastructure.</p>
+  <p>Fibo Planner is provided on an "as is" basis. The service may be changed, suspended, or discontinued at any time without notice.</p>
+  <p>The open-source Fibo Planner software is provided under the MIT License. These Terms of Use apply to the hosted Fibo Planner service and do not replace the terms of the software license.</p>
+  <p>To the extent permitted by applicable law, the authors and contributors are not liable for any loss or damage arising from your use of the service.</p>
+  <p>We may update these Terms of Use from time to time. The latest version will be published on this page.</p>
+  {{end}}
+  {{template "site-footer"}}
+</body>
+</html>

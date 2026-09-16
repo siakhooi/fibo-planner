@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Privacy Policy · Fibo Planner</title>
+  <style>
+    html, body { min-height: 100%; }
+    body { display: flex; flex-direction: column; box-sizing: border-box; font-family: system-ui, sans-serif; max-width: 40rem; min-height: 100vh; margin: 0 auto; padding: 2rem 1rem; line-height: 1.5; }
+    h1 { font-size: 1.5rem; }
+    h2 { font-size: 1.15rem; margin: 1.5rem 0 0.5rem; }
+    .crumb { font-size: 0.9rem; margin-bottom: 1rem; }
+    a { color: #2563eb; }
+    p { color: #444; }
+    .meta { color: #666; margin-top: 0; }
+    .copyright {
+      margin-top: auto;
+      padding: 10px;
+      width: 100%;
+      text-align: center;
+      background: #f5f5f5;
+      border-top: 1px solid #ccc;
+    }
+    .copyright a { color: #2563eb; }
+  </style>
+</head>
+<body>
+  <p class="crumb"><a href="/">Fibo Planner</a> · Privacy Policy</p>
+  <h1>Privacy Policy</h1>
+  {{if hasCustomLegal "privacy.html"}}{{customLegal "privacy.html"}}{{else}}
+  <p class="meta">Last updated: September 2026</p>
+  <p>Fibo Planner is an open-source application designed to run without requiring user accounts or collecting personal information.</p>
+  <p>The standard Fibo Planner application does not intentionally collect, store, or transmit personal information to the Fibo Planner project maintainers.</p>
+  <p>Fibo Planner does not use advertising trackers or analytics services.</p>
+  <p>However, if you deploy Fibo Planner yourself, your hosting provider, network, or other infrastructure may collect technical information such as IP addresses or server logs. Such data collection is outside the control of the Fibo Planner project and is subject to the policies of the infrastructure you use.</p>
+  <h2>Changes to This Policy</h2>
+  <p>This Privacy Policy may be updated from time to time. The latest version will be published with the project.</p>
+  <h2>Contact</h2>
+  <p>For questions about this Privacy Policy, please contact the Fibo Planner project through its <a href="https://github.com/siakhooi/fibo-planner">GitHub repository</a>.</p>
+  {{end}}
+  {{template "site-footer"}}
+</body>
+</html>
