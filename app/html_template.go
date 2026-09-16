@@ -13,10 +13,13 @@ import (
 )
 
 const (
-	customHTMLDirEnv    = "FIBO_PLANNER_CUSTOM_HTML_DIR"
-	customHeadFile      = "head.html"
-	customBodyStartFile = "body-start.html"
-	customBodyEndFile   = "body-end.html"
+	customHTMLDirEnv     = "FIBO_PLANNER_CUSTOM_HTML_DIR"
+	customHeadFile       = "head.html"
+	customBodyStartFile  = "body-start.html"
+	customBodyEndFile    = "body-end.html"
+	customDisclaimerFile = "disclaimer.html"
+	customPrivacyFile    = "privacy.html"
+	customTermsFile      = "terms.html"
 )
 
 //go:embed *.html
@@ -32,6 +35,10 @@ type customHTML struct {
 	Head      string
 	BodyStart string
 	BodyEnd   string
+	// Legal maps a page filename (disclaimer.html, privacy.html, terms.html) to
+	// replacement body copy. A present key means the custom file existed, even
+	// when the content is empty; a missing key keeps the stock paragraphs.
+	Legal map[string]string
 }
 
 var tmpl = mustParseAppTemplates()
@@ -53,6 +60,13 @@ func parseAppTemplates(htmlFS fs.FS, customDir string) (*template.Template, erro
 		"customHead":      func() template.HTML { return template.HTML(c.Head) },
 		"customBodyStart": func() template.HTML { return template.HTML(c.BodyStart) },
 		"customBodyEnd":   func() template.HTML { return template.HTML(c.BodyEnd) },
+		"hasCustomLegal": func(name string) bool {
+			_, ok := c.Legal[name]
+			return ok
+		},
+		"customLegal": func(name string) template.HTML {
+			return template.HTML(c.Legal[name])
+		},
 	})
 	names, err := fs.Glob(htmlFS, "*.html")
 	if err != nil {
@@ -103,20 +117,36 @@ func loadCustomHTML(dir string) (customHTML, error) {
 	if err != nil {
 		return c, err
 	}
+
+	c.Legal = make(map[string]string)
+	for _, name := range []string{customDisclaimerFile, customPrivacyFile, customTermsFile} {
+		body, found, err := tryReadCustomSnippet(dir, name)
+		if err != nil {
+			return c, err
+		}
+		if found {
+			c.Legal[name] = body
+		}
+	}
 	return c, nil
 }
 
 func readCustomSnippet(dir, name string) (string, error) {
+	s, _, err := tryReadCustomSnippet(dir, name)
+	return s, err
+}
+
+func tryReadCustomSnippet(dir, name string) (content string, found bool, err error) {
 	path := filepath.Join(dir, name)
 	b, err := os.ReadFile(path)
 	if err != nil {
 		if os.IsNotExist(err) {
-			return "", nil
+			return "", false, nil
 		}
-		return "", fmt.Errorf("read %s: %w", path, err)
+		return "", false, fmt.Errorf("read %s: %w", path, err)
 	}
 	log.Printf("loaded custom HTML %s", path)
-	return string(b), nil
+	return string(b), true, nil
 }
 
 func applyCustomHTMLSlots(src string) string {

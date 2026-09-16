@@ -25,12 +25,14 @@
 <body>
   <p class="crumb"><a href="/">Fibo Planner</a> · Terms of Use</p>
   <h1>Terms of Use</h1>
+  {{if hasCustomLegal "terms.html"}}{{customLegal "terms.html"}}{{else}}
   <p>By using Fibo Planner, you agree to use the service responsibly and in accordance with applicable laws.</p>
   <p>You must not use Fibo Planner to conduct unlawful activities, interfere with the service, or attempt to gain unauthorized access to the service or its infrastructure.</p>
   <p>Fibo Planner is provided on an "as is" basis. The service may be changed, suspended, or discontinued at any time without notice.</p>
   <p>The open-source Fibo Planner software is provided under the MIT License. These Terms of Use apply to the hosted Fibo Planner service and do not replace the terms of the software license.</p>
   <p>To the extent permitted by applicable law, the authors and contributors are not liable for any loss or damage arising from your use of the service.</p>
   <p>We may update these Terms of Use from time to time. The latest version will be published on this page.</p>
+  {{end}}
   {{template "site-footer"}}
 </body>
 </html>

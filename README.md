@@ -67,13 +67,18 @@ With [just](https://github.com/casey/just): `just run` or `just docker-run`.
 
 ### Custom HTML
 
-Set `FIBO_PLANNER_CUSTOM_HTML_DIR` to a directory of optional snippets. Each file that exists is inserted into every full page at process start:
+Set `FIBO_PLANNER_CUSTOM_HTML_DIR` to a directory of optional snippets. Each file that exists is applied at process start:
 
-| File              | Insertion point                              |
-| ----------------- | -------------------------------------------- |
-| `head.html`       | last line of `<head>`, just before `</head>` |
-| `body-start.html` | first line of `<body>`, just after `<body>`  |
-| `body-end.html`   | last line of `<body>`, just before `</body>` |
+| File              | Insertion point                                                                 |
+| ----------------- | ------------------------------------------------------------------------------- |
+| `head.html`       | last line of `<head>` on every full page, just before `</head>`                 |
+| `body-start.html` | first line of `<body>` on every full page, just after `<body>`                  |
+| `body-end.html`   | last line of `<body>` on every full page, just before `</body>`                 |
+| `disclaimer.html` | body copy of `/disclaimer` only, after the heading and before the site footer   |
+| `privacy.html`    | body copy of `/privacy` only, after the heading and before the site footer      |
+| `terms.html`      | body copy of `/terms` only, after the heading and before the site footer        |
+
+The legal files are HTML fragments (paragraphs, headings, links), not full pages. Title, crumb, `<h1>`, footer, `head.html`, `body-start.html`, and `body-end.html` stay in place.
 
 Missing files are skipped. Snippets are inserted as-is (not escaped); only use a directory you control. Restart the process after changing files.
 

@@ -25,10 +25,12 @@
 <body>
   <p class="crumb"><a href="/">Fibo Planner</a> · Disclaimer</p>
   <h1>Disclaimer</h1>
+  {{if hasCustomLegal "disclaimer.html"}}{{customLegal "disclaimer.html"}}{{else}}
   <p>Fibo Planner is provided for general use and convenience. It is provided "as is" and without warranties of any kind, express or implied.</p>
   <p>The authors and contributors do not guarantee that Fibo Planner will always be available, accurate, reliable, secure, or free from errors.</p>
   <p>You use Fibo Planner at your own risk. The authors and contributors are not responsible for any loss, damage, or disruption arising from the use of the software or service, to the extent permitted by applicable law.</p>
   <p>Fibo Planner is an open-source project and is provided under the MIT License.</p>
+  {{end}}
   {{template "site-footer"}}
 </body>
 </html>

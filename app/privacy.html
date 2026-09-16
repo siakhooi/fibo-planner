@@ -27,6 +27,7 @@
 <body>
   <p class="crumb"><a href="/">Fibo Planner</a> · Privacy Policy</p>
   <h1>Privacy Policy</h1>
+  {{if hasCustomLegal "privacy.html"}}{{customLegal "privacy.html"}}{{else}}
   <p class="meta">Last updated: September 2026</p>
   <p>Fibo Planner is an open-source application designed to run without requiring user accounts or collecting personal information.</p>
   <p>The standard Fibo Planner application does not intentionally collect, store, or transmit personal information to the Fibo Planner project maintainers.</p>
@@ -36,6 +37,7 @@
   <p>This Privacy Policy may be updated from time to time. The latest version will be published with the project.</p>
   <h2>Contact</h2>
   <p>For questions about this Privacy Policy, please contact the Fibo Planner project through its <a href="https://github.com/siakhooi/fibo-planner">GitHub repository</a>.</p>
+  {{end}}
   {{template "site-footer"}}
 </body>
 </html>

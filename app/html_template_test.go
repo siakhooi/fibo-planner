@@ -109,6 +109,152 @@ func TestParseAppTemplatesSnippetTemplateActionsAreLiteral(t *testing.T) {
 	}
 }
 
+func TestParseAppTemplatesCustomLegalBodyReplacesCopyOnly(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeSnippet(t, dir, customHeadFile, `<!--HEAD-MARK-->`)
+	writeSnippet(t, dir, customBodyStartFile, `<span id="BODY-START-MARK"></span>`)
+	writeSnippet(t, dir, customBodyEndFile, `<span id="BODY-END-MARK"></span>`)
+	writeSnippet(t, dir, customDisclaimerFile, `<p id="CUSTOM-DISCLAIMER">Hosted disclaimer.</p>`)
+	writeSnippet(t, dir, customPrivacyFile, `<p id="CUSTOM-PRIVACY">Hosted privacy.</p>`)
+	writeSnippet(t, dir, customTermsFile, `<p id="CUSTOM-TERMS">Hosted terms.</p>`)
+
+	tmpl, err := parseAppTemplates(tplFS, dir)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	cases := []struct {
+		name    string
+		custom  string
+		stock   string
+		heading string
+		crumb   string
+	}{
+		{
+			name:    "disclaimer.html",
+			custom:  `id="CUSTOM-DISCLAIMER">Hosted disclaimer.`,
+			stock:   "without warranties of any kind",
+			heading: "<h1>Disclaimer</h1>",
+			crumb:   `Fibo Planner</a> · Disclaimer`,
+		},
+		{
+			name:    "privacy.html",
+			custom:  `id="CUSTOM-PRIVACY">Hosted privacy.`,
+			stock:   "does not use advertising trackers",
+			heading: "<h1>Privacy Policy</h1>",
+			crumb:   `Fibo Planner</a> · Privacy Policy`,
+		},
+		{
+			name:    "terms.html",
+			custom:  `id="CUSTOM-TERMS">Hosted terms.`,
+			stock:   "use the service responsibly",
+			heading: "<h1>Terms of Use</h1>",
+			crumb:   `Fibo Planner</a> · Terms of Use`,
+		},
+	}
+	for _, tc := range cases {
+		page := executeNamed(t, tmpl, tc.name)
+		assertSnippetPositions(t, tc.name, page,
+			"<!--HEAD-MARK-->",
+			`<span id="BODY-START-MARK"></span>`,
+			`<span id="BODY-END-MARK"></span>`,
+		)
+		if !strings.Contains(page, tc.custom) {
+			t.Errorf("%s: missing custom body copy", tc.name)
+		}
+		if strings.Contains(page, tc.stock) {
+			t.Errorf("%s: stock body copy should have been replaced", tc.name)
+		}
+		if !strings.Contains(page, tc.heading) {
+			t.Errorf("%s: heading should remain", tc.name)
+		}
+		if !strings.Contains(page, tc.crumb) {
+			t.Errorf("%s: crumb should remain", tc.name)
+		}
+		if !strings.Contains(page, `href="/disclaimer">Disclaimer</a>`) {
+			t.Errorf("%s: site footer should remain", tc.name)
+		}
+	}
+
+	index := executeNamed(t, tmpl, "index.html")
+	if strings.Contains(index, "Hosted disclaimer") || strings.Contains(index, "Hosted privacy") || strings.Contains(index, "Hosted terms") {
+		t.Fatal("custom legal body copy leaked onto index.html")
+	}
+}
+
+func TestParseAppTemplatesCustomLegalBodyOneFileLeavesOthersStock(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeSnippet(t, dir, customDisclaimerFile, `<p>Only disclaimer is custom.</p>`)
+
+	tmpl, err := parseAppTemplates(tplFS, dir)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	disclaimer := executeNamed(t, tmpl, "disclaimer.html")
+	if !strings.Contains(disclaimer, "Only disclaimer is custom.") {
+		t.Fatal("disclaimer missing custom copy")
+	}
+	if strings.Contains(disclaimer, "without warranties of any kind") {
+		t.Fatal("disclaimer still has stock copy")
+	}
+
+	privacy := executeNamed(t, tmpl, "privacy.html")
+	if !strings.Contains(privacy, "does not use advertising trackers") {
+		t.Fatal("privacy should keep stock copy")
+	}
+	terms := executeNamed(t, tmpl, "terms.html")
+	if !strings.Contains(terms, "use the service responsibly") {
+		t.Fatal("terms should keep stock copy")
+	}
+}
+
+func TestParseAppTemplatesEmptyCustomLegalBodyClearsStockCopy(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeSnippet(t, dir, customDisclaimerFile, "")
+
+	tmpl, err := parseAppTemplates(tplFS, dir)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+
+	page := executeNamed(t, tmpl, "disclaimer.html")
+	if strings.Contains(page, "without warranties of any kind") {
+		t.Fatal("empty custom disclaimer.html should replace stock copy")
+	}
+	if !strings.Contains(page, "<h1>Disclaimer</h1>") {
+		t.Fatal("heading should remain when custom body is empty")
+	}
+	if !strings.Contains(page, `href="/disclaimer">Disclaimer</a>`) {
+		t.Fatal("site footer should remain when custom body is empty")
+	}
+}
+
+func TestParseAppTemplatesCustomLegalBodyTemplateActionsAreLiteral(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	writeSnippet(t, dir, customDisclaimerFile, `{{.RoomID}}<script>window.__fiboLegal=1</script>`)
+
+	tmpl, err := parseAppTemplates(tplFS, dir)
+	if err != nil {
+		t.Fatalf("parse: %v", err)
+	}
+	page := executeNamed(t, tmpl, "disclaimer.html")
+	if !strings.Contains(page, "{{.RoomID}}") {
+		t.Fatalf("expected literal {{.RoomID}} in custom legal body, got:\n%s", page)
+	}
+	if !strings.Contains(page, "<script>window.__fiboLegal=1</script>") {
+		t.Fatal("script in custom legal body was escaped or dropped")
+	}
+}
+
 func TestApplyCustomHTMLSlotsInsertsAtHeadAndBody(t *testing.T) {
 	t.Parallel()
 
@@ -195,17 +341,26 @@ func assertStockPages(t *testing.T, tmpl *template.Template) {
 	if !strings.Contains(disclaimer, "<title>Disclaimer · Fibo Planner</title>") {
 		t.Fatal("disclaimer.html missing title")
 	}
+	if !strings.Contains(disclaimer, "without warranties of any kind") {
+		t.Fatal("disclaimer.html missing stock copy")
+	}
 	privacy := executeNamed(t, tmpl, "privacy.html")
 	if !strings.Contains(privacy, "<title>Privacy Policy · Fibo Planner</title>") {
 		t.Fatal("privacy.html missing title")
+	}
+	if !strings.Contains(privacy, "does not use advertising trackers") {
+		t.Fatal("privacy.html missing stock copy")
 	}
 	terms := executeNamed(t, tmpl, "terms.html")
 	if !strings.Contains(terms, "<title>Terms of Use · Fibo Planner</title>") {
 		t.Fatal("terms.html missing title")
 	}
+	if !strings.Contains(terms, "use the service responsibly") {
+		t.Fatal("terms.html missing stock copy")
+	}
 	for _, page := range []string{index, room, missing, disclaimer, privacy, terms} {
 		for _, want := range []string{
-			`href="https://github.com/siakhooi/fibo-planner">GitHub</a>`,
+			`href="https://github.com/siakhooi/fibo-planner" target="_blank" rel="noopener noreferrer">GitHub</a>`,
 			`href="/disclaimer">Disclaimer</a>`,
 			`href="/privacy">Privacy Policy</a>`,
 			`href="/terms">Terms of Use</a>`,
