@@ -9,7 +9,7 @@ No accounts, no database, no extra services. A single Go binary (or Docker image
 ### Rooms and lobby
 
 - **Create a room in one click.** Optional display name (for example, “Sprint 42 backlog”) plus a random 6-digit ID and a shareable URL (`/123456`).
-- **Live lobby.** The home page lists every open room with current user counts. Counts update while the page is open.
+- **Live lobby.** The home page shows how many people are on the lobby, how many rooms are open, and how many people are in rooms. Counts update while the page is open. Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` to also list each room with its user count (off by default).
 - **Named join.** Each person enters a display name before voting. The name is remembered in the browser for that room.
 - **Idle cleanup.** Empty rooms are removed after 30 minutes so the lobby does not fill with abandoned sessions.
 
@@ -72,6 +72,18 @@ docker run -p 8080:8080 siakhooi/fibo-planner
 Then open [http://localhost:8080](http://localhost:8080).
 
 With [just](https://github.com/casey/just): `just run` or `just docker-run`.
+
+### Lobby room list
+
+By default the home page shows totals only (people in the lobby, number of rooms, people in all rooms). Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` to also list every open room with a link and its user count. Any other value (or unset) keeps the list hidden. Restart the process after changing it.
+
+```bash
+FIBO_PLANNER_LOBBY_LIST_ROOMS=Y go run ./app
+```
+
+```bash
+docker run -p 8080:8080 -e FIBO_PLANNER_LOBBY_LIST_ROOMS=Y siakhooi/fibo-planner
+```
 
 ### Custom HTML
 

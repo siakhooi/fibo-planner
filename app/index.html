@@ -50,6 +50,7 @@
       max-width: 28rem;
       border-collapse: collapse;
       font-size: 0.95rem;
+      margin-bottom: 2rem;
     }
 
     .lobby-table th,
@@ -100,26 +101,7 @@
     <h2 style="font-size: 1.15rem; margin: 1.5rem 0 0.5rem;">Lobby and rooms</h2>
     <p style="margin: 0 0 0.75rem; color: #444; font-size: 0.95rem;">Live counts update while this page is open.</p>
     <div hx-ext="ws" ws-connect="/ws" class="meta">
-      <table id="lobby-overview" class="lobby-table">
-        <thead>
-          <tr>
-            <th scope="col">Name</th>
-            <th scope="col">Users</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr>
-            <td>Lobby (this page)</td>
-            <td><strong id="session-count">{{.LobbyCount}}</strong></td>
-          </tr>
-          {{range .Rooms}}
-          <tr>
-            <td><a href="/{{.RoomID}}">{{.DisplayName}}</a></td>
-            <td>{{.Count}}</td>
-          </tr>
-          {{end}}
-        </tbody>
-      </table>
+      {{template "lobby-overview-table" .}}
     </div>
   </section>
   {{template "site-footer"}}

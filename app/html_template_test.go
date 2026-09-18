@@ -296,10 +296,7 @@ func executeNamed(t *testing.T, tmpl *template.Template, name string) string {
 	var data any
 	switch name {
 	case "index.html":
-		data = struct {
-			LobbyCount int
-			Rooms      []LobbyRoomRow
-		}{}
+		data = lobbyPageData{}
 	case "room.html":
 		data = struct {
 			RoomID                string

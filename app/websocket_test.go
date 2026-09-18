@@ -139,7 +139,7 @@ func TestRoomPageResponsiveLayout(t *testing.T) {
 }
 
 func TestCreateRoomWithoutName(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	roomID := createRoom(t, srv, "")
@@ -154,8 +154,14 @@ func TestCreateRoomWithoutName(t *testing.T) {
 		t.Fatalf("read home: %v", err)
 	}
 	page := string(body)
-	if !strings.Contains(page, "Room "+roomID) {
-		t.Fatalf("lobby missing unnamed room %s: %s", roomID, page)
+	if strings.Contains(page, "Room "+roomID) || strings.Contains(page, `href="/`+roomID+`"`) {
+		t.Fatalf("default lobby should not list rooms: %s", page)
+	}
+	if !strings.Contains(page, `id="room-count">1</strong>`) {
+		t.Fatalf("lobby should show room count 1: %s", page)
+	}
+	if !strings.Contains(page, `id="rooms-user-count">0</strong>`) {
+		t.Fatalf("lobby should show 0 people in rooms: %s", page)
 	}
 	if !strings.Contains(page, `integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"`) ||
 		!strings.Contains(page, `integrity="sha384-nIP+hMv+/j0KKPtmqpKlRK1ibiKk/4JWLfgfEC+HRGkMQUK2RMiK3/L2oU1RcJMb"`) ||
