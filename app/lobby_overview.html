@@ -1,0 +1,32 @@
+{{define "lobby-overview-table"}}
+<table id="lobby-overview" class="lobby-table"{{if .OOB}} hx-swap-oob="true"{{end}}>
+  <thead>
+    <tr>
+      <th scope="col">Name</th>
+      <th scope="col">Users</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Lobby (this page)</td>
+      <td><strong id="session-count">{{.LobbyCount}}</strong></td>
+    </tr>
+    <tr>
+      <td>Rooms</td>
+      <td><strong id="room-count">{{.RoomCount}}</strong></td>
+    </tr>
+    <tr>
+      <td>People in all rooms</td>
+      <td><strong id="rooms-user-count">{{.RoomsUserCount}}</strong></td>
+    </tr>
+    {{if .ListRooms}}
+    {{range .Rooms}}
+    <tr>
+      <td><a href="/{{.RoomID}}">{{.DisplayName}}</a></td>
+      <td>{{.Count}}</td>
+    </tr>
+    {{end}}
+    {{end}}
+  </tbody>
+</table>
+{{end}}

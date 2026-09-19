@@ -2,11 +2,9 @@ package main
 
 import (
 	"bytes"
-	"html"
+	"log"
 	"net/http"
 	"sort"
-	"strconv"
-	"strings"
 )
 
 // LobbyRoomRow is one row in the index lobby table (html/template requires exported fields).
@@ -16,40 +14,68 @@ type LobbyRoomRow struct {
 	Count       int
 }
 
-func (a *App) lobbyOverviewOOBHTML() string {
+// lobbyPageData is the index page (and live lobby OOB fragment) template data.
+type lobbyPageData struct {
+	LobbyCount     int
+	RoomCount      int
+	RoomsUserCount int
+	Rooms          []LobbyRoomRow
+	ListRooms      bool
+	OOB            bool
+}
+
+func roomDisplayName(id, name string) string {
+	if name == "" {
+		return "Room " + id
+	}
+	return name + " · " + id
+}
+
+func (a *App) snapshotLobbyOverview(oob bool) lobbyPageData {
 	a.mu.Lock()
+	defer a.mu.Unlock()
+
+	listRooms := a.listLobbyRooms
 	lobbyCount := a.indexHub.count()
-	var ids []string
+	ids := make([]string, 0, len(a.roomHubs))
 	for id := range a.roomHubs {
 		ids = append(ids, id)
 	}
 	sort.Strings(ids)
 
-	var b strings.Builder
-	b.WriteString(`<table id="lobby-overview" class="lobby-table" hx-swap-oob="true"><thead><tr><th scope="col">Name</th><th scope="col">Users</th></tr></thead><tbody>`)
-	b.WriteString(`<tr><td>Lobby (this page)</td><td><strong id="session-count">`)
-	b.WriteString(strconv.Itoa(lobbyCount))
-	b.WriteString(`</strong></td></tr>`)
+	roomsUserCount := 0
+	var rooms []LobbyRoomRow
+	if listRooms {
+		rooms = make([]LobbyRoomRow, 0, len(ids))
+	}
 	for _, id := range ids {
 		cnt := a.roomHubs[id].count()
-		nm := a.rooms[id].name
-		disp := nm
-		if disp == "" {
-			disp = "Room " + id
-		} else {
-			disp = nm + " · " + id
+		roomsUserCount += cnt
+		if listRooms {
+			rooms = append(rooms, LobbyRoomRow{
+				RoomID:      id,
+				DisplayName: roomDisplayName(id, a.rooms[id].name),
+				Count:       cnt,
+			})
 		}
-		b.WriteString(`<tr><td><a href="/`)
-		b.WriteString(id)
-		b.WriteString(`">`)
-		b.WriteString(html.EscapeString(disp))
-		b.WriteString(`</a></td><td>`)
-		b.WriteString(strconv.Itoa(cnt))
-		b.WriteString(`</td></tr>`)
 	}
-	b.WriteString(`</tbody></table>`)
-	a.mu.Unlock()
-	return b.String()
+	return lobbyPageData{
+		LobbyCount:     lobbyCount,
+		RoomCount:      len(ids),
+		RoomsUserCount: roomsUserCount,
+		Rooms:          rooms,
+		ListRooms:      listRooms,
+		OOB:            oob,
+	}
+}
+
+func (a *App) lobbyOverviewOOBHTML() string {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, "lobby-overview-table", a.snapshotLobbyOverview(true)); err != nil {
+		log.Printf("lobby overview template: %v", err)
+		return ""
+	}
+	return buf.String()
 }
 
 // broadcastLobbyState pushes the lobby overview table to everyone on the index page WebSocket.
@@ -59,33 +85,8 @@ func (a *App) broadcastLobbyState() {
 }
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
-	a.mu.Lock()
-	lobbyCount := a.indexHub.count()
-	var ids []string
-	for id := range a.roomHubs {
-		ids = append(ids, id)
-	}
-	sort.Strings(ids)
-	rooms := make([]LobbyRoomRow, 0, len(ids))
-	for _, id := range ids {
-		cnt := a.roomHubs[id].count()
-		nm := a.rooms[id].name
-		var disp string
-		if nm == "" {
-			disp = "Room " + id
-		} else {
-			disp = nm + " · " + id
-		}
-		rooms = append(rooms, LobbyRoomRow{RoomID: id, DisplayName: disp, Count: cnt})
-	}
-	a.mu.Unlock()
-
-	data := struct {
-		LobbyCount int
-		Rooms      []LobbyRoomRow
-	}{LobbyCount: lobbyCount, Rooms: rooms}
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "index.html", data); err != nil {
+	if err := tmpl.ExecuteTemplate(&buf, "index.html", a.snapshotLobbyOverview(false)); err != nil {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
