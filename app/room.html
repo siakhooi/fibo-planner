@@ -24,6 +24,32 @@
     .meta { color: #444; margin-top: 1rem; }
     .crumb { font-size: 0.9rem; margin-bottom: 1rem; }
     .crumb a { color: #2563eb; }
+    .copy-room-url {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 1.5rem;
+      height: 1.5rem;
+      margin-left: 0.25rem;
+      padding: 0;
+      vertical-align: -0.3rem;
+      border: none;
+      border-radius: 4px;
+      background: transparent;
+      color: #2563eb;
+      cursor: pointer;
+    }
+    .copy-room-url:hover,
+    .copy-room-url:focus-visible {
+      background: #dbeafe;
+    }
+    .copy-room-url svg { display: block; width: 1rem; height: 1rem; }
+    .copy-room-url .icon-copied { display: none; }
+    .copy-room-url.is-copied { color: #14532d; }
+    .copy-room-url.is-copied:hover,
+    .copy-room-url.is-copied:focus-visible { background: #dcfce7; }
+    .copy-room-url.is-copied .icon-copy { display: none; }
+    .copy-room-url.is-copied .icon-copied { display: block; }
 
     .join-form { margin-top: 1rem; max-width: 22rem; }
     .join-form label { display: block; margin-bottom: 0.35rem; }
@@ -334,7 +360,7 @@
 </style>
 </head>
 <body>
-  <p class="crumb"><a href="/">Fibo Planner</a> · <a href="/{{.RoomID}}">Room {{.RoomID}}</a></p>
+  <p class="crumb"><a href="/">Fibo Planner</a> · <a href="/{{.RoomID}}">Room {{.RoomID}}</a><button type="button" id="copy-room-url" class="copy-room-url" title="Copy room link" aria-label="Copy room link"><svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-copied" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></button></p>
 
   {{if .RoomName}}
   <h1>Room {{.RoomName}}</h1>
@@ -482,6 +508,51 @@
     (function () {
       var roomID = "{{.RoomID}}";
       var key = "fibo-planner-display-name-" + roomID;
+      var copyRoomUrl = document.getElementById("copy-room-url");
+      var copyRoomUrlTimer = 0;
+      function markRoomUrlCopied() {
+        if (!copyRoomUrl) {
+          return;
+        }
+        copyRoomUrl.classList.add("is-copied");
+        copyRoomUrl.setAttribute("aria-label", "Room link copied");
+        copyRoomUrl.setAttribute("title", "Copied");
+        window.clearTimeout(copyRoomUrlTimer);
+        copyRoomUrlTimer = window.setTimeout(function () {
+          copyRoomUrl.classList.remove("is-copied");
+          copyRoomUrl.setAttribute("aria-label", "Copy room link");
+          copyRoomUrl.setAttribute("title", "Copy room link");
+        }, 1500);
+      }
+      function copyRoomLink() {
+        var url = window.location.origin + "/" + roomID;
+        if (navigator.clipboard && navigator.clipboard.writeText) {
+          navigator.clipboard.writeText(url).then(markRoomUrlCopied).catch(function () {
+            fallbackCopyRoomLink(url);
+          });
+          return;
+        }
+        fallbackCopyRoomLink(url);
+      }
+      function fallbackCopyRoomLink(url) {
+        var ta = document.createElement("textarea");
+        ta.value = url;
+        ta.setAttribute("readonly", "");
+        ta.style.position = "fixed";
+        ta.style.left = "-9999px";
+        document.body.appendChild(ta);
+        ta.select();
+        try {
+          if (document.execCommand("copy")) {
+            markRoomUrlCopied();
+          }
+        } finally {
+          document.body.removeChild(ta);
+        }
+      }
+      if (copyRoomUrl) {
+        copyRoomUrl.addEventListener("click", copyRoomLink);
+      }
       var gate = document.getElementById("join-gate");
       var main = document.getElementById("room-main");
       var form = document.getElementById("join-form");

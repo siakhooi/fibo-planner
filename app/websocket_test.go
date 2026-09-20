@@ -28,6 +28,9 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 	}
 	page := string(body)
 	for _, want := range []string{
+		`id="copy-room-url"`,
+		`aria-label="Copy room link"`,
+		`navigator.clipboard.writeText`,
 		`id="user-list"`,
 		`class="user-table"`,
 		`scope="col">Points`,
