@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"fmt"
 	"html/template"
+	"io"
 	"log"
 	"math/big"
 	"net/http"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
+var cryptoReader io.Reader = rand.Reader
 
 // roomIdleEvictionDelay is how long a room with zero WebSocket connections may stay before it is removed.
 const roomIdleEvictionDelay = 30 * time.Minute
@@ -57,7 +60,6 @@ func (a *App) evictRoomIfStillEmpty(roomID string, h *Hub) {
 		return
 	}
 	delete(a.roomHubs, roomID)
-	delete(a.rooms, roomID)
 	delete(a.roomEvictTimers, roomID)
 	a.mu.Unlock()
 
@@ -70,15 +72,18 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	name := strings.TrimSpace(r.FormValue("name"))
-	if len(name) > 120 {
-		name = name[:120]
-	}
+	name := truncateRunes(strings.TrimSpace(r.FormValue("name")), maxDisplayNameLen)
 
 	a.mu.Lock()
 	var id string
 	for range 64 {
-		candidate := randomSixDigitRoomID()
+		candidate, err := randomSixDigitRoomID()
+		if err != nil {
+			a.mu.Unlock()
+			log.Printf("room id: %v", err)
+			http.Error(w, "could not allocate room", http.StatusServiceUnavailable)
+			return
+		}
 		if _, exists := a.roomHubs[candidate]; !exists {
 			id = candidate
 			break
@@ -89,9 +94,9 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not allocate room", http.StatusServiceUnavailable)
 		return
 	}
-	a.roomHubs[id] = newHub()
-	a.rooms[id] = newRoom(name)
-	a.scheduleRoomEvictionLocked(id, a.roomHubs[id])
+	h := newRoomHub(name)
+	a.roomHubs[id] = h
+	a.scheduleRoomEvictionLocked(id, h)
 	a.mu.Unlock()
 
 	a.broadcastLobbyState()
@@ -115,10 +120,6 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	a.mu.Lock()
-	name := a.rooms[roomID].name
-	a.mu.Unlock()
-
 	data := struct {
 		RoomID                string
 		RoomName              string
@@ -127,7 +128,7 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 		ConsensusControlsHTML template.HTML
 	}{
 		RoomID:                roomID,
-		RoomName:              name,
+		RoomName:              h.name(),
 		TopicTitle:            h.topic(),
 		Count:                 h.count(),
 		ConsensusControlsHTML: template.HTML(consensusControlsHTML(h.consensus(), h.allowedMaxSpread())),
@@ -152,10 +153,10 @@ func (a *App) roomWS(w http.ResponseWriter, r *http.Request) {
 	runRoomHubWebSocket(w, r, a, roomID, h, name)
 }
 
-func randomSixDigitRoomID() string {
-	n, err := rand.Int(rand.Reader, big.NewInt(900000))
+func randomSixDigitRoomID() (string, error) {
+	n, err := rand.Int(cryptoReader, big.NewInt(900000))
 	if err != nil {
-		return "100000"
+		return "", err
 	}
-	return fmt.Sprintf("%06d", int(n.Int64())+100000)
+	return fmt.Sprintf("%06d", int(n.Int64())+100000), nil
 }

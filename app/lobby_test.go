@@ -78,6 +78,22 @@ func TestLobbyHomeListsRoomsWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestLobbySnapshotUnnamedHubUsesRoomID(t *testing.T) {
+	a := newAppConfig(true)
+	a.roomHubs["123456"] = newHub()
+
+	got := a.snapshotLobbyOverview(false)
+	if got.RoomCount != 1 {
+		t.Fatalf("RoomCount=%d, want 1", got.RoomCount)
+	}
+	if len(got.Rooms) != 1 {
+		t.Fatalf("listed %d rooms, want 1", len(got.Rooms))
+	}
+	if got.Rooms[0].DisplayName != "Room 123456" {
+		t.Fatalf("DisplayName=%q, want unnamed fallback", got.Rooms[0].DisplayName)
+	}
+}
+
 func TestLobbyOverviewOOBRespectsRoomListFlag(t *testing.T) {
 	hidden := newAppConfig(false)
 	seedLobbyRoom(hidden, "111111", "sprint", 1)
@@ -123,10 +139,9 @@ func TestLobbyHomePeopleCountIncludesConnectedUsers(t *testing.T) {
 }
 
 func seedLobbyRoom(a *App, id, name string, users int) {
-	h := newHub()
+	h := newRoomHub(name)
 	for range users {
 		h.add(&websocket.Conn{}, "guest")
 	}
 	a.roomHubs[id] = h
-	a.rooms[id] = newRoom(name)
 }

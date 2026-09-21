@@ -35,9 +35,22 @@ const (
 	minMaxSpread            = 0
 	maxMaxSpread            = 6
 	defaultMaxSpread        = 0
-	maxTopicTitleLen        = 120
+	maxDisplayNameLen       = 120 // keep in sync with maxlength="120" in index.html and room.html
+	maxTopicTitleLen        = maxDisplayNameLen
 	maxPreloadedTopicCount  = 200
 )
+
+// truncateRunes returns the first n runes of s. n <= 0 yields "".
+func truncateRunes(s string, n int) string {
+	if n <= 0 {
+		return ""
+	}
+	runes := []rune(s)
+	if len(runes) <= n {
+		return s
+	}
+	return string(runes[:n])
+}
 
 func parseVotePoints(payload []byte) (string, bool) {
 	// expecting something like this
@@ -193,9 +206,7 @@ func normalizePreloadedTopics(raw string) []string {
 		if line == "" {
 			continue
 		}
-		if len(line) > maxTopicTitleLen {
-			line = line[:maxTopicTitleLen]
-		}
+		line = truncateRunes(line, maxTopicTitleLen)
 		out = append(out, line)
 		if len(out) >= maxPreloadedTopicCount {
 			break

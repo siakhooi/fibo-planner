@@ -46,9 +46,6 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 		return
 	}
 
-	if len(displayName) > 120 {
-		displayName = displayName[:120]
-	}
 	h.add(conn, displayName)
 	a.cancelRoomEviction(roomID)
 	h.broadcastRoomState(conn)

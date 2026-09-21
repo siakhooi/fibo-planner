@@ -54,7 +54,7 @@ func (a *App) snapshotLobbyOverview(oob bool) lobbyPageData {
 		if listRooms {
 			rooms = append(rooms, LobbyRoomRow{
 				RoomID:      id,
-				DisplayName: roomDisplayName(id, a.rooms[id].name),
+				DisplayName: roomDisplayName(id, a.roomHubs[id].name()),
 				Count:       cnt,
 			})
 		}
