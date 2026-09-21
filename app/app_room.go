@@ -101,7 +101,7 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomID")
-	h, ok := a.getHub(roomID)
+	h, name, ok := a.lookupRoom(roomID)
 	if !ok {
 		data := struct{ RoomID string }{RoomID: roomID}
 		var buf bytes.Buffer
@@ -114,10 +114,6 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 		_, _ = w.Write(buf.Bytes())
 		return
 	}
-
-	a.mu.Lock()
-	name := a.rooms[roomID].name
-	a.mu.Unlock()
 
 	data := struct {
 		RoomID                string

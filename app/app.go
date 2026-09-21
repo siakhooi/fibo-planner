@@ -32,9 +32,24 @@ func newAppConfig(listLobbyRooms bool) *App {
 	}
 }
 
-func (a *App) getHub(roomID string) (*Hub, bool) {
+// lookupRoom returns the hub and display name for a live room under one lock.
+// A hub without a matching rooms entry is treated as missing so callers never
+// dereference a nil *Room after eviction.
+func (a *App) lookupRoom(roomID string) (*Hub, string, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	h, ok := a.roomHubs[roomID]
+	if !ok {
+		return nil, "", false
+	}
+	room, ok := a.rooms[roomID]
+	if !ok {
+		return nil, "", false
+	}
+	return h, room.name, true
+}
+
+func (a *App) getHub(roomID string) (*Hub, bool) {
+	h, _, ok := a.lookupRoom(roomID)
 	return h, ok
 }

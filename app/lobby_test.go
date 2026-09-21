@@ -78,6 +78,22 @@ func TestLobbyHomeListsRoomsWhenEnabled(t *testing.T) {
 	}
 }
 
+func TestLobbySnapshotMissingNameEntryDoesNotPanic(t *testing.T) {
+	a := newAppConfig(true)
+	a.roomHubs["123456"] = newHub()
+
+	got := a.snapshotLobbyOverview(false)
+	if got.RoomCount != 1 {
+		t.Fatalf("RoomCount=%d, want 1", got.RoomCount)
+	}
+	if len(got.Rooms) != 1 {
+		t.Fatalf("listed %d rooms, want 1", len(got.Rooms))
+	}
+	if got.Rooms[0].DisplayName != "Room 123456" {
+		t.Fatalf("DisplayName=%q, want unnamed fallback", got.Rooms[0].DisplayName)
+	}
+}
+
 func TestLobbyOverviewOOBRespectsRoomListFlag(t *testing.T) {
 	hidden := newAppConfig(false)
 	seedLobbyRoom(hidden, "111111", "sprint", 1)
