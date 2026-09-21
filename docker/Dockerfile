@@ -6,4 +6,5 @@ RUN go build -C app -o /app/server
 FROM scratch
 WORKDIR /
 COPY --from=builder /app/server /
+EXPOSE 8080
 CMD ["/server"]
