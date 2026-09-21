@@ -36,7 +36,7 @@ func newHub() *Hub {
 func newRoomHub(name string) *Hub {
 	return &Hub{
 		conns:            make(map[*websocket.Conn]participant),
-		roomName:         name,
+		roomName:         truncateRunes(name, maxDisplayNameLen),
 		consensusPercent: defaultConsensusPercent,
 		maxSpread:        defaultMaxSpread,
 	}
@@ -51,7 +51,8 @@ func (h *Hub) name() string {
 func (h *Hub) add(c *websocket.Conn, displayName string) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
-	if strings.TrimSpace(displayName) == "" {
+	displayName = truncateRunes(strings.TrimSpace(displayName), maxDisplayNameLen)
+	if displayName == "" {
 		displayName = "Guest"
 	}
 	h.conns[c] = participant{name: displayName}
@@ -116,10 +117,7 @@ func (h *Hub) setTopic(title string) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 
-	if len(title) > maxTopicTitleLen {
-		title = title[:maxTopicTitleLen]
-	}
-	h.topicTitle = title
+	h.topicTitle = truncateRunes(title, maxTopicTitleLen)
 }
 
 func (h *Hub) setPreloadedTopics(topics []string) {
@@ -134,10 +132,7 @@ func (h *Hub) loadNextTopic() {
 	if len(h.preloadedTopics) == 0 {
 		return
 	}
-	title := h.preloadedTopics[0]
-	if len(title) > maxTopicTitleLen {
-		title = title[:maxTopicTitleLen]
-	}
+	title := truncateRunes(h.preloadedTopics[0], maxTopicTitleLen)
 	h.topicTitle = title
 	next := make([]string, len(h.preloadedTopics)-1)
 	copy(next, h.preloadedTopics[1:])

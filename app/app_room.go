@@ -69,10 +69,7 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "bad form", http.StatusBadRequest)
 		return
 	}
-	name := strings.TrimSpace(r.FormValue("name"))
-	if len(name) > 120 {
-		name = name[:120]
-	}
+	name := truncateRunes(strings.TrimSpace(r.FormValue("name")), maxDisplayNameLen)
 
 	a.mu.Lock()
 	var id string

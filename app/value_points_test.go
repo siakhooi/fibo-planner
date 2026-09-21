@@ -3,6 +3,7 @@ package main
 import (
 	"strings"
 	"testing"
+	"unicode/utf8"
 )
 
 func TestParseVotePoints(t *testing.T) {
@@ -107,6 +108,15 @@ func TestParsePreloadedTopics(t *testing.T) {
 		t.Fatalf("title should truncate to %d, got %#v", maxTopicTitleLen, trimmed)
 	}
 
+	multibyte := strings.Repeat("é", maxTopicTitleLen+1)
+	trimmed = normalizePreloadedTopics(multibyte)
+	if len(trimmed) != 1 || trimmed[0] != strings.Repeat("é", maxTopicTitleLen) {
+		t.Fatalf("multibyte title should truncate to %d runes, got %#v", maxTopicTitleLen, trimmed)
+	}
+	if !utf8.ValidString(trimmed[0]) {
+		t.Fatal("truncated multibyte title must be valid UTF-8")
+	}
+
 	if got := parsePreloadedTopics([]byte(`{"admin":"set-preloaded-topics"}`)); len(got) != 0 {
 		t.Fatalf("missing field should be empty, got %v", got)
 	}
@@ -180,5 +190,43 @@ func TestParseMaxSpread(t *testing.T) {
 				t.Fatalf("spread=%d want %d", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestTruncateRunes(t *testing.T) {
+	t.Parallel()
+
+	if got := truncateRunes("hello", 10); got != "hello" {
+		t.Fatalf("short string: got %q", got)
+	}
+	if got := truncateRunes(strings.Repeat("a", maxDisplayNameLen+5), maxDisplayNameLen); got != strings.Repeat("a", maxDisplayNameLen) {
+		t.Fatalf("ascii should cut to %d letters", maxDisplayNameLen)
+	}
+
+	long := strings.Repeat("é", maxDisplayNameLen+1)
+	got := truncateRunes(long, maxDisplayNameLen)
+	if got != strings.Repeat("é", maxDisplayNameLen) {
+		t.Fatalf("got %d runes, want %d", utf8.RuneCountInString(got), maxDisplayNameLen)
+	}
+	if !utf8.ValidString(got) {
+		t.Fatal("truncated string must be valid UTF-8")
+	}
+
+	mixed := strings.Repeat("a", maxDisplayNameLen-1) + "你"
+	if got := truncateRunes(mixed, maxDisplayNameLen); got != mixed {
+		t.Fatalf("should keep 119 ascii + one CJK, got %q", got)
+	}
+	if utf8.ValidString(mixed[:maxDisplayNameLen]) {
+		t.Fatal("byte cut at 120 should split the trailing CJK rune")
+	}
+
+	if got := truncateRunes("x", 0); got != "" {
+		t.Fatalf("n=0: got %q", got)
+	}
+	if got := truncateRunes("x", -1); got != "" {
+		t.Fatalf("n<0: got %q", got)
+	}
+	if got := truncateRunes("", 10); got != "" {
+		t.Fatalf("empty: got %q", got)
 	}
 }

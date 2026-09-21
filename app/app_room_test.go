@@ -58,3 +58,15 @@ func TestRoomPageNamedRoom(t *testing.T) {
 		t.Fatalf("named room heading missing: %s", page)
 	}
 }
+
+func TestCreateRoomTruncatesMultibyteName(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	id := createRoom(t, srv, strings.Repeat("é", maxDisplayNameLen+3))
+	page := getHTML(t, srv, "/"+id, http.StatusOK)
+	want := "<h1>Room " + strings.Repeat("é", maxDisplayNameLen) + "</h1>"
+	if !strings.Contains(page, want) {
+		t.Fatalf("room name should be %d runes: %s", maxDisplayNameLen, page)
+	}
+}

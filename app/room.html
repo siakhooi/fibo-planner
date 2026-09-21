@@ -620,8 +620,12 @@
         pointsValue.value = btn.dataset.points;
       });
 
+      function truncateRunes(s, n) {
+        return Array.from(s || "").slice(0, n).join("");
+      }
+
       function enterRoom(displayName) {
-        displayName = (displayName || "").trim().slice(0, 120);
+        displayName = truncateRunes((displayName || "").trim(), 120);
         if (!displayName) {
           return;
         }
@@ -713,7 +717,7 @@
         for (var raw of lines) {
           var line = raw.trim();
           if (line) {
-            kept.push(line.slice(0, 120));
+            kept.push(truncateRunes(line, 120));
           }
         }
         preloadedInput.value = kept.join("\n");
