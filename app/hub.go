@@ -21,6 +21,7 @@ type Hub struct {
 	mu               sync.Mutex
 	writeMu          sync.Mutex
 	conns            map[*websocket.Conn]participant
+	roomName         string // optional display name set at create; never renamed
 	alwaysShowVotes  bool
 	topicTitle       string
 	preloadedTopics  []string
@@ -29,11 +30,22 @@ type Hub struct {
 }
 
 func newHub() *Hub {
+	return newRoomHub("")
+}
+
+func newRoomHub(name string) *Hub {
 	return &Hub{
 		conns:            make(map[*websocket.Conn]participant),
+		roomName:         name,
 		consensusPercent: defaultConsensusPercent,
 		maxSpread:        defaultMaxSpread,
 	}
+}
+
+func (h *Hub) name() string {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	return h.roomName
 }
 
 func (h *Hub) add(c *websocket.Conn, displayName string) int {

@@ -78,7 +78,7 @@ func TestLobbyHomeListsRoomsWhenEnabled(t *testing.T) {
 	}
 }
 
-func TestLobbySnapshotMissingNameEntryDoesNotPanic(t *testing.T) {
+func TestLobbySnapshotUnnamedHubUsesRoomID(t *testing.T) {
 	a := newAppConfig(true)
 	a.roomHubs["123456"] = newHub()
 
@@ -139,10 +139,9 @@ func TestLobbyHomePeopleCountIncludesConnectedUsers(t *testing.T) {
 }
 
 func seedLobbyRoom(a *App, id, name string, users int) {
-	h := newHub()
+	h := newRoomHub(name)
 	for range users {
 		h.add(&websocket.Conn{}, "guest")
 	}
 	a.roomHubs[id] = h
-	a.rooms[id] = newRoom(name)
 }

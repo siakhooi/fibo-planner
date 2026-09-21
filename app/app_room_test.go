@@ -20,24 +20,23 @@ func TestRoomPageNotFound(t *testing.T) {
 	}
 }
 
-func TestRoomPageMissingNameEntryIsNotFound(t *testing.T) {
+func TestRoomPageUnnamedHubUsesRoomID(t *testing.T) {
 	a := newAppConfig(false)
 	a.roomHubs["123456"] = newHub()
 
 	srv := httptest.NewServer(newRouter(a))
 	t.Cleanup(srv.Close)
 
-	page := getHTML(t, srv, "/123456", http.StatusNotFound)
-	if !strings.Contains(page, "Room does not exist") {
-		t.Fatalf("inconsistent maps should 404, got: %s", page)
+	page := getHTML(t, srv, "/123456", http.StatusOK)
+	if !strings.Contains(page, "<h1>Room 123456</h1>") {
+		t.Fatalf("unnamed room should use the id: %s", page)
 	}
 }
 
 func TestRoomPageAfterEvictionIsNotFound(t *testing.T) {
 	a := newAppConfig(false)
-	h := newHub()
+	h := newRoomHub("sprint")
 	a.roomHubs["123456"] = h
-	a.rooms["123456"] = newRoom("sprint")
 	a.evictRoomIfStillEmpty("123456", h)
 
 	srv := httptest.NewServer(newRouter(a))
@@ -57,22 +56,5 @@ func TestRoomPageNamedRoom(t *testing.T) {
 	page := getHTML(t, srv, "/"+id, http.StatusOK)
 	if !strings.Contains(page, "<h1>Room sprint</h1>") {
 		t.Fatalf("named room heading missing: %s", page)
-	}
-}
-
-func TestRoomWSMissingNameEntryIsNotFound(t *testing.T) {
-	a := newAppConfig(false)
-	a.roomHubs["123456"] = newHub()
-
-	srv := httptest.NewServer(newRouter(a))
-	t.Cleanup(srv.Close)
-
-	resp, err := http.Get(srv.URL + "/ws/123456?name=Ada")
-	if err != nil {
-		t.Fatalf("ws get: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusNotFound {
-		t.Fatalf("status %d, want %d", resp.StatusCode, http.StatusNotFound)
 	}
 }

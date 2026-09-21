@@ -57,7 +57,6 @@ func (a *App) evictRoomIfStillEmpty(roomID string, h *Hub) {
 		return
 	}
 	delete(a.roomHubs, roomID)
-	delete(a.rooms, roomID)
 	delete(a.roomEvictTimers, roomID)
 	a.mu.Unlock()
 
@@ -89,9 +88,9 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "could not allocate room", http.StatusServiceUnavailable)
 		return
 	}
-	a.roomHubs[id] = newHub()
-	a.rooms[id] = newRoom(name)
-	a.scheduleRoomEvictionLocked(id, a.roomHubs[id])
+	h := newRoomHub(name)
+	a.roomHubs[id] = h
+	a.scheduleRoomEvictionLocked(id, h)
 	a.mu.Unlock()
 
 	a.broadcastLobbyState()
@@ -101,7 +100,7 @@ func (a *App) createRoom(w http.ResponseWriter, r *http.Request) {
 
 func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomID")
-	h, name, ok := a.lookupRoom(roomID)
+	h, ok := a.getHub(roomID)
 	if !ok {
 		data := struct{ RoomID string }{RoomID: roomID}
 		var buf bytes.Buffer
@@ -123,7 +122,7 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 		ConsensusControlsHTML template.HTML
 	}{
 		RoomID:                roomID,
-		RoomName:              name,
+		RoomName:              h.name(),
 		TopicTitle:            h.topic(),
 		Count:                 h.count(),
 		ConsensusControlsHTML: template.HTML(consensusControlsHTML(h.consensus(), h.allowedMaxSpread())),
