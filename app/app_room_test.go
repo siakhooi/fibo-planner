@@ -1,8 +1,12 @@
 package main
 
 import (
+	"errors"
+	"io"
 	"net/http"
 	"net/http/httptest"
+	"net/url"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -68,5 +72,75 @@ func TestCreateRoomTruncatesMultibyteName(t *testing.T) {
 	want := "<h1>Room " + strings.Repeat("é", maxDisplayNameLen) + "</h1>"
 	if !strings.Contains(page, want) {
 		t.Fatalf("room name should be %d runes: %s", maxDisplayNameLen, page)
+	}
+}
+
+type failReader struct{}
+
+func (failReader) Read([]byte) (int, error) {
+	return 0, errors.New("rand unavailable")
+}
+
+func TestRandomSixDigitRoomIDFormat(t *testing.T) {
+	for range 20 {
+		id, err := randomSixDigitRoomID()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if len(id) != 6 {
+			t.Fatalf("len=%d id=%q", len(id), id)
+		}
+		n, err := strconv.Atoi(id)
+		if err != nil {
+			t.Fatal(err)
+		}
+		if n < 100000 || n > 999999 {
+			t.Fatalf("id %s out of range", id)
+		}
+	}
+}
+
+func TestRandomSixDigitRoomIDError(t *testing.T) {
+	orig := cryptoReader
+	t.Cleanup(func() { cryptoReader = orig })
+	cryptoReader = failReader{}
+
+	id, err := randomSixDigitRoomID()
+	if err == nil {
+		t.Fatal("expected error")
+	}
+	if id != "" {
+		t.Fatalf("id=%q, want empty", id)
+	}
+}
+
+func TestCreateRoomCryptoFailureIs503(t *testing.T) {
+	orig := cryptoReader
+	t.Cleanup(func() { cryptoReader = orig })
+	cryptoReader = failReader{}
+
+	a := newAppConfig(false)
+	srv := httptest.NewServer(newRouter(a))
+	t.Cleanup(srv.Close)
+
+	client := &http.Client{
+		CheckRedirect: func(*http.Request, []*http.Request) error {
+			return http.ErrUseLastResponse
+		},
+	}
+	resp, err := client.PostForm(srv.URL+"/rooms", url.Values{"name": {"sprint"}})
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("status %d body %s", resp.StatusCode, body)
+	}
+	if len(a.roomHubs) != 0 {
+		t.Fatalf("must not insert a room, have %d", len(a.roomHubs))
 	}
 }
