@@ -10,7 +10,7 @@ No accounts, no database, no extra services. A single Go binary (or Docker image
 
 - **Create a room in one click.** Optional display name (for example, “Sprint 42 backlog”) plus a random 6-digit ID and a shareable URL (`/123456`).
 - **Live lobby.** The home page shows how many people are on the lobby, how many rooms are open, and how many people are in rooms. Counts update while the page is open. Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` to also list each room with its user count (off by default).
-- **Named join.** Each person enters a display name before voting. The name is remembered in the browser for that room.
+- **Named join.** Each person enters a display name before voting. The name is remembered in the browser for that room and sent on the WebSocket after connect, not as a `?name=` query string, so the process access log does not record it.
 - **Idle cleanup.** Empty rooms are removed after 30 minutes so the lobby does not fill with abandoned sessions.
 
 ### Planning poker
@@ -18,7 +18,7 @@ No accounts, no database, no extra services. A single Go binary (or Docker image
 - **Fibonacci cards:** 1, 2, 3, 5, 8, 13, 20, plus a blank card to clear your vote.
 - **Hidden votes by default.** Other people’s points stay masked (`???`) until every voter has picked a card, so nobody anchors on the first vote.
 - **Always show votes.** Flip a room-wide switch when you want scores visible as they come in.
-- **Observer mode.** Join as a facilitator or stakeholder without voting. Observers are listed separately and do not block reveal.
+- **Observer mode.** Sit out of voting (for example as a stakeholder). Observers are listed separately and do not block reveal. This only changes whether you vote; it is not an admin role.
 - **Topic title.** Set the story or ticket the room is estimating; it updates live for everyone.
 - **Preloaded topic queue.** Paste a backlog (one title per line, up to 200). Load Next Topic advances the queue, sets the heading, and clears votes for the next round.
 
@@ -46,8 +46,14 @@ Team maturity presets apply both knobs at once:
 ### Live, self-contained app
 
 - Instant updates for votes, joins, role changes, and lobby counts (WebSocket + HTMX).
-- One process on port `8080`. HTML is embedded in the binary; the Docker image is built `FROM scratch`.
+- One process, default port `8080` (`FIBO_PLANNER_ADDR`). Pages are embedded in the binary; the default UI still loads HTMX from jsDelivr. The Docker image is a static binary `FROM scratch`, running as UID 65532.
 - MIT licensed.
+
+### Who can administer a room
+
+There are no accounts. **Anyone who has joined the room** can clear votes, set the topic and preloaded queue, toggle always-show votes, and change consensus rules. The server does not distinguish a facilitator from other occupants; the Administration panel is the same for every socket.
+
+Limiting those controls to some members is a planned enhancement: [issue #60](https://github.com/siakhooi/fibo-planner/issues/60).
 
 ## Try it
 
@@ -72,6 +78,30 @@ docker run -p 8080:8080 siakhooi/fibo-planner
 Then open [http://localhost:8080](http://localhost:8080).
 
 With [just](https://github.com/casey/just): `just run` or `just docker-run`.
+
+### Listen address
+
+By default the process listens on `:8080` (all interfaces, port 8080). Set `FIBO_PLANNER_ADDR` to bind somewhere else. Restart the process after changing it.
+
+```bash
+FIBO_PLANNER_ADDR=127.0.0.1:9090 go run ./app
+```
+
+```bash
+docker run -p 9090:9090 -e FIBO_PLANNER_ADDR=:9090 siakhooi/fibo-planner
+```
+
+SIGINT and SIGTERM stop the HTTP server (header timeout 10s, idle timeout 60s). WebSocket sessions are not drained as part of that shutdown.
+
+### WebSocket origins
+
+Browsers must send a same-origin `Origin` header (the page host). If the public site origin differs from the process `Host` header (some reverse proxies), set `FIBO_PLANNER_WS_ORIGINS` to a comma-separated list of allowed origins. Restart the process after changing it.
+
+```bash
+FIBO_PLANNER_WS_ORIGINS=https://planner.example.com go run ./app
+```
+
+The server pings idle sockets so proxies (including Cloud Run) are less likely to drop a quiet planning session. If the room socket drops, the room page shows a reconnecting banner; HTMX tries to reconnect.
 
 ### Lobby room list
 
@@ -106,7 +136,7 @@ Missing files are skipped. Snippets are inserted as-is (not escaped); only use a
 FIBO_PLANNER_CUSTOM_HTML_DIR=/path/to/custom-html go run ./app
 ```
 
-Docker (`FROM scratch`) can still read a mounted directory:
+Docker (`FROM scratch`, UID 65532) can still read a mounted directory. The files must be readable by that user:
 
 ```bash
 docker run -p 8080:8080 \
@@ -119,10 +149,10 @@ docker run -p 8080:8080 \
 
 1. Create a room from the home page and share the URL.
 2. Teammates join with their names.
-3. Set a topic (or load the next preloaded title).
+3. Anyone in the room can set a topic (or load the next preloaded title).
 4. Everyone votes. Votes stay hidden until the last voter submits (unless always-show is on).
-5. Read the tally, agreed points, and agreement status. Adjust consensus rules if the team wants a looser or tighter bar.
-6. Clear votes or load the next topic and repeat.
+5. Read the tally, agreed points, and agreement status. Anyone can adjust consensus rules if the team wants a looser or tighter bar.
+6. Anyone can clear votes or load the next topic and repeat.
 
 ## Reference
 
@@ -184,3 +214,5 @@ docker run -p 8080:8080 \
 
 [![Wise](https://img.shields.io/badge/Funding-Wise-33cb56.svg?logo=wise)](https://wise.com/pay/me/siakn3)
 ![visitors](https://hit-tztugwlsja-uc.a.run.app/?outputtype=badge&counter=ghmd-fibo-planner)
+
+The visitors badge counts GitHub README views via a third-party image URL. It is not shipped in the app. See [Privacy Policy](app/privacy.html).

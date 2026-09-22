@@ -1,11 +1,14 @@
 package main
 
 import (
+	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -83,10 +86,18 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`closest("button.maturity-preset")`,
 		`scope="col">Count`,
 		`scope="col">%`,
+		`id="ws-status"`,
+		`htmx:wsClose`,
+		`JSON.stringify({ name: joinedName })`,
+		`el.setAttribute("ws-connect", "/ws/" + roomID);`,
+		`Disconnected from the room. Reconnecting`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("room page missing %q", want)
 		}
+	}
+	if strings.Contains(page, `?name=`) {
+		t.Fatal("room WS URL should not put the display name in the query string")
 	}
 	if strings.Contains(page, `class="user-list"`) {
 		t.Fatal("room page still has the old user-list ul")
@@ -575,12 +586,19 @@ func createRoom(t *testing.T, srv *httptest.Server, name string) string {
 
 func dialRoom(t *testing.T, srv *httptest.Server, roomID, name string) *websocket.Conn {
 	t.Helper()
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/" + roomID + "?name=" + url.QueryEscape(name)
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/" + roomID
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial %s: %v", name, err)
 	}
 	t.Cleanup(func() { _ = conn.Close() })
+	payload, err := json.Marshal(map[string]string{"name": name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+		t.Fatalf("join %s: %v", name, err)
+	}
 	return conn
 }
 
@@ -603,4 +621,214 @@ func waitForMessage(t *testing.T, conn *websocket.Conn, substr string) string {
 	}
 	t.Fatalf("timeout waiting for %q (last=%q)", substr, last)
 	return ""
+}
+
+func TestCheckWSOrigin(t *testing.T) {
+	req := httptest.NewRequest(http.MethodGet, "http://planner.example/ws", nil)
+	req.Host = "planner.example"
+	if !checkWSOrigin(req) {
+		t.Fatal("missing Origin should be allowed")
+	}
+	req.Header.Set("Origin", "http://planner.example")
+	if !checkWSOrigin(req) {
+		t.Fatal("same origin should be allowed")
+	}
+	req.Header.Set("Origin", "https://evil.example")
+	if checkWSOrigin(req) {
+		t.Fatal("cross origin should be rejected")
+	}
+	req.Header.Set("Origin", "://bad")
+	if checkWSOrigin(req) {
+		t.Fatal("invalid origin should be rejected")
+	}
+}
+
+func TestCheckWSOriginAllowlist(t *testing.T) {
+	t.Setenv(wsOriginsEnv, " https://app.example.com/,http://localhost:3000 ")
+	req := httptest.NewRequest(http.MethodGet, "http://internal:8080/ws", nil)
+	req.Host = "internal:8080"
+	req.Header.Set("Origin", "https://app.example.com")
+	if !checkWSOrigin(req) {
+		t.Fatal("allowlisted origin should be allowed")
+	}
+	req.Header.Set("Origin", "https://other.example")
+	if checkWSOrigin(req) {
+		t.Fatal("non-allowlisted origin should be rejected")
+	}
+}
+
+func TestParseWSOrigins(t *testing.T) {
+	got := parseWSOrigins(" https://a.example/, ,https://b.example ")
+	if len(got) != 2 || got[0] != "https://a.example" || got[1] != "https://b.example" {
+		t.Fatalf("got %#v", got)
+	}
+	if parseWSOrigins("  ") != nil && len(parseWSOrigins("  ")) != 0 {
+		t.Fatalf("blank should be empty")
+	}
+}
+
+func TestWSUpgradeRejectsCrossOrigin(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	req, err := http.NewRequest(http.MethodGet, srv.URL+"/ws", nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Origin", "https://evil.example")
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	req.Header.Set("Sec-WebSocket-Version", "13")
+	req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status %d, want %d", resp.StatusCode, http.StatusForbidden)
+	}
+}
+
+func TestWSOversizedMessageCloses(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	conn := dialRoom(t, srv, roomID, "Ada")
+	waitForMessage(t, conn, `<td class="vote-flash">Ada</td>`)
+
+	payload := bytes.Repeat([]byte("a"), maxWSMessageBytes+8)
+	if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+		t.Fatalf("write huge: %v", err)
+	}
+	if err := conn.SetReadDeadline(time.Now().Add(2 * time.Second)); err != nil {
+		t.Fatal(err)
+	}
+	if _, _, err := conn.ReadMessage(); err == nil {
+		t.Fatal("expected close after oversized message")
+	}
+}
+
+func TestWSPingKeepsConnection(t *testing.T) {
+	origWait, origPeriod := wsPongWait, wsPingPeriod
+	t.Cleanup(func() {
+		wsPongWait = origWait
+		wsPingPeriod = origPeriod
+	})
+	wsPongWait = time.Second
+	wsPingPeriod = 200 * time.Millisecond
+
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	conn := dialRoom(t, srv, roomID, "Ada")
+
+	var writeMu sync.Mutex
+	pings := make(chan struct{}, 8)
+	conn.SetPingHandler(func(appData string) error {
+		select {
+		case pings <- struct{}{}:
+		default:
+		}
+		writeMu.Lock()
+		defer writeMu.Unlock()
+		return conn.WriteControl(websocket.PongMessage, []byte(appData), time.Now().Add(time.Second))
+	})
+
+	msgs := make(chan string, 16)
+	readErr := make(chan error, 1)
+	go func() {
+		for {
+			_, data, err := conn.ReadMessage()
+			if err != nil {
+				readErr <- err
+				return
+			}
+			msgs <- string(data)
+		}
+	}()
+
+	waitMsg := func(substr string) {
+		t.Helper()
+		timeout := time.After(2 * time.Second)
+		var last string
+		for {
+			select {
+			case m := <-msgs:
+				last = m
+				if strings.Contains(m, substr) {
+					return
+				}
+			case err := <-readErr:
+				t.Fatalf("ws read waiting for %q: %v (last=%q)", substr, err, last)
+			case <-timeout:
+				t.Fatalf("timeout waiting for %q (last=%q)", substr, last)
+			}
+		}
+	}
+
+	waitMsg(`<td class="vote-flash">Ada</td>`)
+
+	select {
+	case <-pings:
+	case <-time.After(2 * time.Second):
+		t.Fatal("server did not send a ping")
+	}
+
+	select {
+	case err := <-readErr:
+		t.Fatalf("connection died during ping window: %v", err)
+	case <-time.After(1100 * time.Millisecond):
+	}
+
+	writeMu.Lock()
+	err := conn.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`))
+	writeMu.Unlock()
+	if err != nil {
+		t.Fatalf("vote after idle: %v", err)
+	}
+	waitMsg(`<td class="vote-flash">Ada</td><td class="vote-flash">8</td>`)
+}
+
+func TestRoomWSIgnoresNameQueryString(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/" + roomID + "?name=" + url.QueryEscape("FromQuery")
+	sneaky, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sneaky.Close() })
+
+	ada := dialRoom(t, srv, roomID, "Ada")
+	msg := waitForMessage(t, ada, `<td class="vote-flash">Ada</td>`)
+	if strings.Contains(msg, "FromQuery") {
+		t.Fatal("display name from query string should not join the room")
+	}
+}
+
+func TestRoomWSVoteBeforeJoinIgnored(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/" + roomID
+	early, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = early.Close() })
+	if err := early.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	ada := dialRoom(t, srv, roomID, "Ada")
+	msg := waitForMessage(t, ada, `<td class="vote-flash">Ada</td>`)
+	if strings.Contains(msg, `>8<`) || strings.Contains(msg, "Guest") {
+		t.Fatalf("vote before join should be ignored, got %s", msg)
+	}
 }

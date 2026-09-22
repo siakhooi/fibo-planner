@@ -72,6 +72,38 @@ func TestParseAdminAction(t *testing.T) {
 	}
 }
 
+func TestParseJoinName(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		payload string
+		want    string
+		ok      bool
+	}{
+		{name: "plain", payload: `{"name":"Ada"}`, want: "Ada", ok: true},
+		{name: "trimmed", payload: `{"name":"  Bob  "}`, want: "Bob", ok: true},
+		{name: "empty", payload: `{"name":"   "}`, want: "", ok: true},
+		{name: "htmx headers", payload: `{"name":"Cyd","HEADERS":{}}`, want: "Cyd", ok: true},
+		{name: "vote", payload: `{"points":"8"}`, ok: false},
+		{name: "admin", payload: `{"admin":"clear-votes"}`, ok: false},
+		{name: "numeric", payload: `{"name":1}`, ok: false},
+		{name: "not json", payload: `name=Ada`, ok: false},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			got, ok := parseJoinName([]byte(tt.payload))
+			if ok != tt.ok {
+				t.Fatalf("ok=%v want %v", ok, tt.ok)
+			}
+			if ok && got != tt.want {
+				t.Fatalf("name=%q want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestParseTopicTitle(t *testing.T) {
 	t.Parallel()
 

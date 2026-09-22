@@ -12,7 +12,7 @@ run:
 release:
 	scripts/create-release.sh
 clean:
-	rm -f *.log
+	rm -rf *.log target test-*
 docker-build:
 	docker build -t siakhooi/fibo-planner -f docker/Dockerfile .
 

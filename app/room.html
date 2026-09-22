@@ -356,6 +356,15 @@
       background: #fee2e2;
       border-color: #ef4444;
     }
+    .ws-status {
+      margin: 0 0 0.75rem;
+      padding: 0.55rem 0.75rem;
+      color: #7f1d1d;
+      background: #fee2e2;
+      border: 1px solid #ef4444;
+      border-radius: 8px;
+      font-weight: 600;
+    }
 
 </style>
 </head>
@@ -388,6 +397,7 @@
   </section>
 
   <div id="room-main" class="room-main" hidden>
+    <p id="ws-status" class="ws-status" hidden role="status">Disconnected from the room. Reconnecting…</p>
     <div id="room-ws" hx-ext="ws">
       <div class="room-layout">
       <details class="admin-panel" aria-labelledby="admin-heading">
@@ -612,7 +622,31 @@
         }
       }
 
-      document.getElementById("room-ws").addEventListener("htmx:wsAfterMessage", showMyVote);
+      var roomWs = document.getElementById("room-ws");
+      var wsStatus = document.getElementById("ws-status");
+      var joinedName = "";
+      function setWSDisconnected(disconnected) {
+        if (!wsStatus) {
+          return;
+        }
+        wsStatus.hidden = !disconnected;
+      }
+      if (roomWs) {
+        roomWs.addEventListener("htmx:wsAfterMessage", showMyVote);
+        roomWs.addEventListener("htmx:wsClose", function () {
+          setWSDisconnected(true);
+        });
+        roomWs.addEventListener("htmx:wsError", function () {
+          setWSDisconnected(true);
+        });
+        roomWs.addEventListener("htmx:wsOpen", function (evt) {
+          setWSDisconnected(false);
+          var wrapper = evt.detail && evt.detail.socketWrapper;
+          if (wrapper && joinedName) {
+            wrapper.send(JSON.stringify({ name: joinedName }));
+          }
+        });
+      }
 
       pointsForm.addEventListener("click", function (e) {
         var btn = e.target.closest("button[data-points]");
@@ -630,11 +664,12 @@
           return;
         }
         localStorage.setItem(key, displayName);
+        joinedName = displayName;
         gate.hidden = true;
         main.hidden = false;
         document.getElementById("user-name").textContent = displayName;
         var el = document.getElementById("room-ws");
-        el.setAttribute("ws-connect", "/ws/" + roomID + "?name=" + encodeURIComponent(displayName));
+        el.setAttribute("ws-connect", "/ws/" + roomID);
         document.getElementById("points-form").setAttribute("ws-send", "");
         document.getElementById("always-show-votes-form").setAttribute("ws-send", "");
         document.getElementById("clear-votes-form").setAttribute("ws-send", "");

@@ -31,8 +31,11 @@
   <p class="meta">Last updated: September 2026</p>
   <p>Fibo Planner is an open-source application designed to run without requiring user accounts or collecting personal information.</p>
   <p>The standard Fibo Planner application does not intentionally collect, store, or transmit personal information to the Fibo Planner project maintainers.</p>
-  <p>Fibo Planner does not use advertising trackers or analytics services.</p>
+  <p>Fibo Planner does not use advertising trackers. The running application does not include an analytics SDK.</p>
+  <p>The default UI loads HTMX and the HTMX WebSocket extension from jsDelivr (<code>cdn.jsdelivr.net</code>). Your browser requests those scripts directly, so the CDN can see your IP address and request metadata. Operators who replace the HTML (for example with <code>FIBO_PLANNER_CUSTOM_HTML_DIR</code>) can avoid that third-party request.</p>
+  <p>The project README on GitHub includes a visitor-count badge. Loading that image contacts a third-party URL (<code>hit-tztugwlsja-uc.a.run.app</code>) and counts README views. The badge is not part of the running application.</p>
   <p>However, if you deploy Fibo Planner yourself, your hosting provider, network, or other infrastructure may collect technical information such as IP addresses or server logs. Such data collection is outside the control of the Fibo Planner project and is subject to the policies of the infrastructure you use.</p>
+  <p>Display names stay in memory for the live planning session. They are sent over the WebSocket after the connection opens, not as a query string on the HTTP upgrade request, so the process access log does not record them.</p>
   <h2>Changes to This Policy</h2>
   <p>This Privacy Policy may be updated from time to time. The latest version will be published with the project.</p>
   <h2>Contact</h2>
