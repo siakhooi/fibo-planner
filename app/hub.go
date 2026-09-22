@@ -187,7 +187,7 @@ func (h *Hub) writeTextToAll(payload []byte) {
 	h.writeMu.Lock()
 	defer h.writeMu.Unlock()
 	for _, c := range conns {
-		if err := c.WriteMessage(websocket.TextMessage, payload); err != nil {
+		if err := writeWS(c, websocket.TextMessage, payload); err != nil {
 			log.Printf("websocket write: %v", err)
 		}
 	}
@@ -226,7 +226,7 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 			rows = append(rows, p)
 		}
 		payload := []byte(renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, preloaded))
-		if err := recipient.c.WriteMessage(websocket.TextMessage, payload); err != nil {
+		if err := writeWS(recipient.c, websocket.TextMessage, payload); err != nil {
 			log.Printf("websocket write: %v", err)
 		}
 	}

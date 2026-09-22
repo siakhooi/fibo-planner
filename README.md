@@ -87,6 +87,16 @@ docker run -p 9090:9090 -e FIBO_PLANNER_ADDR=:9090 siakhooi/fibo-planner
 
 SIGINT and SIGTERM stop the HTTP server (header timeout 10s, idle timeout 60s). WebSocket sessions are not drained as part of that shutdown.
 
+### WebSocket origins
+
+Browsers must send a same-origin `Origin` header (the page host). If the public site origin differs from the process `Host` header (some reverse proxies), set `FIBO_PLANNER_WS_ORIGINS` to a comma-separated list of allowed origins. Restart the process after changing it.
+
+```bash
+FIBO_PLANNER_WS_ORIGINS=https://planner.example.com go run ./app
+```
+
+The server pings idle sockets so proxies (including Cloud Run) are less likely to drop a quiet planning session. If the room socket drops, the room page shows a reconnecting banner; HTMX tries to reconnect.
+
 ### Lobby room list
 
 By default the home page shows totals only (people in the lobby, number of rooms, people in all rooms). Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` to also list every open room with a link and its user count. Any other value (or unset) keeps the list hidden. Restart the process after changing it.
