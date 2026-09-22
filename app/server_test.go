@@ -4,7 +4,6 @@ import (
 	"context"
 	"net"
 	"net/http"
-	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -114,35 +113,21 @@ func TestWaitServerShutdown(t *testing.T) {
 	}
 }
 
-func TestStripJoinNameQuery(t *testing.T) {
+func TestAccessLogURIRedactsWSName(t *testing.T) {
 	t.Parallel()
 
-	var seenURI, seenRaw string
-	h := stripJoinNameQuery(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		seenURI = r.RequestURI
-		seenRaw = r.URL.RawQuery
-		w.WriteHeader(http.StatusNoContent)
-	}))
-
-	req := httptest.NewRequest(http.MethodGet, "/ws/123456?name=Ada&keep=1", nil)
-	req.RequestURI = "/ws/123456?name=Ada&keep=1"
-	rec := httptest.NewRecorder()
-	h.ServeHTTP(rec, req)
-	if seenRaw != "keep=1" {
-		t.Fatalf("RawQuery=%q, want keep=1", seenRaw)
+	cases := []struct {
+		path, query, want string
+	}{
+		{path: "/ws/123456", query: "name=Ada&keep=1", want: "/ws/123456?keep=1"},
+		{path: "/ws/123456", query: "name=Ada", want: "/ws/123456"},
+		{path: "/ws", query: "name=Ada", want: "/ws"},
+		{path: "/rooms", query: "name=sprint", want: "/rooms?name=sprint"},
+		{path: "/123456", query: "", want: "/123456"},
 	}
-	if seenURI != "/ws/123456?keep=1" {
-		t.Fatalf("RequestURI=%q", seenURI)
-	}
-	if req.URL.Query().Get("name") != "Ada" {
-		t.Fatal("original request query should be unchanged")
-	}
-
-	req = httptest.NewRequest(http.MethodGet, "/rooms?name=sprint", nil)
-	req.RequestURI = "/rooms?name=sprint"
-	seenURI, seenRaw = "", ""
-	h.ServeHTTP(httptest.NewRecorder(), req)
-	if seenRaw != "name=sprint" || seenURI != "/rooms?name=sprint" {
-		t.Fatalf("non-ws query should stay, uri=%q raw=%q", seenURI, seenRaw)
+	for _, tc := range cases {
+		if got := accessLogURI(tc.path, tc.query); got != tc.want {
+			t.Errorf("accessLogURI(%q, %q)=%q, want %q", tc.path, tc.query, got, tc.want)
+		}
 	}
 }

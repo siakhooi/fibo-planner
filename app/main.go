@@ -2,48 +2,63 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"strings"
 	"syscall"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-func requestWithoutQueryParam(r *http.Request, key string) *http.Request {
-	q := r.URL.Query()
-	if _, ok := q[key]; !ok {
-		return r
+func accessLogURI(path, rawQuery string) string {
+	if strings.HasPrefix(path, "/ws") && rawQuery != "" {
+		q, err := url.ParseQuery(rawQuery)
+		if err != nil {
+			rawQuery = ""
+		} else {
+			q.Del("name")
+			rawQuery = q.Encode()
+		}
 	}
-	q.Del(key)
-	cp := r.Clone(r.Context())
-	u := *r.URL
-	u.RawQuery = q.Encode()
-	cp.URL = &u
-	if u.RawQuery == "" {
-		cp.RequestURI = u.Path
-	} else {
-		cp.RequestURI = u.Path + "?" + u.RawQuery
+	if rawQuery == "" {
+		return path
 	}
-	return cp
+	return path + "?" + rawQuery
 }
 
-func stripJoinNameQuery(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if strings.HasPrefix(r.URL.Path, "/ws") {
-			r = requestWithoutQueryParam(r, "name")
-		}
-		next.ServeHTTP(w, r)
-	})
+type accessLogFormatter struct{}
+
+type accessLogEntry struct {
+	msg string
+}
+
+func (accessLogFormatter) NewLogEntry(r *http.Request) middleware.LogEntry {
+	scheme := "http"
+	if r.TLS != nil {
+		scheme = "https"
+	}
+	return &accessLogEntry{
+		msg: fmt.Sprintf(`"%s %s://%s%s %s" from %s`, r.Method, scheme, r.Host, accessLogURI(r.URL.Path, r.URL.RawQuery), r.Proto, r.RemoteAddr),
+	}
+}
+
+func (e *accessLogEntry) Write(status, bytes int, _ http.Header, elapsed time.Duration, _ interface{}) {
+	log.Printf("%s - %d %dB in %s", e.msg, status, bytes, elapsed)
+}
+
+func (e *accessLogEntry) Panic(v interface{}, stack []byte) {
+	log.Printf("panic: %v\n%s", v, stack)
 }
 
 func newRouter(app *App) http.Handler {
 	r := chi.NewRouter()
-	r.Use(stripJoinNameQuery)
-	r.Use(middleware.Logger)
+	r.Use(middleware.RequestLogger(accessLogFormatter{}))
 	r.Use(middleware.Recoverer)
 
 	r.Post("/rooms", app.createRoom)
