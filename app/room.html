@@ -624,6 +624,7 @@
 
       var roomWs = document.getElementById("room-ws");
       var wsStatus = document.getElementById("ws-status");
+      var joinedName = "";
       function setWSDisconnected(disconnected) {
         if (!wsStatus) {
           return;
@@ -638,8 +639,12 @@
         roomWs.addEventListener("htmx:wsError", function () {
           setWSDisconnected(true);
         });
-        roomWs.addEventListener("htmx:wsOpen", function () {
+        roomWs.addEventListener("htmx:wsOpen", function (evt) {
           setWSDisconnected(false);
+          var wrapper = evt.detail && evt.detail.socketWrapper;
+          if (wrapper && joinedName) {
+            wrapper.send(JSON.stringify({ name: joinedName }));
+          }
         });
       }
 
@@ -659,11 +664,12 @@
           return;
         }
         localStorage.setItem(key, displayName);
+        joinedName = displayName;
         gate.hidden = true;
         main.hidden = false;
         document.getElementById("user-name").textContent = displayName;
         var el = document.getElementById("room-ws");
-        el.setAttribute("ws-connect", "/ws/" + roomID + "?name=" + encodeURIComponent(displayName));
+        el.setAttribute("ws-connect", "/ws/" + roomID);
         document.getElementById("points-form").setAttribute("ws-send", "");
         document.getElementById("always-show-votes-form").setAttribute("ws-send", "");
         document.getElementById("clear-votes-form").setAttribute("ws-send", "");

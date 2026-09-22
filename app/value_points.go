@@ -103,6 +103,22 @@ func parseAdminAction(payload []byte) (string, bool) {
 
 }
 
+func parseJoinName(payload []byte) (string, bool) {
+	var m map[string]any
+	if err := json.Unmarshal(payload, &m); err != nil {
+		return "", false
+	}
+	v, ok := m["name"]
+	if !ok {
+		return "", false
+	}
+	s, ok := v.(string)
+	if !ok {
+		return "", false
+	}
+	return strings.TrimSpace(s), true
+}
+
 func parseConsensusPercent(payload []byte) (int, bool) {
 	var m map[string]any
 	if err := json.Unmarshal(payload, &m); err != nil {

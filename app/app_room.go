@@ -149,8 +149,7 @@ func (a *App) roomWS(w http.ResponseWriter, r *http.Request) {
 		http.Error(w, "room not found", http.StatusNotFound)
 		return
 	}
-	name := strings.TrimSpace(r.URL.Query().Get("name"))
-	runRoomHubWebSocket(w, r, a, roomID, h, name)
+	runRoomHubWebSocket(w, r, a, roomID, h)
 }
 
 func randomSixDigitRoomID() (string, error) {

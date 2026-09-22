@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"encoding/json"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -87,11 +88,16 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`scope="col">%`,
 		`id="ws-status"`,
 		`htmx:wsClose`,
+		`JSON.stringify({ name: joinedName })`,
+		`el.setAttribute("ws-connect", "/ws/" + roomID);`,
 		`Disconnected from the room. Reconnecting`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("room page missing %q", want)
 		}
+	}
+	if strings.Contains(page, `?name=`) {
+		t.Fatal("room WS URL should not put the display name in the query string")
 	}
 	if strings.Contains(page, `class="user-list"`) {
 		t.Fatal("room page still has the old user-list ul")
@@ -580,12 +586,19 @@ func createRoom(t *testing.T, srv *httptest.Server, name string) string {
 
 func dialRoom(t *testing.T, srv *httptest.Server, roomID, name string) *websocket.Conn {
 	t.Helper()
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/" + roomID + "?name=" + url.QueryEscape(name)
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/" + roomID
 	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
 	if err != nil {
 		t.Fatalf("dial %s: %v", name, err)
 	}
 	t.Cleanup(func() { _ = conn.Close() })
+	payload, err := json.Marshal(map[string]string{"name": name})
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
+		t.Fatalf("join %s: %v", name, err)
+	}
 	return conn
 }
 
@@ -777,4 +790,45 @@ func TestWSPingKeepsConnection(t *testing.T) {
 		t.Fatalf("vote after idle: %v", err)
 	}
 	waitMsg(`<td class="vote-flash">Ada</td><td class="vote-flash">8</td>`)
+}
+
+func TestRoomWSIgnoresNameQueryString(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/" + roomID + "?name=" + url.QueryEscape("FromQuery")
+	sneaky, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = sneaky.Close() })
+
+	ada := dialRoom(t, srv, roomID, "Ada")
+	msg := waitForMessage(t, ada, `<td class="vote-flash">Ada</td>`)
+	if strings.Contains(msg, "FromQuery") {
+		t.Fatal("display name from query string should not join the room")
+	}
+}
+
+func TestRoomWSVoteBeforeJoinIgnored(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/" + roomID
+	early, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	t.Cleanup(func() { _ = early.Close() })
+	if err := early.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
+		t.Fatal(err)
+	}
+
+	ada := dialRoom(t, srv, roomID, "Ada")
+	msg := waitForMessage(t, ada, `<td class="vote-flash">Ada</td>`)
+	if strings.Contains(msg, `>8<`) || strings.Contains(msg, "Guest") {
+		t.Fatalf("vote before join should be ignored, got %s", msg)
+	}
 }

@@ -10,7 +10,7 @@ No accounts, no database, no extra services. A single Go binary (or Docker image
 
 - **Create a room in one click.** Optional display name (for example, “Sprint 42 backlog”) plus a random 6-digit ID and a shareable URL (`/123456`).
 - **Live lobby.** The home page shows how many people are on the lobby, how many rooms are open, and how many people are in rooms. Counts update while the page is open. Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` to also list each room with its user count (off by default).
-- **Named join.** Each person enters a display name before voting. The name is remembered in the browser for that room.
+- **Named join.** Each person enters a display name before voting. The name is remembered in the browser for that room and sent on the WebSocket after connect, not as a `?name=` query string, so the process access log does not record it.
 - **Idle cleanup.** Empty rooms are removed after 30 minutes so the lobby does not fill with abandoned sessions.
 
 ### Planning poker

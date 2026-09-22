@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"net/http"
+	"net/http/httptest"
 	"testing"
 	"time"
 )
@@ -110,5 +111,38 @@ func TestWaitServerShutdown(t *testing.T) {
 		}
 	case <-time.After(2 * time.Second):
 		t.Fatal("shutdown timed out")
+	}
+}
+
+func TestStripJoinNameQuery(t *testing.T) {
+	t.Parallel()
+
+	var seenURI, seenRaw string
+	h := stripJoinNameQuery(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenURI = r.RequestURI
+		seenRaw = r.URL.RawQuery
+		w.WriteHeader(http.StatusNoContent)
+	}))
+
+	req := httptest.NewRequest(http.MethodGet, "/ws/123456?name=Ada&keep=1", nil)
+	req.RequestURI = "/ws/123456?name=Ada&keep=1"
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, req)
+	if seenRaw != "keep=1" {
+		t.Fatalf("RawQuery=%q, want keep=1", seenRaw)
+	}
+	if seenURI != "/ws/123456?keep=1" {
+		t.Fatalf("RequestURI=%q", seenURI)
+	}
+	if req.URL.Query().Get("name") != "Ada" {
+		t.Fatal("original request query should be unchanged")
+	}
+
+	req = httptest.NewRequest(http.MethodGet, "/rooms?name=sprint", nil)
+	req.RequestURI = "/rooms?name=sprint"
+	seenURI, seenRaw = "", ""
+	h.ServeHTTP(httptest.NewRecorder(), req)
+	if seenRaw != "name=sprint" || seenURI != "/rooms?name=sprint" {
+		t.Fatalf("non-ws query should stay, uri=%q raw=%q", seenURI, seenRaw)
 	}
 }

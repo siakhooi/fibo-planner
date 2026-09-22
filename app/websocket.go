@@ -145,26 +145,26 @@ func runIndexHubWebSocket(w http.ResponseWriter, r *http.Request, a *App) {
 	}()
 }
 
-func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID string, h *Hub, displayName string) {
+func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID string, h *Hub) {
 	conn, err := acceptWebSocket(w, r)
 	if err != nil {
 		log.Printf("websocket upgrade: %v", err)
 		return
 	}
 
-	h.add(conn, displayName)
 	a.cancelRoomEviction(roomID)
-	h.broadcastRoomState(conn)
-	a.broadcastLobbyState()
 
 	go func() {
 		stopPing := h.startPing(conn)
+		joined := false
 		defer func() {
 			stopPing()
 			_ = conn.Close()
 			remaining := h.remove(conn)
-			h.broadcastRoomState(nil)
-			a.broadcastLobbyState()
+			if joined {
+				h.broadcastRoomState(nil)
+				a.broadcastLobbyState()
+			}
 			if remaining == 0 {
 				a.scheduleRoomEviction(roomID, h)
 			}
@@ -173,6 +173,18 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 			_, msg, err := conn.ReadMessage()
 			if err != nil {
 				return
+			}
+			if !joined {
+				name, ok := parseJoinName(msg)
+				if !ok {
+					continue
+				}
+				h.add(conn, name)
+				a.cancelRoomEviction(roomID)
+				h.broadcastRoomState(conn)
+				a.broadcastLobbyState()
+				joined = true
+				continue
 			}
 			action, isAdmin := parseAdminAction(msg)
 			if isAdmin {

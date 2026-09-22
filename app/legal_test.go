@@ -30,6 +30,7 @@ func TestLegalPages(t *testing.T) {
 				"<title>Privacy Policy · Fibo Planner</title>",
 				"Last updated: September 2026",
 				"does not use advertising trackers",
+				"process access log does not record",
 				"Changes to This Policy",
 			},
 		},
