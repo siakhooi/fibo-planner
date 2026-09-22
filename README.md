@@ -63,6 +63,8 @@ A public sample is hosted on [Google Cloud Run](https://cloud.google.com/run):
 
 Create a room, share the link, and run a planning session there. Empty rooms are still removed after 30 minutes of idle time.
 
+That sample is built from [fibo-planner-on-gcp](https://github.com/siakhooi/fibo-planner-on-gcp): a custom Dockerfile and a `just` workflow that builds the image and deploys it to Cloud Run. Use it as a starting point if you want to host your own copy.
+
 ## Run it
 
 ```bash
@@ -159,6 +161,7 @@ docker run -p 8080:8080 \
 ### Deliverables
 
 - https://fibo-planner-189393002108.asia-southeast1.run.app/
+- https://github.com/siakhooi/fibo-planner-on-gcp
 - https://hub.docker.com/r/siakhooi/fibo-planner
 
 ### Quality
