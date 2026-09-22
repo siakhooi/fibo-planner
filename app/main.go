@@ -1,8 +1,12 @@
 package main
 
 import (
+	"context"
 	"log"
 	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -22,14 +26,16 @@ func newRouter(app *App) http.Handler {
 	r.Get("/{roomID:[0-9]{6}}", app.roomPage)
 	r.Get("/", app.home)
 	return r
-
 }
-func main() {
-	app := newApp()
 
-	addr := ":8080"
-	log.Printf("listening on http://localhost%s", addr)
-	if err := http.ListenAndServe(addr, newRouter(app)); err != nil {
+func main() {
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+
+	addr := listenAddr()
+	srv := newHTTPServer(addr, newRouter(newApp()))
+	log.Printf("listening on %s", listenLogURL(addr))
+	if err := runServer(ctx, srv); err != nil {
 		log.Fatal(err)
 	}
 }

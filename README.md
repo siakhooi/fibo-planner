@@ -46,7 +46,7 @@ Team maturity presets apply both knobs at once:
 ### Live, self-contained app
 
 - Instant updates for votes, joins, role changes, and lobby counts (WebSocket + HTMX).
-- One process on port `8080`. HTML is embedded in the binary; the Docker image is built `FROM scratch`.
+- One process, default port `8080` (`FIBO_PLANNER_ADDR`). HTML is embedded in the binary; the Docker image is built `FROM scratch`.
 - MIT licensed.
 
 ## Try it
@@ -72,6 +72,20 @@ docker run -p 8080:8080 siakhooi/fibo-planner
 Then open [http://localhost:8080](http://localhost:8080).
 
 With [just](https://github.com/casey/just): `just run` or `just docker-run`.
+
+### Listen address
+
+By default the process listens on `:8080` (all interfaces, port 8080). Set `FIBO_PLANNER_ADDR` to bind somewhere else. Restart the process after changing it.
+
+```bash
+FIBO_PLANNER_ADDR=127.0.0.1:9090 go run ./app
+```
+
+```bash
+docker run -p 9090:9090 -e FIBO_PLANNER_ADDR=:9090 siakhooi/fibo-planner
+```
+
+SIGINT and SIGTERM stop the HTTP server (header timeout 10s, idle timeout 60s). WebSocket sessions are not drained as part of that shutdown.
 
 ### Lobby room list
 
