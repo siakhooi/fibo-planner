@@ -18,7 +18,7 @@ No accounts, no database, no extra services. A single Go binary (or Docker image
 - **Fibonacci cards:** 1, 2, 3, 5, 8, 13, 20, plus a blank card to clear your vote.
 - **Hidden votes by default.** Other people’s points stay masked (`???`) until every voter has picked a card, so nobody anchors on the first vote.
 - **Always show votes.** Flip a room-wide switch when you want scores visible as they come in.
-- **Observer mode.** Join as a facilitator or stakeholder without voting. Observers are listed separately and do not block reveal.
+- **Observer mode.** Sit out of voting (for example as a stakeholder). Observers are listed separately and do not block reveal. This only changes whether you vote; it is not an admin role.
 - **Topic title.** Set the story or ticket the room is estimating; it updates live for everyone.
 - **Preloaded topic queue.** Paste a backlog (one title per line, up to 200). Load Next Topic advances the queue, sets the heading, and clears votes for the next round.
 
@@ -48,6 +48,12 @@ Team maturity presets apply both knobs at once:
 - Instant updates for votes, joins, role changes, and lobby counts (WebSocket + HTMX).
 - One process, default port `8080` (`FIBO_PLANNER_ADDR`). HTML is embedded in the binary; the Docker image is built `FROM scratch`.
 - MIT licensed.
+
+### Who can administer a room
+
+There are no accounts. **Anyone who has joined the room** can clear votes, set the topic and preloaded queue, toggle always-show votes, and change consensus rules. The server does not distinguish a facilitator from other occupants; the Administration panel is the same for every socket.
+
+Limiting those controls to some members is a planned enhancement: [issue #60](https://github.com/siakhooi/fibo-planner/issues/60).
 
 ## Try it
 
@@ -143,10 +149,10 @@ docker run -p 8080:8080 \
 
 1. Create a room from the home page and share the URL.
 2. Teammates join with their names.
-3. Set a topic (or load the next preloaded title).
+3. Anyone in the room can set a topic (or load the next preloaded title).
 4. Everyone votes. Votes stay hidden until the last voter submits (unless always-show is on).
-5. Read the tally, agreed points, and agreement status. Adjust consensus rules if the team wants a looser or tighter bar.
-6. Clear votes or load the next topic and repeat.
+5. Read the tally, agreed points, and agreement status. Anyone can adjust consensus rules if the team wants a looser or tighter bar.
+6. Anyone can clear votes or load the next topic and repeat.
 
 ## Reference
 
