@@ -46,7 +46,7 @@ Team maturity presets apply both knobs at once:
 ### Live, self-contained app
 
 - Instant updates for votes, joins, role changes, and lobby counts (WebSocket + HTMX).
-- One process, default port `8080` (`FIBO_PLANNER_ADDR`). HTML is embedded in the binary; the Docker image is built `FROM scratch`.
+- One process, default port `8080` (`FIBO_PLANNER_ADDR`). Pages are embedded in the binary; the default UI still loads HTMX from jsDelivr. The Docker image is built `FROM scratch`.
 - MIT licensed.
 
 ### Who can administer a room
@@ -214,3 +214,5 @@ docker run -p 8080:8080 \
 
 [![Wise](https://img.shields.io/badge/Funding-Wise-33cb56.svg?logo=wise)](https://wise.com/pay/me/siakn3)
 ![visitors](https://hit-tztugwlsja-uc.a.run.app/?outputtype=badge&counter=ghmd-fibo-planner)
+
+The visitors badge counts GitHub README views via a third-party image URL. It is not shipped in the app. See [Privacy Policy](app/privacy.html).
