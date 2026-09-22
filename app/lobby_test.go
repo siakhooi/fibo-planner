@@ -5,6 +5,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 )
@@ -117,7 +118,8 @@ func TestLobbyOverviewOOBRespectsRoomListFlag(t *testing.T) {
 }
 
 func TestLobbyHomePeopleCountIncludesConnectedUsers(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newAppConfig(false)))
+	a := newAppConfig(false)
+	srv := httptest.NewServer(newRouter(a))
 	t.Cleanup(srv.Close)
 
 	first := createRoom(t, srv, "alpha")
@@ -125,6 +127,14 @@ func TestLobbyHomePeopleCountIncludesConnectedUsers(t *testing.T) {
 	dialRoom(t, srv, first, "Ada")
 	dialRoom(t, srv, first, "Bob")
 	dialRoom(t, srv, second, "Cyd")
+
+	deadline := time.Now().Add(time.Second)
+	for a.snapshotLobbyOverview(false).RoomsUserCount != 3 && time.Now().Before(deadline) {
+		time.Sleep(time.Millisecond)
+	}
+	if got := a.snapshotLobbyOverview(false).RoomsUserCount; got != 3 {
+		t.Fatalf("joined users=%d, want 3", got)
+	}
 
 	page := getHTML(t, srv, "/", http.StatusOK)
 	if !strings.Contains(page, `id="room-count">2</strong>`) {
