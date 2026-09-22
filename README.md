@@ -46,7 +46,7 @@ Team maturity presets apply both knobs at once:
 ### Live, self-contained app
 
 - Instant updates for votes, joins, role changes, and lobby counts (WebSocket + HTMX).
-- One process, default port `8080` (`FIBO_PLANNER_ADDR`). Pages are embedded in the binary; the default UI still loads HTMX from jsDelivr. The Docker image is built `FROM scratch`.
+- One process, default port `8080` (`FIBO_PLANNER_ADDR`). Pages are embedded in the binary; the default UI still loads HTMX from jsDelivr. The Docker image is a static binary `FROM scratch`, running as UID 65532.
 - MIT licensed.
 
 ### Who can administer a room
@@ -136,7 +136,7 @@ Missing files are skipped. Snippets are inserted as-is (not escaped); only use a
 FIBO_PLANNER_CUSTOM_HTML_DIR=/path/to/custom-html go run ./app
 ```
 
-Docker (`FROM scratch`) can still read a mounted directory:
+Docker (`FROM scratch`, UID 65532) can still read a mounted directory. The files must be readable by that user:
 
 ```bash
 docker run -p 8080:8080 \
