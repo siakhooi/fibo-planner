@@ -174,8 +174,12 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 			if err != nil {
 				return
 			}
+			m, ok := parseWSMessage(msg)
+			if !ok {
+				continue
+			}
 			if !joined {
-				name, ok := parseJoinName(msg)
+				name, ok := m.joinName()
 				if !ok {
 					continue
 				}
@@ -186,25 +190,24 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 				joined = true
 				continue
 			}
-			action, isAdmin := parseAdminAction(msg)
-			if isAdmin {
+			if action, isAdmin := m.adminAction(); isAdmin {
 				var highlight *websocket.Conn
 				switch action {
 				case adminClearVotes:
 					h.clearVotes()
 				case adminSetTopic:
-					h.setTopic(parseTopicTitle(msg))
+					h.setTopic(m.topicTitle())
 				case adminLoadNextTopic:
 					h.loadNextTopic()
 				case adminSetPreloadedTopics:
-					h.setPreloadedTopics(parsePreloadedTopics(msg))
+					h.setPreloadedTopics(m.preloadedTopics())
 				case adminAlwaysShowVotes:
 					h.toggleAlwaysShowVotes()
 				case adminConsensusAgreement:
-					if p, ok := parseConsensusPercent(msg); ok {
+					if p, ok := m.consensusPercent(); ok {
 						h.setConsensusPercent(p)
 					}
-					if s, ok := parseMaxSpread(msg); ok {
+					if s, ok := m.maxSpread(); ok {
 						h.setMaxSpread(s)
 					}
 				case adminObserverMode:
@@ -215,7 +218,7 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 				h.broadcastRoomState(highlight)
 				continue
 			}
-			points, ok := parseVotePoints(msg)
+			points, ok := m.votePoints()
 			if !ok {
 				continue
 			}
