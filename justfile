@@ -12,9 +12,9 @@ run:
 release:
 	scripts/create-release.sh
 clean:
-	rm -rf *.log target test-*
+	rm -rf *.log target test-* dist
 docker-build:
-	docker build -t siakhooi/fibo-planner -f docker/Dockerfile .
+	./scripts/docker-build.sh
 
 docker-run:
 	docker run -p 8080:8080 siakhooi/fibo-planner
