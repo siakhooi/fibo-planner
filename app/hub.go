@@ -55,12 +55,20 @@ func (s *connSet) writeAll(payload []byte) {
 		conns = append(conns, c)
 	}
 	s.mu.Unlock()
+
+	var failed []*websocket.Conn
 	s.writeMu.Lock()
-	defer s.writeMu.Unlock()
 	for _, c := range conns {
 		if err := writeWS(c, websocket.TextMessage, payload); err != nil {
 			log.Printf("websocket write: %v", err)
+			failed = append(failed, c)
 		}
+	}
+	s.writeMu.Unlock()
+
+	for _, c := range failed {
+		_ = c.Close()
+		s.remove(c)
 	}
 }
 
@@ -248,7 +256,7 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	h.mu.Unlock()
 
 	h.writeMu.Lock()
-	defer h.writeMu.Unlock()
+	var failed []*websocket.Conn
 	for _, recipient := range snaps {
 		rows := make([]participant, 0, n)
 		for _, s := range snaps {
@@ -260,6 +268,13 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 		payload := []byte(renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, preloaded))
 		if err := writeWS(recipient.c, websocket.TextMessage, payload); err != nil {
 			log.Printf("websocket write: %v", err)
+			failed = append(failed, recipient.c)
 		}
+	}
+	h.writeMu.Unlock()
+
+	for _, c := range failed {
+		_ = c.Close()
+		h.remove(c)
 	}
 }
