@@ -85,13 +85,7 @@ func (a *App) broadcastLobbyState() {
 }
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "index.html", a.snapshotLobbyOverview(false)); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write(buf.Bytes())
+	writeHTML(w, http.StatusOK, "index.html", a.snapshotLobbyOverview(false))
 }
 
 func (a *App) indexWS(w http.ResponseWriter, r *http.Request) {

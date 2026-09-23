@@ -1,11 +1,13 @@
 package main
 
 import (
+	"bytes"
 	"embed"
 	"fmt"
 	"html/template"
 	"io/fs"
 	"log"
+	"net/http"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -42,6 +44,19 @@ type customHTML struct {
 }
 
 var tmpl = mustParseAppTemplates()
+
+// writeHTML renders a named template and writes it as text/html.
+// The body is buffered first so a template error can still return 500.
+func writeHTML(w http.ResponseWriter, status int, name string, data any) {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
+		http.Error(w, "template error", http.StatusInternalServerError)
+		return
+	}
+	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.WriteHeader(status)
+	_, _ = w.Write(buf.Bytes())
+}
 
 func mustParseAppTemplates() *template.Template {
 	t, err := parseAppTemplates(tplFS, os.Getenv(customHTMLDirEnv))
