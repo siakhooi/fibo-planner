@@ -16,9 +16,6 @@ import (
 
 var cryptoReader io.Reader = rand.Reader
 
-// roomIdleEvictionDelay is how long a room with zero WebSocket connections may stay before it is removed.
-const roomIdleEvictionDelay = 30 * time.Minute
-
 // scheduleRoomEvictionLocked starts (or replaces) the idle timer for an empty room. Caller must hold a.mu.
 func (a *App) scheduleRoomEvictionLocked(roomID string, h *Hub) {
 	if t, ok := a.roomEvictTimers[roomID]; ok {

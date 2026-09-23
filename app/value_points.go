@@ -4,22 +4,25 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"time"
 )
-
-var allowedVotePoints = map[string]bool{
-	"":   true,
-	"1":  true,
-	"2":  true,
-	"3":  true,
-	"5":  true,
-	"8":  true,
-	"13": true,
-	"20": true,
-}
 
 // voteScale is Fibonacci story points in rank order. Spread is the rank
 // distance between the lowest and highest votes (3 and 5 → 1, 1 and 20 → 6).
+// Card buttons on the room page are generated from this slice.
 var voteScale = []string{"1", "2", "3", "5", "8", "13", "20"}
+
+// allowedVotePoints is the blank (clear) vote plus every value in voteScale.
+var allowedVotePoints = func() map[string]bool {
+	m := map[string]bool{"": true}
+	for _, p := range voteScale {
+		m[p] = true
+	}
+	return m
+}()
+
+// maxMaxSpread is the rank distance from the first to last card on voteScale.
+var maxMaxSpread = len(voteScale) - 1
 
 const (
 	adminAlwaysShowVotes    = "always-show-votes"
@@ -33,11 +36,14 @@ const (
 	maxConsensusPercent     = 100
 	defaultConsensusPercent = 100
 	minMaxSpread            = 0
-	maxMaxSpread            = 6
 	defaultMaxSpread        = 0
-	maxDisplayNameLen       = 120 // keep in sync with maxlength="120" in index.html and room.html
+	maxDisplayNameLen       = 120
 	maxTopicTitleLen        = maxDisplayNameLen
 	maxPreloadedTopicCount  = 200
+
+	// roomIdleEvictionDelay is how long a room with zero WebSocket connections may stay before it is removed.
+	// README documents this as "30 minutes".
+	roomIdleEvictionDelay = 30 * time.Minute
 )
 
 // truncateRunes returns the first n runes of s. n <= 0 yields "".

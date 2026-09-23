@@ -571,12 +571,30 @@ func TestMaturityPresetsHighlightMatchingValues(t *testing.T) {
 func TestVoteScaleCoversRanks(t *testing.T) {
 	t.Parallel()
 
-	if len(voteScale)-1 != maxMaxSpread {
+	if maxMaxSpread != len(voteScale)-1 {
 		t.Fatalf("max spread %d should equal last rank %d", maxMaxSpread, len(voteScale)-1)
+	}
+	if !allowedVotePoints[""] {
+		t.Fatal("blank clear-vote must be allowed")
 	}
 	for _, p := range voteScale {
 		if !allowedVotePoints[p] {
 			t.Fatalf("voteScale value %q missing from allowedVotePoints", p)
+		}
+	}
+	for p := range allowedVotePoints {
+		if p == "" {
+			continue
+		}
+		found := false
+		for _, s := range voteScale {
+			if s == p {
+				found = true
+				break
+			}
+		}
+		if !found {
+			t.Fatalf("allowedVotePoints has %q not in voteScale", p)
 		}
 	}
 }

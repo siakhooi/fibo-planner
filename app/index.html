@@ -87,7 +87,7 @@
     <form method="post" action="/rooms">
       <label for="room-name" style="display: block; margin-bottom: 0.35rem;">Room name <span
           style="color:#666;font-weight:normal">(optional)</span></label>
-      <input id="room-name" type="text" name="name" maxlength="120" autocomplete="off"
+      <input id="room-name" type="text" name="name" maxlength="{{maxDisplayNameLen}}" autocomplete="off"
         placeholder="e.g. Sprint 42 backlog"
         style="width: 100%; max-width: 22rem; padding: 0.5rem; margin-bottom: 0.75rem; box-sizing: border-box;" />
       <div>

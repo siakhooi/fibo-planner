@@ -75,6 +75,12 @@ func parseAppTemplates(htmlFS fs.FS, customDir string) (*template.Template, erro
 		"customHead":      func() template.HTML { return template.HTML(c.Head) },
 		"customBodyStart": func() template.HTML { return template.HTML(c.BodyStart) },
 		"customBodyEnd":   func() template.HTML { return template.HTML(c.BodyEnd) },
+		"maxDisplayNameLen": func() int {
+			return maxDisplayNameLen
+		},
+		"voteScale": func() []string {
+			return voteScale
+		},
 		"hasCustomLegal": func(name string) bool {
 			_, ok := c.Legal[name]
 			return ok
