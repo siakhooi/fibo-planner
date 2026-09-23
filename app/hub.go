@@ -16,6 +16,54 @@ type participant struct {
 	self     bool
 }
 
+// connSet is a set of WebSocket connections that share fan-out writes.
+// Used for the index lobby; room sessions keep richer state on Hub.
+type connSet struct {
+	mu      sync.Mutex
+	writeMu sync.Mutex
+	conns   map[*websocket.Conn]struct{}
+}
+
+func newConnSet() *connSet {
+	return &connSet{conns: make(map[*websocket.Conn]struct{})}
+}
+
+func (s *connSet) add(c *websocket.Conn) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.conns[c] = struct{}{}
+	return len(s.conns)
+}
+
+func (s *connSet) remove(c *websocket.Conn) int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.conns, c)
+	return len(s.conns)
+}
+
+func (s *connSet) count() int {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	return len(s.conns)
+}
+
+func (s *connSet) writeAll(payload []byte) {
+	s.mu.Lock()
+	conns := make([]*websocket.Conn, 0, len(s.conns))
+	for c := range s.conns {
+		conns = append(conns, c)
+	}
+	s.mu.Unlock()
+	s.writeMu.Lock()
+	defer s.writeMu.Unlock()
+	for _, c := range conns {
+		if err := writeWS(c, websocket.TextMessage, payload); err != nil {
+			log.Printf("websocket write: %v", err)
+		}
+	}
+}
+
 // Hub tracks active WebSocket connections (one browser tab/session) for one room.
 type Hub struct {
 	mu               sync.Mutex
@@ -175,22 +223,6 @@ func (h *Hub) toggleAlwaysShowVotes() {
 	defer h.mu.Unlock()
 
 	h.alwaysShowVotes = !h.alwaysShowVotes
-}
-
-func (h *Hub) writeTextToAll(payload []byte) {
-	h.mu.Lock()
-	conns := make([]*websocket.Conn, 0, len(h.conns))
-	for c := range h.conns {
-		conns = append(conns, c)
-	}
-	h.mu.Unlock()
-	h.writeMu.Lock()
-	defer h.writeMu.Unlock()
-	for _, c := range conns {
-		if err := writeWS(c, websocket.TextMessage, payload); err != nil {
-			log.Printf("websocket write: %v", err)
-		}
-	}
 }
 
 // broadcastRoomState sends session count and the participant table (room page only).

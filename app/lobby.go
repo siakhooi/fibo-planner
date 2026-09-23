@@ -36,7 +36,7 @@ func (a *App) snapshotLobbyOverview(oob bool) lobbyPageData {
 	defer a.mu.Unlock()
 
 	listRooms := a.listLobbyRooms
-	lobbyCount := a.indexHub.count()
+	lobbyCount := a.indexConns.count()
 	ids := make([]string, 0, len(a.roomHubs))
 	for id := range a.roomHubs {
 		ids = append(ids, id)
@@ -81,7 +81,7 @@ func (a *App) lobbyOverviewOOBHTML() string {
 // broadcastLobbyState pushes the lobby overview table to everyone on the index page WebSocket.
 func (a *App) broadcastLobbyState() {
 	fragment := a.lobbyOverviewOOBHTML()
-	a.indexHub.writeTextToAll([]byte(fragment))
+	a.indexConns.writeAll([]byte(fragment))
 }
 
 func (a *App) home(w http.ResponseWriter, r *http.Request) {
