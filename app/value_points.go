@@ -4,22 +4,25 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+	"time"
 )
-
-var allowedVotePoints = map[string]bool{
-	"":   true,
-	"1":  true,
-	"2":  true,
-	"3":  true,
-	"5":  true,
-	"8":  true,
-	"13": true,
-	"20": true,
-}
 
 // voteScale is Fibonacci story points in rank order. Spread is the rank
 // distance between the lowest and highest votes (3 and 5 → 1, 1 and 20 → 6).
+// Card buttons on the room page are generated from this slice.
 var voteScale = []string{"1", "2", "3", "5", "8", "13", "20"}
+
+// allowedVotePoints is the blank (clear) vote plus every value in voteScale.
+var allowedVotePoints = func() map[string]bool {
+	m := map[string]bool{"": true}
+	for _, p := range voteScale {
+		m[p] = true
+	}
+	return m
+}()
+
+// maxMaxSpread is the rank distance from the first to last card on voteScale.
+var maxMaxSpread = len(voteScale) - 1
 
 const (
 	adminAlwaysShowVotes    = "always-show-votes"
@@ -33,11 +36,14 @@ const (
 	maxConsensusPercent     = 100
 	defaultConsensusPercent = 100
 	minMaxSpread            = 0
-	maxMaxSpread            = 6
 	defaultMaxSpread        = 0
-	maxDisplayNameLen       = 120 // keep in sync with maxlength="120" in index.html and room.html
+	maxDisplayNameLen       = 120
 	maxTopicTitleLen        = maxDisplayNameLen
 	maxPreloadedTopicCount  = 200
+
+	// roomIdleEvictionDelay is how long a room with zero WebSocket connections may stay before it is removed.
+	// README documents this as "30 minutes".
+	roomIdleEvictionDelay = 30 * time.Minute
 )
 
 // truncateRunes returns the first n runes of s. n <= 0 yields "".
@@ -52,20 +58,34 @@ func truncateRunes(s string, n int) string {
 	return string(runes[:n])
 }
 
-func parseVotePoints(payload []byte) (string, bool) {
+// wsMessage is one room WebSocket JSON body (join, vote, or admin).
+// HTMX may also send a HEADERS object; it is ignored.
+type wsMessage struct {
+	Admin           any `json:"admin"`
+	Name            any `json:"name"`
+	Points          any `json:"points"`
+	TopicTitle      any `json:"topic-title"`
+	Percentage      any `json:"percentage"`
+	MaxSpread       any `json:"max-spread"`
+	PreloadedTopics any `json:"preloaded-topics"`
+}
+
+func parseWSMessage(payload []byte) (wsMessage, bool) {
+	var m wsMessage
+	if err := json.Unmarshal(payload, &m); err != nil {
+		return wsMessage{}, false
+	}
+	return m, true
+}
+
+func (m wsMessage) votePoints() (string, bool) {
 	// expecting something like this
 	// {"points":"8","HEADERS":{"HX-Request":"true","HX-Current-URL":"..."}}
-
-	var m map[string]any
-	if err := json.Unmarshal(payload, &m); err != nil {
-		return "", false
-	}
-	v, ok := m["points"]
-	if !ok {
+	if m.Points == nil {
 		return "", false
 	}
 	var s string
-	switch t := v.(type) {
+	switch t := m.Points.(type) {
 	case string:
 		s = t
 	case float64:
@@ -76,21 +96,11 @@ func parseVotePoints(payload []byte) (string, bool) {
 	if !allowedVotePoints[s] {
 		return "", false
 	}
-
 	return s, true
-
 }
 
-func parseAdminAction(payload []byte) (string, bool) {
-	var m map[string]any
-	if err := json.Unmarshal(payload, &m); err != nil {
-		return "", false
-	}
-	v, ok := m["admin"]
-	if !ok {
-		return "", false
-	}
-	s, ok := v.(string)
+func (m wsMessage) adminAction() (string, bool) {
+	s, ok := m.Admin.(string)
 	if !ok {
 		return "", false
 	}
@@ -100,47 +110,82 @@ func parseAdminAction(payload []byte) (string, bool) {
 	default:
 		return "", false
 	}
-
 }
 
-func parseJoinName(payload []byte) (string, bool) {
-	var m map[string]any
-	if err := json.Unmarshal(payload, &m); err != nil {
+func (m wsMessage) joinName() (string, bool) {
+	if m.Name == nil {
 		return "", false
 	}
-	v, ok := m["name"]
-	if !ok {
-		return "", false
-	}
-	s, ok := v.(string)
+	s, ok := m.Name.(string)
 	if !ok {
 		return "", false
 	}
 	return strings.TrimSpace(s), true
 }
 
-func parseConsensusPercent(payload []byte) (int, bool) {
-	var m map[string]any
-	if err := json.Unmarshal(payload, &m); err != nil {
-		return 0, false
-	}
-	n, ok := jsonInt(m["percentage"])
+func (m wsMessage) consensusPercent() (int, bool) {
+	n, ok := jsonInt(m.Percentage)
 	if !ok || n < minConsensusPercent || n > maxConsensusPercent {
 		return 0, false
 	}
 	return n, true
 }
 
-func parseMaxSpread(payload []byte) (int, bool) {
-	var m map[string]any
-	if err := json.Unmarshal(payload, &m); err != nil {
-		return 0, false
-	}
-	n, ok := jsonInt(m["max-spread"])
+func (m wsMessage) maxSpread() (int, bool) {
+	n, ok := jsonInt(m.MaxSpread)
 	if !ok || n < minMaxSpread || n > maxMaxSpread {
 		return 0, false
 	}
 	return n, true
+}
+
+func (m wsMessage) topicTitle() string {
+	return jsonString(m.TopicTitle)
+}
+
+func (m wsMessage) preloadedTopics() []string {
+	return normalizePreloadedTopics(jsonString(m.PreloadedTopics))
+}
+
+// Thin payload wrappers keep unit tests focused on wire formats.
+func parseVotePoints(payload []byte) (string, bool) {
+	m, ok := parseWSMessage(payload)
+	if !ok {
+		return "", false
+	}
+	return m.votePoints()
+}
+
+func parseAdminAction(payload []byte) (string, bool) {
+	m, ok := parseWSMessage(payload)
+	if !ok {
+		return "", false
+	}
+	return m.adminAction()
+}
+
+func parseJoinName(payload []byte) (string, bool) {
+	m, ok := parseWSMessage(payload)
+	if !ok {
+		return "", false
+	}
+	return m.joinName()
+}
+
+func parseConsensusPercent(payload []byte) (int, bool) {
+	m, ok := parseWSMessage(payload)
+	if !ok {
+		return 0, false
+	}
+	return m.consensusPercent()
+}
+
+func parseMaxSpread(payload []byte) (int, bool) {
+	m, ok := parseWSMessage(payload)
+	if !ok {
+		return 0, false
+	}
+	return m.maxSpread()
 }
 
 func jsonInt(v any) (int, bool) {
@@ -197,19 +242,19 @@ func meetsConsensus(percent, threshold int) bool {
 }
 
 func parseTopicTitle(payload []byte) string {
-	var m map[string]any
-	if err := json.Unmarshal(payload, &m); err != nil {
+	m, ok := parseWSMessage(payload)
+	if !ok {
 		return ""
 	}
-	return jsonString(m["topic-title"])
+	return m.topicTitle()
 }
 
 func parsePreloadedTopics(payload []byte) []string {
-	var m map[string]any
-	if err := json.Unmarshal(payload, &m); err != nil {
+	m, ok := parseWSMessage(payload)
+	if !ok {
 		return nil
 	}
-	return normalizePreloadedTopics(jsonString(m["preloaded-topics"]))
+	return m.preloadedTopics()
 }
 
 func normalizePreloadedTopics(raw string) []string {

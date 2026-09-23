@@ -81,13 +81,13 @@ func prepareWebSocket(conn *websocket.Conn) {
 	})
 }
 
-func (h *Hub) writePing(conn *websocket.Conn) error {
-	h.writeMu.Lock()
-	defer h.writeMu.Unlock()
+func writeWSPing(writeMu *sync.Mutex, conn *websocket.Conn) error {
+	writeMu.Lock()
+	defer writeMu.Unlock()
 	return writeWS(conn, websocket.PingMessage, nil)
 }
 
-func (h *Hub) startPing(conn *websocket.Conn) func() {
+func startWSPing(writeMu *sync.Mutex, conn *websocket.Conn) func() {
 	done := make(chan struct{})
 	var once sync.Once
 	go func() {
@@ -98,7 +98,7 @@ func (h *Hub) startPing(conn *websocket.Conn) func() {
 			case <-done:
 				return
 			case <-ticker.C:
-				if err := h.writePing(conn); err != nil {
+				if err := writeWSPing(writeMu, conn); err != nil {
 					_ = conn.Close()
 					return
 				}
@@ -126,15 +126,15 @@ func runIndexHubWebSocket(w http.ResponseWriter, r *http.Request, a *App) {
 		return
 	}
 
-	a.indexHub.add(conn, "")
+	a.indexConns.add(conn)
 	a.broadcastLobbyState()
 
 	go func() {
-		stopPing := a.indexHub.startPing(conn)
+		stopPing := startWSPing(&a.indexConns.writeMu, conn)
 		defer func() {
 			stopPing()
 			_ = conn.Close()
-			a.indexHub.remove(conn)
+			a.indexConns.remove(conn)
 			a.broadcastLobbyState()
 		}()
 		for {
@@ -155,7 +155,7 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 	a.cancelRoomEviction(roomID)
 
 	go func() {
-		stopPing := h.startPing(conn)
+		stopPing := startWSPing(&h.writeMu, conn)
 		joined := false
 		defer func() {
 			stopPing()
@@ -174,8 +174,12 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 			if err != nil {
 				return
 			}
+			m, ok := parseWSMessage(msg)
+			if !ok {
+				continue
+			}
 			if !joined {
-				name, ok := parseJoinName(msg)
+				name, ok := m.joinName()
 				if !ok {
 					continue
 				}
@@ -186,25 +190,24 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 				joined = true
 				continue
 			}
-			action, isAdmin := parseAdminAction(msg)
-			if isAdmin {
+			if action, isAdmin := m.adminAction(); isAdmin {
 				var highlight *websocket.Conn
 				switch action {
 				case adminClearVotes:
 					h.clearVotes()
 				case adminSetTopic:
-					h.setTopic(parseTopicTitle(msg))
+					h.setTopic(m.topicTitle())
 				case adminLoadNextTopic:
 					h.loadNextTopic()
 				case adminSetPreloadedTopics:
-					h.setPreloadedTopics(parsePreloadedTopics(msg))
+					h.setPreloadedTopics(m.preloadedTopics())
 				case adminAlwaysShowVotes:
 					h.toggleAlwaysShowVotes()
 				case adminConsensusAgreement:
-					if p, ok := parseConsensusPercent(msg); ok {
+					if p, ok := m.consensusPercent(); ok {
 						h.setConsensusPercent(p)
 					}
-					if s, ok := parseMaxSpread(msg); ok {
+					if s, ok := m.maxSpread(); ok {
 						h.setMaxSpread(s)
 					}
 				case adminObserverMode:
@@ -215,7 +218,7 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 				h.broadcastRoomState(highlight)
 				continue
 			}
-			points, ok := parseVotePoints(msg)
+			points, ok := m.votePoints()
 			if !ok {
 				continue
 			}

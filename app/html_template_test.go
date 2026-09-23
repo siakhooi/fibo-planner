@@ -2,6 +2,7 @@ package main
 
 import (
 	"bytes"
+	"fmt"
 	"html/template"
 	"os"
 	"path/filepath"
@@ -326,9 +327,28 @@ func assertStockPages(t *testing.T, tmpl *template.Template) {
 	if !strings.Contains(index, "<title>Fibo Planner</title>") {
 		t.Fatal("index.html missing title")
 	}
+	wantMaxLen := fmt.Sprintf(`maxlength="%d"`, maxDisplayNameLen)
+	if !strings.Contains(index, wantMaxLen) {
+		t.Fatalf("index.html missing %s", wantMaxLen)
+	}
 	room := executeNamed(t, tmpl, "room.html")
 	if !strings.Contains(room, "Room 123456") {
 		t.Fatal("room.html missing room id")
+	}
+	if !strings.Contains(room, wantMaxLen) {
+		t.Fatalf("room.html missing %s", wantMaxLen)
+	}
+	if !strings.Contains(room, fmt.Sprintf(`data-max-display-name-len="%d"`, maxDisplayNameLen)) {
+		t.Fatal("room.html missing data-max-display-name-len for JS truncate")
+	}
+	if !strings.Contains(room, `data-points=""`) {
+		t.Fatal("room.html missing blank vote card")
+	}
+	for _, p := range voteScale {
+		want := fmt.Sprintf(`data-points="%s"`, p)
+		if !strings.Contains(room, want) {
+			t.Fatalf("room.html missing vote card %s", want)
+		}
 	}
 	missing := executeNamed(t, tmpl, "room_not_found.html")
 	if !strings.Contains(missing, "Room does not exist") {

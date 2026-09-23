@@ -110,6 +110,7 @@ var teamMaturityPresets = []maturityPreset{
 func consensusControlsHTML(percent, maxSpread int) string {
 	percent = normalizeConsensusPercent(percent)
 	maxSpread = normalizeMaxSpread(maxSpread)
+	spreadLabels, spreadOptions := consensusSpreadTicksHTML()
 	return fmt.Sprintf(
 		`<div id="consensus-controls" hx-swap-oob="true">`+
 			`<div class="consensus-slider">`+
@@ -124,12 +125,8 @@ func consensusControlsHTML(percent, maxSpread int) string {
 			`<div class="consensus-slider">`+
 			`<label for="consensus-max-spread">Max Spread <output id="consensus-max-spread-value" for="consensus-max-spread">%d</output></label>`+
 			`<input type="range" id="consensus-max-spread" name="max-spread" min="%d" max="%d" step="1" value="%d" list="consensus-spread-ticks" />`+
-			`<div class="consensus-majors" aria-hidden="true"><span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span></div>`+
-			`<datalist id="consensus-spread-ticks">`+
-			`<option value="0"></option><option value="1"></option><option value="2"></option>`+
-			`<option value="3"></option><option value="4"></option><option value="5"></option>`+
-			`<option value="6"></option>`+
-			`</datalist>`+
+			`<div class="consensus-majors" aria-hidden="true">%s</div>`+
+			`<datalist id="consensus-spread-ticks">%s</datalist>`+
 			`</div>`+
 			"%s"+
 			`</div>`,
@@ -141,8 +138,19 @@ func consensusControlsHTML(percent, maxSpread int) string {
 		minMaxSpread,
 		maxMaxSpread,
 		maxSpread,
+		spreadLabels,
+		spreadOptions,
 		maturityPresetsHTML(percent, maxSpread),
 	)
+}
+
+func consensusSpreadTicksHTML() (labels, options string) {
+	var lab, opt strings.Builder
+	for i := minMaxSpread; i <= maxMaxSpread; i++ {
+		fmt.Fprintf(&lab, `<span>%d</span>`, i)
+		fmt.Fprintf(&opt, `<option value="%d"></option>`, i)
+	}
+	return lab.String(), opt.String()
 }
 
 func maturityPresetsHTML(percent, maxSpread int) string {

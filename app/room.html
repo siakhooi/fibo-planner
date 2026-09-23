@@ -368,7 +368,7 @@
 
 </style>
 </head>
-<body>
+<body data-max-display-name-len="{{maxDisplayNameLen}}">
   <p class="crumb"><a href="/">Fibo Planner</a> · <a href="/{{.RoomID}}">Room {{.RoomID}}</a><button type="button" id="copy-room-url" class="copy-room-url" title="Copy room link" aria-label="Copy room link"><svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-copied" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></button></p>
 
   {{if .RoomName}}
@@ -385,7 +385,7 @@
         id="display-name"
         type="text"
         name="display-name"
-        maxlength="120"
+        maxlength="{{maxDisplayNameLen}}"
         autocomplete="name"
         required
         placeholder="e.g. Alex"
@@ -413,7 +413,7 @@
             id="topic-title-input"
             type="text"
             name="topic-title"
-            maxlength="120"
+            maxlength="{{maxDisplayNameLen}}"
             autocomplete="off"
             placeholder="e.g. Login story"
           />
@@ -452,13 +452,9 @@
           <input type="hidden" id="points-value" name="points" value="" />
           <div class="button-grid">
             <button type="submit" data-points="">&nbsp;</button>
-            <button type="submit" data-points="1">1</button>
-            <button type="submit" data-points="2">2</button>
-            <button type="submit" data-points="3">3</button>
-            <button type="submit" data-points="5">5</button>
-            <button type="submit" data-points="8">8</button>
-            <button type="submit" data-points="13">13</button>
-            <button type="submit" data-points="20">20</button>
+            {{range voteScale}}
+            <button type="submit" data-points="{{.}}">{{.}}</button>
+            {{end}}
           </div>
         </form>
       </div>
@@ -517,6 +513,7 @@
   <script>
     (function () {
       var roomID = "{{.RoomID}}";
+      var maxDisplayNameLen = Number(document.body.dataset.maxDisplayNameLen);
       var key = "fibo-planner-display-name-" + roomID;
       var copyRoomUrl = document.getElementById("copy-room-url");
       var copyRoomUrlTimer = 0;
@@ -659,7 +656,7 @@
       }
 
       function enterRoom(displayName) {
-        displayName = truncateRunes((displayName || "").trim(), 120);
+        displayName = truncateRunes((displayName || "").trim(), maxDisplayNameLen);
         if (!displayName) {
           return;
         }
@@ -752,7 +749,7 @@
         for (var raw of lines) {
           var line = raw.trim();
           if (line) {
-            kept.push(truncateRunes(line, 120));
+            kept.push(truncateRunes(line, maxDisplayNameLen));
           }
         }
         preloadedInput.value = kept.join("\n");

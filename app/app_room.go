@@ -1,7 +1,6 @@
 package main
 
 import (
-	"bytes"
 	"crypto/rand"
 	"fmt"
 	"html/template"
@@ -16,9 +15,6 @@ import (
 )
 
 var cryptoReader io.Reader = rand.Reader
-
-// roomIdleEvictionDelay is how long a room with zero WebSocket connections may stay before it is removed.
-const roomIdleEvictionDelay = 30 * time.Minute
 
 // scheduleRoomEvictionLocked starts (or replaces) the idle timer for an empty room. Caller must hold a.mu.
 func (a *App) scheduleRoomEvictionLocked(roomID string, h *Hub) {
@@ -108,15 +104,7 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 	roomID := chi.URLParam(r, "roomID")
 	h, ok := a.getHub(roomID)
 	if !ok {
-		data := struct{ RoomID string }{RoomID: roomID}
-		var buf bytes.Buffer
-		if err := tmpl.ExecuteTemplate(&buf, "room_not_found.html", data); err != nil {
-			http.Error(w, "template error", http.StatusInternalServerError)
-			return
-		}
-		w.Header().Set("Content-Type", "text/html; charset=utf-8")
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write(buf.Bytes())
+		writeHTML(w, http.StatusNotFound, "room_not_found.html", struct{ RoomID string }{RoomID: roomID})
 		return
 	}
 
@@ -133,13 +121,7 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 		Count:                 h.count(),
 		ConsensusControlsHTML: template.HTML(consensusControlsHTML(h.consensus(), h.allowedMaxSpread())),
 	}
-	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "room.html", data); err != nil {
-		http.Error(w, "template error", http.StatusInternalServerError)
-		return
-	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
-	_, _ = w.Write(buf.Bytes())
+	writeHTML(w, http.StatusOK, "room.html", data)
 }
 
 func (a *App) roomWS(w http.ResponseWriter, r *http.Request) {
