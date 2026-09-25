@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
 
-set -euo pipefail
-set -x
+set -euxo pipefail
 
 go test -v -json -covermode=atomic -coverpkg=./... -coverprofile=test-coverage.out ./... | tee test-report.json
 
