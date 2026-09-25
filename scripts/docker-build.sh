@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 
 set -euxo pipefail
 
@@ -8,7 +8,10 @@ set -euxo pipefail
 . ./release.env
 
 (
-	docker build . -f docker/Dockerfile \
-		-t "$DOCKER_IMAGE_NAME:latest" \
-		-t "$DOCKER_IMAGE_NAME:$DOCKER_VERSION"
+  go tool goreleaser build --snapshot --clean
+  ./scripts/stage-docker-binaries.sh
+
+  docker build dist/docker -f docker/Dockerfile \
+    -t "$DOCKER_IMAGE_NAME:latest" \
+    -t "$DOCKER_IMAGE_NAME:$DOCKER_VERSION"
 ) 2>&1 | tee docker-build.log

@@ -3,3 +3,4 @@ test-coverage.out
 test-coverage.html
 test-report.json
 target
+dist
