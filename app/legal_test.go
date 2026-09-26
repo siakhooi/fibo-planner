@@ -6,6 +6,8 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+
+	"github.com/siakhooi/fibo-planner/app/versioninfo"
 )
 
 func TestLegalPages(t *testing.T) {
@@ -82,6 +84,7 @@ func TestPagesShareLegalFooter(t *testing.T) {
 				`href="/disclaimer">Disclaimer</a>`,
 				`href="/privacy">Privacy Policy</a>`,
 				`href="/terms">Terms of Use</a>`,
+				`class="app-version">` + versioninfo.Version,
 			} {
 				if !strings.Contains(page, want) {
 					t.Errorf("missing footer link %q", want)

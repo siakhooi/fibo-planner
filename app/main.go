@@ -14,6 +14,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
+	"github.com/siakhooi/fibo-planner/app/versioninfo"
 )
 
 func accessLogURI(path, rawQuery string) string {
@@ -72,12 +73,27 @@ func newRouter(app *App) http.Handler {
 	return r
 }
 
+func hasVersionFlag(args []string) bool {
+	for _, a := range args {
+		if a == "--version" {
+			return true
+		}
+	}
+	return false
+}
+
 func main() {
+	if hasVersionFlag(os.Args[1:]) {
+		versioninfo.PrintBuildInfo()
+		return
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	addr := listenAddr()
 	srv := newHTTPServer(addr, newRouter(newApp()))
+	log.Printf("Version: %s Commit: %s BuildDate: %s", versioninfo.Version, versioninfo.Commit, versioninfo.Date)
 	log.Printf("listening on %s", listenLogURL(addr))
 	if err := runServer(ctx, srv); err != nil {
 		log.Fatal(err)

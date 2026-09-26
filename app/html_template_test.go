@@ -9,6 +9,8 @@ import (
 	"strings"
 	"testing"
 	"testing/fstest"
+
+	"github.com/siakhooi/fibo-planner/app/versioninfo"
 )
 
 func TestParseAppTemplatesNoCustomDir(t *testing.T) {
@@ -381,6 +383,7 @@ func assertStockPages(t *testing.T, tmpl *template.Template) {
 			`href="/disclaimer">Disclaimer</a>`,
 			`href="/privacy">Privacy Policy</a>`,
 			`href="/terms">Terms of Use</a>`,
+			`class="app-version">` + versioninfo.Version,
 		} {
 			if !strings.Contains(page, want) {
 				t.Errorf("page missing footer link %q", want)
