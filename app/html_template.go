@@ -12,6 +12,8 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+
+	"github.com/siakhooi/fibo-planner/app/versioninfo"
 )
 
 const (
@@ -80,6 +82,9 @@ func parseAppTemplates(htmlFS fs.FS, customDir string) (*template.Template, erro
 		},
 		"voteScale": func() []string {
 			return voteScale
+		},
+		"appVersion": func() string {
+			return versioninfo.Version
 		},
 		"hasCustomLegal": func(name string) bool {
 			_, ok := c.Legal[name]
