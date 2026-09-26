@@ -207,40 +207,6 @@ func jsonInt(v any) (int, bool) {
 	}
 }
 
-func normalizeConsensusPercent(n int) int {
-	if n < minConsensusPercent || n > maxConsensusPercent {
-		return defaultConsensusPercent
-	}
-	return n
-}
-
-func normalizeMaxSpread(n int) int {
-	if n < minMaxSpread || n > maxMaxSpread {
-		return defaultMaxSpread
-	}
-	return n
-}
-
-func pointsRank(points string) (int, bool) {
-	for i, p := range voteScale {
-		if p == points {
-			return i, true
-		}
-	}
-	return 0, false
-}
-
-func meetsConsensus(percent, threshold int) bool {
-	switch {
-	case threshold <= minConsensusPercent:
-		return percent > minConsensusPercent
-	case threshold >= maxConsensusPercent:
-		return percent == maxConsensusPercent
-	default:
-		return percent >= threshold
-	}
-}
-
 func parseTopicTitle(payload []byte) string {
 	m, ok := parseWSMessage(payload)
 	if !ok {
