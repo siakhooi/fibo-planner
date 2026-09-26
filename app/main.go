@@ -93,6 +93,7 @@ func main() {
 
 	addr := listenAddr()
 	srv := newHTTPServer(addr, newRouter(newApp()))
+	log.Printf("Version: %s Commit: %s BuildDate: %s", versioninfo.Version, versioninfo.Commit, versioninfo.Date)
 	log.Printf("listening on %s", listenLogURL(addr))
 	if err := runServer(ctx, srv); err != nil {
 		log.Fatal(err)
