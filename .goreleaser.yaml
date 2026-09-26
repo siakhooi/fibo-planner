@@ -12,7 +12,11 @@ builds:
     flags:
       - -trimpath
     ldflags:
-      - -s -w
+      - -s
+      - -w
+      - -X github.com/siakhooi/fibo-planner/app/versioninfo.Version={{.Version}}
+      - -X github.com/siakhooi/fibo-planner/app/versioninfo.Date={{.Date}}
+      - -X github.com/siakhooi/fibo-planner/app/versioninfo.Commit={{.Commit}}
     goos:
       - linux
       - darwin

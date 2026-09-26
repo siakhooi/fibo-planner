@@ -71,6 +71,12 @@ That sample is built from [fibo-planner-on-gcp](https://github.com/siakhooi/fibo
 go run ./app
 ```
 
+Print the build version and exit (`0.0.0` / `unknown` unless the binary was built with GoReleaser or `just build`):
+
+```bash
+go run ./app --version
+```
+
 Or with Docker:
 
 ```bash
