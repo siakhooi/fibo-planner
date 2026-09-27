@@ -1,0 +1,48 @@
+{{define "disclaimer.html"}}{{template "legal-page" .}}{{end}}
+{{define "privacy.html"}}{{template "legal-page" .}}{{end}}
+{{define "terms.html"}}{{template "legal-page" .}}{{end}}
+
+{{define "legal-page"}}
+{{template "doc-open"}}
+  <title>{{.Title}}</title>
+  <style>{{baseCSS}}</style>
+</head>
+<body>
+  <p class="crumb"><a href="/">Fibo Planner</a> · {{.Crumb}}</p>
+  <h1>{{.Heading}}</h1>
+  {{if hasCustomLegal .File}}{{customLegal .File}}{{else if eq .File "disclaimer.html"}}{{template "legal-disclaimer"}}{{else if eq .File "privacy.html"}}{{template "legal-privacy"}}{{else}}{{template "legal-terms"}}{{end}}
+  {{template "site-footer"}}
+</body>
+</html>
+{{end}}
+
+{{define "legal-disclaimer"}}
+  <p>Fibo Planner is provided for general use and convenience. It is provided "as is" and without warranties of any kind, express or implied.</p>
+  <p>The authors and contributors do not guarantee that Fibo Planner will always be available, accurate, reliable, secure, or free from errors.</p>
+  <p>You use Fibo Planner at your own risk. The authors and contributors are not responsible for any loss, damage, or disruption arising from the use of the software or service, to the extent permitted by applicable law.</p>
+  <p>Fibo Planner is an open-source project and is provided under the MIT License.</p>
+{{end}}
+
+{{define "legal-privacy"}}
+  <p class="legal-updated">Last updated: September 2026</p>
+  <p>Fibo Planner is an open-source application designed to run without requiring user accounts or collecting personal information.</p>
+  <p>The standard Fibo Planner application does not intentionally collect, store, or transmit personal information to the Fibo Planner project maintainers.</p>
+  <p>Fibo Planner does not use advertising trackers. The running application does not include an analytics SDK.</p>
+  <p>The default UI loads HTMX and the HTMX WebSocket extension from jsDelivr (<code>cdn.jsdelivr.net</code>). Your browser requests those scripts directly, so the CDN can see your IP address and request metadata. Operators who replace the HTML (for example with <code>FIBO_PLANNER_CUSTOM_HTML_DIR</code>) can avoid that third-party request.</p>
+  <p>The project README on GitHub includes a visitor-count badge. Loading that image contacts a third-party URL (<code>hit-tztugwlsja-uc.a.run.app</code>) and counts README views. The badge is not part of the running application.</p>
+  <p>However, if you deploy Fibo Planner yourself, your hosting provider, network, or other infrastructure may collect technical information such as IP addresses or server logs. Such data collection is outside the control of the Fibo Planner project and is subject to the policies of the infrastructure you use.</p>
+  <p>Display names stay in memory for the live planning session. They are sent over the WebSocket after the connection opens, not as a query string on the HTTP upgrade request, so the process access log does not record them.</p>
+  <h2>Changes to This Policy</h2>
+  <p>This Privacy Policy may be updated from time to time. The latest version will be published with the project.</p>
+  <h2>Contact</h2>
+  <p>For questions about this Privacy Policy, please contact the Fibo Planner project through its <a href="https://github.com/siakhooi/fibo-planner">GitHub repository</a>.</p>
+{{end}}
+
+{{define "legal-terms"}}
+  <p>By using Fibo Planner, you agree to use the service responsibly and in accordance with applicable laws.</p>
+  <p>You must not use Fibo Planner to conduct unlawful activities, interfere with the service, or attempt to gain unauthorized access to the service or its infrastructure.</p>
+  <p>Fibo Planner is provided on an "as is" basis. The service may be changed, suspended, or discontinued at any time without notice.</p>
+  <p>The open-source Fibo Planner software is provided under the MIT License. These Terms of Use apply to the hosted Fibo Planner service and do not replace the terms of the software license.</p>
+  <p>To the extent permitted by applicable law, the authors and contributors are not liable for any loss or damage arising from your use of the service.</p>
+  <p>We may update these Terms of Use from time to time. The latest version will be published on this page.</p>
+{{end}}

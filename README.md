@@ -224,4 +224,4 @@ docker run -p 8080:8080 \
 [![Wise](https://img.shields.io/badge/Funding-Wise-33cb56.svg?logo=wise)](https://wise.com/pay/me/siakn3)
 ![visitors](https://hit-tztugwlsja-uc.a.run.app/?outputtype=badge&counter=ghmd-fibo-planner)
 
-The visitors badge counts GitHub README views via a third-party image URL. It is not shipped in the app. See [Privacy Policy](app/privacy.html).
+The visitors badge counts GitHub README views via a third-party image URL. It is not shipped in the app. See [Privacy Policy](app/legal.html).

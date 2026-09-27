@@ -1,374 +1,9 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+{{template "doc-open"}}
   <title>Room {{.RoomID}} · Fibo Planner</title>
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js" integrity="sha384-nIP+hMv+/j0KKPtmqpKlRK1ibiKk/4JWLfgfEC+HRGkMQUK2RMiK3/L2oU1RcJMb" crossorigin="anonymous"></script>
-  <style>
-    html, body { min-height: 100%; }
-    body { display: flex; flex-direction: column; box-sizing: border-box; font-family: system-ui, sans-serif; max-width: 68rem; min-height: 100vh; margin: 0 auto; padding: 2rem 1rem; line-height: 1.5; }
-    .copyright { 
-      margin-top: auto;
-      padding: 10px;
-      width: 100%;
-      text-align: center;
-      background: #f5f5f5;
-      border-top: 1px solid #ccc;
-    }
-    .copyright a { color: #2563eb; }
-    h1 { font-size: 1.5rem; margin-bottom: 0.2rem; }
-    h2 { font-size: 1.15rem; font-weight: 600; margin: 0 0 1rem; }
-    .topic-title { font-size: 1.25rem; font-weight: 700; margin: 0 0 0.5rem; color: #111; overflow-wrap: anywhere; text-align: left; }
-    .meta { color: #444; margin-top: 1rem; }
-    .crumb { font-size: 0.9rem; margin-bottom: 1rem; }
-    .crumb a { color: #2563eb; }
-    .copy-room-url {
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      width: 1.5rem;
-      height: 1.5rem;
-      margin-left: 0.25rem;
-      padding: 0;
-      vertical-align: -0.3rem;
-      border: none;
-      border-radius: 4px;
-      background: transparent;
-      color: #2563eb;
-      cursor: pointer;
-    }
-    .copy-room-url:hover,
-    .copy-room-url:focus-visible {
-      background: #dbeafe;
-    }
-    .copy-room-url svg { display: block; width: 1rem; height: 1rem; }
-    .copy-room-url .icon-copied { display: none; }
-    .copy-room-url.is-copied { color: #14532d; }
-    .copy-room-url.is-copied:hover,
-    .copy-room-url.is-copied:focus-visible { background: #dcfce7; }
-    .copy-room-url.is-copied .icon-copy { display: none; }
-    .copy-room-url.is-copied .icon-copied { display: block; }
-
-    .join-form { margin-top: 1rem; max-width: 22rem; }
-    .join-form label { display: block; margin-bottom: 0.35rem; }
-    .join-form input[type="text"] {
-      width: 100%; max-width: 22rem; padding: 0.5rem; margin-bottom: 0.75rem;
-      box-sizing: border-box;
-    }
-    .join-form button { padding: 0.45rem 1rem; }
-    .button-grid {
-      display: grid;
-      grid-template-columns: repeat(4, minmax(0, 1fr));
-      gap: 0.75rem;
-      max-width: 22.5rem;
-    }
-    .button-grid button {
-      width: 100%;
-      aspect-ratio: 1;
-      height: auto;
-      min-height: 3.25rem;
-      font-size: 1.5rem;
-      font-weight: bold;
-      border: 1px solid #888;
-      border-radius: 8px;
-      background: #f5f5f5;
-      cursor: pointer;
-      touch-action: manipulation;
-    }
-    .button-grid button:disabled { opacity: 0.4; cursor: not-allowed; background: #eee; }
-
-    .user-table { width: 100%; max-width: 28rem; border-collapse: collapse; font-size: 0.95rem; margin: 0.35rem 0 0; }
-    .user-table th, .user-table td { text-align: left; padding: 0.45rem 0.6rem; border: 1px solid #ddd; }
-    .user-table thead th { background: #f5f5f5; font-weight: 600; }
-    .user-table tbody tr:nth-child(even) { background: #fafafa; }
-    .user-table tbody tr.current-user td { background: #dbeafe; }
-    .results-table tbody tr.vote-leader td { background: #fde68a; font-weight: 600; }
-    @keyframes vote-flash {
-      0%, 40% { background: #fde68a; font-weight: 700; }
-      100% { background: transparent; font-weight: inherit; }
-    }
-    .user-table td.vote-flash { animation: vote-flash 1.6s ease-out; }
-    .room-layout {
-      display: grid;
-      grid-template-columns: 14rem minmax(0, 1fr) 14rem;
-      gap: 1.25rem;
-      align-items: start;
-    }
-    .admin-panel { grid-column: 1; }
-    .main-stack {
-      grid-column: 2;
-      min-width: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 1.25rem;
-    }
-    .results-panel { grid-column: 3; }
-    .users-panel .meta { margin-top: 0; }
-    .admin-panel,
-    .results-panel {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 0.75rem;
-      background: #fafafa;
-      box-sizing: border-box;
-    }
-    .results-table th, .results-table td { padding: 0.4rem 0.35rem; }
-    .admin-panel h3,
-    .admin-panel > summary,
-    .results-panel h3 {
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin: 0 0 0.75rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #444;
-    }
-    .admin-panel > summary {
-      list-style: none;
-      display: block;
-      cursor: default;
-      pointer-events: none;
-    }
-    .admin-panel > summary::-webkit-details-marker { display: none; }
-    .admin-panel::details-content {
-      display: block;
-      content-visibility: visible;
-    }
-    .voter-toolbar {
-      display: flex;
-      flex-wrap: wrap;
-      align-items: baseline;
-      justify-content: flex-start;
-      gap: 0.35rem 0.85rem;
-      margin: 0 0 1rem;
-      max-width: 22.5rem;
-    }
-    .voter-toolbar h2 { margin: 0; }
-    .observer-form { margin: 0; }
-    #observer-mode {
-      padding: 0.15rem 0.55rem;
-      min-height: 2.25rem;
-      cursor: pointer;
-      border: 1px solid #888;
-      border-radius: 6px;
-      background: #fff;
-      font: inherit;
-      font-size: 0.85rem;
-    }
-    #observer-mode[aria-pressed="true"] {
-      background: #dbeafe;
-      border-color: #2563eb;
-      font-weight: 600;
-    }
-    .admin-panel form + h3 {
-      margin-top: 1rem;
-      padding-top: 0.85rem;
-      border-top: 1px solid #e5e5e5;
-    }
-    .admin-panel form { margin: 0 0 0.5rem; }
-    .admin-panel form:last-child { margin-bottom: 0; }
-    .admin-panel label { display: block; font-size: 0.85rem; margin-bottom: 0.3rem; }
-    .admin-panel input[type="text"] {
-      width: 100%;
-      box-sizing: border-box;
-      padding: 0.4rem;
-      margin-bottom: 0.55rem;
-    }
-    .admin-panel button {
-      width: 100%;
-      padding: 0.5rem 0.6rem;
-      text-align: left;
-      cursor: pointer;
-      border: 1px solid #888;
-      border-radius: 6px;
-      background: #fff;
-    }
-    .admin-panel button:disabled { opacity: 0.4; cursor: not-allowed; background: #eee; }
-    .admin-panel button[aria-pressed="true"] { background: #dbeafe; border-color: #2563eb; font-weight: 600; }
-    #preloaded-topics-dialog {
-      border: 1px solid #ddd;
-      border-radius: 8px;
-      padding: 1rem;
-      width: min(32rem, calc(100% - 2rem));
-      max-height: min(36rem, calc(100dvh - 2rem));
-      overflow: auto;
-      font-family: inherit;
-    }
-    #preloaded-topics-dialog::backdrop { background: rgba(0, 0, 0, 0.35); }
-    #preloaded-topics-dialog h3 { font-size: 1.05rem; margin: 0 0 0.75rem; }
-    #preloaded-topics-dialog label { display: block; font-size: 0.9rem; margin-bottom: 0.35rem; }
-    #preloaded-topics-dialog textarea {
-      width: 100%;
-      min-height: 10rem;
-      max-height: 40vh;
-      box-sizing: border-box;
-      padding: 0.5rem;
-      margin-bottom: 0.75rem;
-      font: inherit;
-      line-height: 1.4;
-    }
-    #preloaded-topics-dialog .dialog-actions {
-      display: flex;
-      gap: 0.5rem;
-      justify-content: flex-end;
-    }
-    #preloaded-topics-dialog .dialog-actions button {
-      width: auto;
-      text-align: center;
-      padding: 0.45rem 0.9rem;
-      cursor: pointer;
-      border: 1px solid #888;
-      border-radius: 6px;
-      background: #fff;
-    }
-    @media (max-width: 60rem) {
-      body { margin: 0 auto; padding: 0.75rem 0.75rem 1.5rem; }
-      h1 { font-size: 1.2rem; }
-      .crumb { margin-bottom: 0.5rem; }
-      .admin-panel::details-content {
-        display: none;
-        content-visibility: hidden;
-      }
-      .admin-panel[open]::details-content {
-        display: block;
-        content-visibility: visible;
-      }
-      .admin-panel > summary {
-        cursor: pointer;
-        pointer-events: auto;
-        display: flex;
-        align-items: center;
-        justify-content: space-between;
-        gap: 0.5rem;
-        min-height: 2.5rem;
-      }
-      .admin-panel > summary::after {
-        content: "▾";
-        font-size: 0.85rem;
-        color: #666;
-      }
-      .admin-panel:not([open]) > summary::after { content: "▸"; }
-      .admin-panel:not([open]) { padding: 0.4rem 0.75rem; }
-      .admin-panel:not([open]) > summary { margin: 0; }
-      .room-layout {
-        grid-template-columns: minmax(0, 1fr) minmax(10rem, 14rem);
-      }
-      .admin-panel { grid-column: 1 / -1; }
-      .main-stack { grid-column: 1; }
-      .results-panel { grid-column: 2; grid-row: 2; }
-    }
-    @media (max-width: 40rem) {
-      .room-layout { grid-template-columns: 1fr; }
-      .admin-panel,
-      .main-stack,
-      .results-panel { grid-column: 1; }
-      .main-stack { display: contents; }
-      .admin-panel { order: 0; }
-      .room-body { order: 1; }
-      .results-panel { order: 2; grid-row: auto; }
-      .users-panel { order: 3; }
-    }
-    #consensus-controls { margin-top: 0.15rem; }
-    #consensus-controls .consensus-slider + .consensus-slider { margin-top: 0.85rem; }
-    #consensus-controls label {
-      display: flex;
-      justify-content: space-between;
-      align-items: baseline;
-      gap: 0.5rem;
-    }
-    #consensus-controls output {
-      font-variant-numeric: tabular-nums;
-      font-weight: 600;
-    }
-    #consensus-controls input[type="range"] {
-      width: 100%;
-      margin: 0.15rem 0 0;
-      padding: 0;
-      accent-color: #2563eb;
-    }
-    .consensus-majors {
-      display: flex;
-      justify-content: space-between;
-      font-size: 0.65rem;
-      color: #666;
-      margin-top: 0.1rem;
-    }
-    .maturity-presets {
-      margin-top: 0.85rem;
-      padding-top: 0.75rem;
-      border-top: 1px solid #e5e5e5;
-    }
-    .maturity-presets h4 {
-      font-size: 0.8rem;
-      font-weight: 600;
-      margin: 0 0 0.5rem;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: #444;
-    }
-    .maturity-presets ul {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 0.35rem;
-    }
-    .maturity-presets button {
-      font-size: 0.78rem;
-      padding: 0.35rem 0.5rem;
-    }
-    #agreed-points {
-      margin: 0 0 0.35rem;
-      padding: 0.7rem 0.6rem;
-      font-size: 1.2rem;
-      font-weight: 700;
-      line-height: 1.25;
-      text-align: center;
-      border-radius: 8px;
-      border: 2px solid;
-    }
-    .agreement-status {
-      margin: 0 0 0.75rem;
-      font-size: 0.95rem;
-      font-weight: 600;
-      line-height: 1.45;
-    }
-    .agreement-status span { display: block; }
-    .agreement-status .met { color: #14532d; }
-    .agreement-status .unmet { color: #7f1d1d; }
-    #agreed-points strong {
-      display: block;
-      margin-top: 0.15rem;
-      font-size: 1.7rem;
-      font-weight: 800;
-      letter-spacing: 0.02em;
-    }
-    #agreed-points.agreed-yes {
-      color: #14532d;
-      background: #dcfce7;
-      border-color: #22c55e;
-    }
-    #agreed-points.agreed-no {
-      color: #7f1d1d;
-      background: #fee2e2;
-      border-color: #ef4444;
-    }
-    .ws-status {
-      margin: 0 0 0.75rem;
-      padding: 0.55rem 0.75rem;
-      color: #7f1d1d;
-      background: #fee2e2;
-      border: 1px solid #ef4444;
-      border-radius: 8px;
-      font-weight: 600;
-    }
-
-</style>
+  {{template "htmx-scripts"}}
+  <style>{{baseCSS}}{{roomCSS}}</style>
 </head>
-<body data-max-display-name-len="{{maxDisplayNameLen}}">
+<body class="room-page" data-room-id="{{.RoomID}}" data-max-display-name-len="{{maxDisplayNameLen}}" data-max-preloaded-topics="{{maxPreloadedTopicCount}}">
   <p class="crumb"><a href="/">Fibo Planner</a> · <a href="/{{.RoomID}}">Room {{.RoomID}}</a><button type="button" id="copy-room-url" class="copy-room-url" title="Copy room link" aria-label="Copy room link"><svg class="icon-copy" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/></svg><svg class="icon-copied" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg></button></p>
 
   {{if .RoomName}}
@@ -402,11 +37,11 @@
       <div class="room-layout">
       <details class="admin-panel" aria-labelledby="admin-heading">
         <summary id="admin-heading">Administration</summary>
-        <form id="clear-votes-form" action="#">
+        <form id="clear-votes-form" class="js-ws-send" action="#">
           <input type="hidden" name="admin" value="clear-votes" />
           <button type="submit" id="clear-votes">Clear votes</button>
         </form>
-        <form id="set-topic-form" action="#">
+        <form id="set-topic-form" class="js-ws-send" action="#">
           <input type="hidden" name="admin" value="set-topic" />
           <label for="topic-title-input">Topic Title</label>
           <input
@@ -420,20 +55,20 @@
           <button type="submit" id="set-topic">Set Topic</button>
         </form>
         <h3>Preloaded Topics</h3>
-        <form id="load-next-topic-form" action="#">
+        <form id="load-next-topic-form" class="js-ws-send" action="#">
           <input type="hidden" name="admin" value="load-next-topic" />
           <button type="submit" id="load-next-topic" disabled>Load Next Topic</button>
         </form>
         <form id="edit-preloaded-topics-form" action="#">
-          <button type="button" id="edit-preloaded-topics">Edit Preloaded Topic</button>
+          <button type="button" id="edit-preloaded-topics">Edit Preloaded Topics</button>
         </form>
         <h3>Global Options</h3>
-        <form id="always-show-votes-form" action="#">
+        <form id="always-show-votes-form" class="js-ws-send" action="#">
           <input type="hidden" name="admin" value="always-show-votes" />
           <button type="submit" id="always-show-votes" aria-pressed="false">Always show votes</button>
         </form>
         <h3>Consensus Agreement</h3>
-        <form id="consensus-form" action="#">
+        <form id="consensus-form" class="js-ws-send" action="#">
           <input type="hidden" name="admin" value="consensus-agreement" />
           {{.ConsensusControlsHTML}}
         </form>
@@ -443,15 +78,15 @@
         <h2 id="topic-title" class="topic-title"{{if not .TopicTitle}} hidden{{end}}>{{.TopicTitle}}</h2>
         <div class="voter-toolbar">
           <h2 id="user-name">Your name</h2>
-          <form id="observer-mode-form" class="observer-form" action="#">
+          <form id="observer-mode-form" class="observer-form js-ws-send" action="#">
             <input type="hidden" name="admin" value="observer-mode" />
-            <button type="submit" id="observer-mode" aria-pressed="false">I am Observer</button>
+            <button type="submit" id="observer-mode" aria-pressed="false">I'm an observer</button>
           </form>
         </div>
-        <form id="points-form" action="#">
+        <form id="points-form" class="js-ws-send" action="#">
           <input type="hidden" id="points-value" name="points" value="" />
           <div class="button-grid">
-            <button type="submit" data-points="">&nbsp;</button>
+            <button type="submit" data-points="" aria-label="Clear vote">&nbsp;</button>
             {{range voteScale}}
             <button type="submit" data-points="{{.}}">{{.}}</button>
             {{end}}
@@ -491,8 +126,8 @@
       </div>
       <pre id="preloaded-topics-data" hidden></pre>
       <dialog id="preloaded-topics-dialog" aria-labelledby="preloaded-topics-heading">
-        <form id="set-preloaded-topics-form" action="#">
-          <h3 id="preloaded-topics-heading">Edit Preloaded Topic</h3>
+        <form id="set-preloaded-topics-form" class="js-ws-send" action="#">
+          <h3 id="preloaded-topics-heading">Edit Preloaded Topics</h3>
           <input type="hidden" name="admin" value="set-preloaded-topics" />
           <label for="preloaded-topics-input">One topic per line</label>
           <textarea
@@ -510,269 +145,8 @@
     </div>
   </div>
 
-  <script>
-    (function () {
-      var roomID = "{{.RoomID}}";
-      var maxDisplayNameLen = Number(document.body.dataset.maxDisplayNameLen);
-      var key = "fibo-planner-display-name-" + roomID;
-      var copyRoomUrl = document.getElementById("copy-room-url");
-      var copyRoomUrlTimer = 0;
-      function markRoomUrlCopied() {
-        if (!copyRoomUrl) {
-          return;
-        }
-        copyRoomUrl.classList.add("is-copied");
-        copyRoomUrl.setAttribute("aria-label", "Room link copied");
-        copyRoomUrl.setAttribute("title", "Copied");
-        window.clearTimeout(copyRoomUrlTimer);
-        copyRoomUrlTimer = window.setTimeout(function () {
-          copyRoomUrl.classList.remove("is-copied");
-          copyRoomUrl.setAttribute("aria-label", "Copy room link");
-          copyRoomUrl.setAttribute("title", "Copy room link");
-        }, 1500);
-      }
-      function copyRoomLink() {
-        var url = window.location.origin + "/" + roomID;
-        if (navigator.clipboard && navigator.clipboard.writeText) {
-          navigator.clipboard.writeText(url).then(markRoomUrlCopied).catch(function () {
-            fallbackCopyRoomLink(url);
-          });
-          return;
-        }
-        fallbackCopyRoomLink(url);
-      }
-      function fallbackCopyRoomLink(url) {
-        var ta = document.createElement("textarea");
-        ta.value = url;
-        ta.setAttribute("readonly", "");
-        ta.style.position = "fixed";
-        ta.style.left = "-9999px";
-        document.body.appendChild(ta);
-        ta.select();
-        try {
-          if (document.execCommand("copy")) {
-            markRoomUrlCopied();
-          }
-        } finally {
-          document.body.removeChild(ta);
-        }
-      }
-      if (copyRoomUrl) {
-        copyRoomUrl.addEventListener("click", copyRoomLink);
-      }
-      var gate = document.getElementById("join-gate");
-      var main = document.getElementById("room-main");
-      var form = document.getElementById("join-form");
-      var input = document.getElementById("display-name");
-      var pointsForm = document.getElementById("points-form");
-      var pointsValue = document.getElementById("points-value");
-
-      var adminPanel = document.querySelector("details.admin-panel");
-      var desktopAdmin = window.matchMedia("(min-width: 60.01rem)");
-      function syncAdminPanelOpen() {
-        if (!adminPanel) {
-          return;
-        }
-        if (desktopAdmin.matches) {
-          adminPanel.setAttribute("open", "");
-          delete adminPanel.dataset.userToggled;
-          return;
-        }
-        if (!("userToggled" in adminPanel.dataset)) {
-          adminPanel.removeAttribute("open");
-        }
-      }
-      if (adminPanel) {
-        adminPanel.addEventListener("toggle", function () {
-          if (!desktopAdmin.matches) {
-            adminPanel.dataset.userToggled = "";
-          }
-        });
-        if (desktopAdmin.addEventListener) {
-          desktopAdmin.addEventListener("change", syncAdminPanelOpen);
-        } else if (desktopAdmin.addListener) {
-          desktopAdmin.addListener(syncAdminPanelOpen);
-        }
-        syncAdminPanelOpen();
-      }
-
-      function showMyVote() {
-        var observerBtn = document.getElementById("observer-mode");
-        var voteButtons = pointsForm.querySelectorAll("button");
-        var me = document.querySelector("#user-list tbody tr.current-user");
-        if (!me) {
-          return;
-        }
-        var cells = me.cells;
-        var isObserver = cells[1].textContent === "observer";
-        observerBtn.setAttribute("aria-pressed", isObserver ? "true" : "false");
-        for (var voteBtn of voteButtons) {
-          voteBtn.disabled = isObserver;
-        }
-        if (isObserver || cells[1].textContent === "") {
-          pointsValue.value = "";
-          return;
-        }
-        var mine = pointsValue.value;
-        if (mine && cells[1].textContent === "???") {
-          cells[1].textContent = mine;
-        }
-      }
-
-      var roomWs = document.getElementById("room-ws");
-      var wsStatus = document.getElementById("ws-status");
-      var joinedName = "";
-      function setWSDisconnected(disconnected) {
-        if (!wsStatus) {
-          return;
-        }
-        wsStatus.hidden = !disconnected;
-      }
-      if (roomWs) {
-        roomWs.addEventListener("htmx:wsAfterMessage", showMyVote);
-        roomWs.addEventListener("htmx:wsClose", function () {
-          setWSDisconnected(true);
-        });
-        roomWs.addEventListener("htmx:wsError", function () {
-          setWSDisconnected(true);
-        });
-        roomWs.addEventListener("htmx:wsOpen", function (evt) {
-          setWSDisconnected(false);
-          var wrapper = evt.detail && evt.detail.socketWrapper;
-          if (wrapper && joinedName) {
-            wrapper.send(JSON.stringify({ name: joinedName }));
-          }
-        });
-      }
-
-      pointsForm.addEventListener("click", function (e) {
-        var btn = e.target.closest("button[data-points]");
-        if (!btn) return;
-        pointsValue.value = btn.dataset.points;
-      });
-
-      function truncateRunes(s, n) {
-        return Array.from(s || "").slice(0, n).join("");
-      }
-
-      function enterRoom(displayName) {
-        displayName = truncateRunes((displayName || "").trim(), maxDisplayNameLen);
-        if (!displayName) {
-          return;
-        }
-        localStorage.setItem(key, displayName);
-        joinedName = displayName;
-        gate.hidden = true;
-        main.hidden = false;
-        document.getElementById("user-name").textContent = displayName;
-        var el = document.getElementById("room-ws");
-        el.setAttribute("ws-connect", "/ws/" + roomID);
-        document.getElementById("points-form").setAttribute("ws-send", "");
-        document.getElementById("always-show-votes-form").setAttribute("ws-send", "");
-        document.getElementById("clear-votes-form").setAttribute("ws-send", "");
-        document.getElementById("set-topic-form").setAttribute("ws-send", "");
-        document.getElementById("load-next-topic-form").setAttribute("ws-send", "");
-        document.getElementById("set-preloaded-topics-form").setAttribute("ws-send", "");
-        document.getElementById("observer-mode-form").setAttribute("ws-send", "");
-        document.getElementById("consensus-form").setAttribute("ws-send", "");
-        htmx.process(el);
-      }
-
-      var consensusForm = document.getElementById("consensus-form");
-      var sliderOutputs = {
-        "consensus-percent": "consensus-percent-value",
-        "consensus-max-spread": "consensus-max-spread-value"
-      };
-      consensusForm.addEventListener("input", function (e) {
-        var outId = sliderOutputs[e.target.id];
-        if (!outId) {
-          return;
-        }
-        var out = document.getElementById(outId);
-        if (out) {
-          out.textContent = e.target.value;
-        }
-      });
-      consensusForm.addEventListener("change", function (e) {
-        if (!sliderOutputs[e.target.id]) {
-          return;
-        }
-        if (consensusForm.getAttribute("ws-send") === null) {
-          return;
-        }
-        consensusForm.requestSubmit();
-      });
-      consensusForm.addEventListener("click", function (e) {
-        var btn = e.target.closest("button.maturity-preset");
-        if (!btn) {
-          return;
-        }
-        var percent = btn.dataset.percentage;
-        var spread = btn.dataset.maxSpread;
-        var percentInput = document.getElementById("consensus-percent");
-        var spreadInput = document.getElementById("consensus-max-spread");
-        percentInput.value = percent;
-        spreadInput.value = spread;
-        document.getElementById("consensus-percent-value").textContent = percent;
-        document.getElementById("consensus-max-spread-value").textContent = spread;
-        if (consensusForm.getAttribute("ws-send") === null) {
-          return;
-        }
-        consensusForm.requestSubmit();
-      });
-
-      var preloadedDialog = document.getElementById("preloaded-topics-dialog");
-      var preloadedInput = document.getElementById("preloaded-topics-input");
-      var preloadedForm = document.getElementById("set-preloaded-topics-form");
-
-      function remainingPreloadedTopics() {
-        var data = document.getElementById("preloaded-topics-data");
-        return data ? data.textContent : "";
-      }
-
-      function fillPreloadedEditor() {
-        preloadedInput.value = remainingPreloadedTopics();
-      }
-
-      document.getElementById("edit-preloaded-topics").addEventListener("click", function () {
-        fillPreloadedEditor();
-        if (!preloadedDialog.open) {
-          preloadedDialog.showModal();
-        }
-      });
-      document.getElementById("preloaded-topics-cancel").addEventListener("click", function () {
-        preloadedDialog.close();
-      });
-      preloadedForm.addEventListener("submit", function () {
-        var lines = preloadedInput.value.split(/\r?\n/);
-        var kept = [];
-        for (var raw of lines) {
-          var line = raw.trim();
-          if (line) {
-            kept.push(truncateRunes(line, maxDisplayNameLen));
-          }
-        }
-        preloadedInput.value = kept.join("\n");
-        var data = document.getElementById("preloaded-topics-data");
-        if (data) {
-          data.textContent = preloadedInput.value;
-        }
-        preloadedDialog.close();
-      });
-
-      var stored = localStorage.getItem(key);
-      if (stored && stored.trim()) {
-        input.value = stored.trim();
-      }
-      input.focus();
-      form.addEventListener("submit", function (e) {
-        e.preventDefault();
-        enterRoom(input.value);
-      });
-    })();
-  </script>
-
   {{template "site-footer"}}
+  <script src="/room.js"></script>
 </body>
 
 </html>

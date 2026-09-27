@@ -1,0 +1,99 @@
+html,
+body {
+  min-height: 100%;
+}
+
+body {
+  font-family: system-ui, sans-serif;
+  display: flex;
+  flex-direction: column;
+  box-sizing: border-box;
+  max-width: 40rem;
+  min-height: 100vh;
+  margin: 0 auto;
+  padding: 2rem 1rem;
+  line-height: 1.5;
+}
+
+h1 {
+  font-size: 1.5rem;
+}
+
+h2 {
+  font-size: 1.15rem;
+  margin: 1.5rem 0 0.5rem;
+}
+
+.crumb {
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+}
+
+a {
+  color: #2563eb;
+}
+
+p {
+  color: #444;
+}
+
+.meta {
+  color: #444;
+  margin-top: 1rem;
+}
+
+.legal-updated {
+  color: #666;
+  margin-top: 0;
+}
+
+.copyright {
+  margin-top: auto;
+  padding: 10px;
+  width: 100%;
+  text-align: center;
+  background: #f5f5f5;
+  border-top: 1px solid #ccc;
+}
+
+.copyright a {
+  color: #2563eb;
+}
+
+.create-room {
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid #ddd;
+}
+
+.create-room h2 {
+  margin: 0 0 0.75rem;
+}
+
+.field-label {
+  display: block;
+  margin-bottom: 0.35rem;
+}
+
+.field-hint {
+  color: #666;
+  font-weight: normal;
+}
+
+.field-input {
+  width: 100%;
+  max-width: 22rem;
+  padding: 0.5rem;
+  margin-bottom: 0.75rem;
+  box-sizing: border-box;
+}
+
+.btn {
+  padding: 0.45rem 1rem;
+}
+
+.lede {
+  margin: 0 0 0.75rem;
+  color: #444;
+  font-size: 0.95rem;
+}

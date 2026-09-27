@@ -71,7 +71,7 @@ func renderRoomState(n int, rows []participant, alwaysShow bool, topic string, c
 		`<strong id="session-count" hx-swap-oob="true">%d</strong>`+
 			"%s"+
 			`<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="%s">Always show votes</button>`+
-			`<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="%s">I am Observer</button>`+
+			`<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="%s">I'm an observer</button>`+
 			"%s"+
 			"%s"+
 			"%s"+
@@ -98,7 +98,7 @@ type maturityPreset struct {
 var teamMaturityPresets = []maturityPreset{
 	{label: "full (100%, 0 spread)", percent: 100, spread: 0},
 	{label: "good (80%, 1 spread)", percent: 80, spread: 1},
-	{label: "relaxed (50%, 3 spreads)", percent: 50, spread: 3},
+	{label: "relaxed (50%, spread of 3)", percent: 50, spread: 3},
 }
 
 func consensusControlsHTML(percent, maxSpread int) string {
@@ -150,7 +150,7 @@ func consensusSpreadTicksHTML() (labels, options string) {
 func maturityPresetsHTML(percent, maxSpread int) string {
 	var b strings.Builder
 	b.WriteString(`<div class="maturity-presets">`)
-	b.WriteString(`<h4 id="maturity-presets-heading">Team Maturity(presets)</h4>`)
+	b.WriteString(`<h4 id="maturity-presets-heading">Team maturity (presets)</h4>`)
 	b.WriteString(`<ul aria-labelledby="maturity-presets-heading">`)
 	for _, p := range teamMaturityPresets {
 		pressed := "false"
