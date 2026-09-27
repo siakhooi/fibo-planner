@@ -40,6 +40,19 @@ archives:
       - LICENSE
       - README.md
 
+nfpms:
+  - package_name: fibo-planner
+    file_name_template: "{{ .ConventionalFileName }}"
+    vendor: siakhooi
+    homepage: https://github.com/siakhooi/fibo-planner
+    maintainer: siakhooi
+    description: web app to run planning poker technique
+    license: MIT
+    bindir: /usr/bin
+    formats:
+      - deb
+      - rpm
+
 checksum:
   name_template: checksums.txt
 

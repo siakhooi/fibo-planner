@@ -1,0 +1,10 @@
+repo: siakhooi/apt-linux
+branch: main
+git_commit_user: fibo-planner
+git_commit_email: fibo-planner@siakhooi.github.io
+git_commit_message: "{repo_name}: {ref_name} | {commit_short}"
+
+files:
+  - source: dist/fibo-planner_*_*.deb
+    target: docs/pool/main/fibo-planner/
+    items: 2

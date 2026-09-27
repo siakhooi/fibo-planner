@@ -1,0 +1,10 @@
+repo: siakhooi/rpms
+branch: main
+git_commit_user: fibo-planner
+git_commit_email: fibo-planner@siakhooi.github.io
+git_commit_message: "{repo_name}: {ref_name} | {commit_short}"
+
+files:
+  - source: dist/fibo-planner-*.*.rpm
+    target: docs/
+    items: 2
