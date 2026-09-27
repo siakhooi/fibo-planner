@@ -12,6 +12,11 @@ on:
         push-images:
           required: true
           type: boolean
+        snapshot:
+          description: Use a GoReleaser snapshot version (CI). Release builds should set this false.
+          required: false
+          type: boolean
+          default: true
 
 jobs:
   build-docker-images:
@@ -27,7 +32,15 @@ jobs:
         with:
           go-version: '1.27.1'
 
-      - run: go tool goreleaser build --snapshot --clean
+      - name: Build linux binaries
+        env:
+          SNAPSHOT: ${{ inputs.snapshot }}
+        run: |
+          extra=()
+          if [ "${SNAPSHOT:-true}" != "false" ]; then
+            extra+=(--snapshot)
+          fi
+          go tool goreleaser build --clean "${extra[@]}"
 
       - run: scripts/stage-docker-binaries.sh
 

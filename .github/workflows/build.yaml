@@ -44,3 +44,4 @@ jobs:
       REGISTRY_PASSWORD_DOCKER: ${{ secrets.REGISTRY_PASSWORD_DOCKER }}
     with:
       push-images: false
+      snapshot: true
