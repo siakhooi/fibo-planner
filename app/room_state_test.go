@@ -124,7 +124,7 @@ func TestRoomStateHTMLMarksSelfRowAndObserverButton(t *testing.T) {
 	if !strings.Contains(voter, `<tr class="current-user"><td>Alex</td><td></td></tr>`) {
 		t.Fatalf("self row should be marked current-user: %s", voter)
 	}
-	if !strings.Contains(voter, `<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="false">I am Observer</button>`) {
+	if !strings.Contains(voter, `<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="false">I'm an observer</button>`) {
 		t.Fatalf("self voter should receive an unpressed observer button: %s", voter)
 	}
 	if strings.Contains(voter, `<tr class="current-user"><td>Alex</td><td>observer</td></tr>`) {
@@ -138,7 +138,7 @@ func TestRoomStateHTMLMarksSelfRowAndObserverButton(t *testing.T) {
 	if !strings.Contains(observer, `<tr class="current-user"><td class="vote-flash">Alex</td><td class="vote-flash">observer</td></tr>`) {
 		t.Fatalf("self observer row should be marked current-user: %s", observer)
 	}
-	if !strings.Contains(observer, `<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="true">I am Observer</button>`) {
+	if !strings.Contains(observer, `<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="true">I'm an observer</button>`) {
 		t.Fatalf("self observer should receive a pressed observer button: %s", observer)
 	}
 }
@@ -460,7 +460,7 @@ func TestRoomStateHTMLSyncsConsensusSlider(t *testing.T) {
 	if !strings.Contains(html, `id="consensus-max-spread-value" for="consensus-max-spread">3</output>`) {
 		t.Fatalf("max spread readout should be 3: %s", html)
 	}
-	if !strings.Contains(html, `Team Maturity(presets)`) {
+	if !strings.Contains(html, `Team maturity (presets)`) {
 		t.Fatalf("missing maturity presets: %s", html)
 	}
 	if !strings.Contains(html, `data-percentage="80" data-max-spread="1" aria-pressed="false"`) {
@@ -488,7 +488,7 @@ func TestMaturityPresetsHighlightMatchingValues(t *testing.T) {
 	}
 
 	relaxed := maturityPresetsHTML(50, 3)
-	if !strings.Contains(relaxed, `data-percentage="50" data-max-spread="3" aria-pressed="true">relaxed (50%, 3 spreads)</button>`) {
+	if !strings.Contains(relaxed, `data-percentage="50" data-max-spread="3" aria-pressed="true">relaxed (50%, spread of 3)</button>`) {
 		t.Fatalf("relaxed should be selected: %s", relaxed)
 	}
 

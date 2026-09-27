@@ -33,15 +33,16 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 	for _, want := range []string{
 		`id="copy-room-url"`,
 		`aria-label="Copy room link"`,
-		`navigator.clipboard.writeText`,
 		`id="user-list"`,
 		`class="user-table"`,
 		`scope="col">Points`,
 		`id="points-form"`,
+		`class="js-ws-send"`,
 		`integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V"`,
 		`integrity="sha384-nIP+hMv+/j0KKPtmqpKlRK1ibiKk/4JWLfgfEC+HRGkMQUK2RMiK3/L2oU1RcJMb"`,
 		`crossorigin="anonymous"`,
 		`data-points="8"`,
+		`aria-label="Clear vote"`,
 		`Administration`,
 		`aria-labelledby="admin-heading"`,
 		`id="always-show-votes"`,
@@ -54,15 +55,12 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`id="preloaded-topics-dialog"`,
 		`id="preloaded-topics-data"`,
 		`Load Next Topic`,
-		`Edit Preloaded Topic`,
-		`fillPreloadedEditor`,
-		`remainingPreloadedTopics`,
-		`data.textContent`,
-		`showModal`,
+		`Edit Preloaded Topics`,
+		`src="/room.js"`,
+		`data-room-id="` + roomID + `"`,
 		`id="observer-mode"`,
+		`I'm an observer`,
 		`id="user-name">Your name</h2>`,
-		`tr.current-user td`,
-		`#user-list tbody tr.current-user`,
 		`class="results-panel"`,
 		`aria-labelledby="results-heading"`,
 		`id="vote-results"`,
@@ -79,17 +77,13 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 		`name="max-spread"`,
 		`id="consensus-max-spread-value" for="consensus-max-spread">0</output>`,
 		`id="agreement-status"`,
-		`Team Maturity(presets)`,
+		`Team maturity (presets)`,
 		`class="maturity-preset" data-percentage="100" data-max-spread="0" aria-pressed="true">full (100%, 0 spread)</button>`,
 		`class="maturity-preset" data-percentage="80" data-max-spread="1" aria-pressed="false">good (80%, 1 spread)</button>`,
-		`class="maturity-preset" data-percentage="50" data-max-spread="3" aria-pressed="false">relaxed (50%, 3 spreads)</button>`,
-		`closest("button.maturity-preset")`,
+		`class="maturity-preset" data-percentage="50" data-max-spread="3" aria-pressed="false">relaxed (50%, spread of 3)</button>`,
 		`scope="col">Count`,
 		`scope="col">%`,
 		`id="ws-status"`,
-		`htmx:wsClose`,
-		`JSON.stringify({ name: joinedName })`,
-		`el.setAttribute("ws-connect", "/ws/" + roomID);`,
 		`Disconnected from the room. Reconnecting`,
 	} {
 		if !strings.Contains(page, want) {
@@ -101,6 +95,48 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 	}
 	if strings.Contains(page, `class="user-list"`) {
 		t.Fatal("room page still has the old user-list ul")
+	}
+}
+
+func TestRoomJSHasClientBehavior(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newApp()))
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/room.js")
+	if err != nil {
+		t.Fatalf("room.js: %v", err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("room.js status %d", resp.StatusCode)
+	}
+	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "javascript") {
+		t.Fatalf("room.js content-type %q", ct)
+	}
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatalf("read room.js: %v", err)
+	}
+	js := string(body)
+	for _, want := range []string{
+		`document.body.dataset.roomId`,
+		`navigator.clipboard.writeText`,
+		`querySelectorAll(".js-ws-send")`,
+		`el.setAttribute("ws-connect", "/ws/" + roomID)`,
+		`htmx:wsClose`,
+		`JSON.stringify({ name: joinedName })`,
+		`fillPreloadedEditor`,
+		`remainingPreloadedTopics`,
+		`kept.length >= maxPreloadedTopics`,
+		`closest("button.maturity-preset")`,
+		`syncAdminPanelOpen`,
+	} {
+		if !strings.Contains(js, want) {
+			t.Fatalf("room.js missing %q", want)
+		}
+	}
+	if strings.Contains(js, "\nvar ") || strings.HasPrefix(js, "var ") {
+		t.Fatal("room.js should use const/let, not var")
 	}
 }
 
@@ -129,7 +165,7 @@ func TestRoomPageResponsiveLayout(t *testing.T) {
 		`display: contents`,
 		`minmax(0, 1fr)`,
 		`@media (max-width: 60rem)`,
-		`syncAdminPanelOpen`,
+		`src="/room.js"`,
 	} {
 		if !strings.Contains(page, want) {
 			t.Fatalf("room page missing %q", want)

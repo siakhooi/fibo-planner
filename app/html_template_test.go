@@ -313,7 +313,11 @@ func executeNamed(t *testing.T, tmpl *template.Template, name string) string {
 	case "room_not_found.html":
 		data = struct{ RoomID string }{RoomID: "123456"}
 	case "disclaimer.html", "privacy.html", "terms.html":
-		data = nil
+		view, ok := legalPageViewFor(name)
+		if !ok {
+			t.Fatalf("unknown legal template %s", name)
+		}
+		data = view
 	default:
 		t.Fatalf("unknown template %s", name)
 	}
@@ -329,6 +333,12 @@ func assertStockPages(t *testing.T, tmpl *template.Template) {
 	if !strings.Contains(index, "<title>Fibo Planner</title>") {
 		t.Fatal("index.html missing title")
 	}
+	if !strings.Contains(index, `class="create-room"`) {
+		t.Fatal("index.html missing create-room class")
+	}
+	if strings.Contains(index, `style=`) {
+		t.Fatal("index.html still has inline styles")
+	}
 	wantMaxLen := fmt.Sprintf(`maxlength="%d"`, maxDisplayNameLen)
 	if !strings.Contains(index, wantMaxLen) {
 		t.Fatalf("index.html missing %s", wantMaxLen)
@@ -342,6 +352,15 @@ func assertStockPages(t *testing.T, tmpl *template.Template) {
 	}
 	if !strings.Contains(room, fmt.Sprintf(`data-max-display-name-len="%d"`, maxDisplayNameLen)) {
 		t.Fatal("room.html missing data-max-display-name-len for JS truncate")
+	}
+	if !strings.Contains(room, `data-room-id="123456"`) {
+		t.Fatal("room.html missing data-room-id for static room.js")
+	}
+	if !strings.Contains(room, fmt.Sprintf(`data-max-preloaded-topics="%d"`, maxPreloadedTopicCount)) {
+		t.Fatal("room.html missing data-max-preloaded-topics")
+	}
+	if !strings.Contains(room, `src="/room.js"`) {
+		t.Fatal("room.html missing room.js script")
 	}
 	if !strings.Contains(room, `data-points=""`) {
 		t.Fatal("room.html missing blank vote card")

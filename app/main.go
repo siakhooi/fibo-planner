@@ -65,6 +65,7 @@ func newRouter(app *App) http.Handler {
 	r.Post("/rooms", app.createRoom)
 	r.Get("/ws", app.indexWS)
 	r.Get("/ws/{roomID:[0-9]{6}}", app.roomWS)
+	r.Get("/room.js", serveRoomJS)
 	r.Get("/disclaimer", legalPage("disclaimer.html"))
 	r.Get("/privacy", legalPage("privacy.html"))
 	r.Get("/terms", legalPage("terms.html"))

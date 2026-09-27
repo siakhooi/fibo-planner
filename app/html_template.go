@@ -3,6 +3,7 @@ package main
 import (
 	"bytes"
 	"embed"
+	"errors"
 	"fmt"
 	"html/template"
 	"io/fs"
@@ -26,7 +27,7 @@ const (
 	customTermsFile      = "terms.html"
 )
 
-//go:embed *.html
+//go:embed *.html *.css room.js
 var tplFS embed.FS
 
 var (
@@ -73,12 +74,31 @@ func parseAppTemplates(htmlFS fs.FS, customDir string) (*template.Template, erro
 	if err != nil {
 		return nil, err
 	}
+	baseCSS, err := readOptionalCSS(htmlFS, "base.css")
+	if err != nil {
+		return nil, err
+	}
+	indexCSS, err := readOptionalCSS(htmlFS, "index.css")
+	if err != nil {
+		return nil, err
+	}
+	roomCSS, err := readOptionalCSS(htmlFS, "room.css")
+	if err != nil {
+		return nil, err
+	}
+
 	root := template.New("").Funcs(template.FuncMap{
 		"customHead":      func() template.HTML { return template.HTML(c.Head) },
 		"customBodyStart": func() template.HTML { return template.HTML(c.BodyStart) },
 		"customBodyEnd":   func() template.HTML { return template.HTML(c.BodyEnd) },
+		"baseCSS":         func() template.CSS { return baseCSS },
+		"indexCSS":        func() template.CSS { return indexCSS },
+		"roomCSS":         func() template.CSS { return roomCSS },
 		"maxDisplayNameLen": func() int {
 			return maxDisplayNameLen
+		},
+		"maxPreloadedTopicCount": func() int {
+			return maxPreloadedTopicCount
 		},
 		"voteScale": func() []string {
 			return voteScale
@@ -109,6 +129,27 @@ func parseAppTemplates(htmlFS fs.FS, customDir string) (*template.Template, erro
 		}
 	}
 	return root, nil
+}
+
+func readOptionalCSS(htmlFS fs.FS, name string) (template.CSS, error) {
+	b, err := fs.ReadFile(htmlFS, name)
+	if err != nil {
+		if errors.Is(err, fs.ErrNotExist) {
+			return "", nil
+		}
+		return "", fmt.Errorf("read %s: %w", name, err)
+	}
+	return template.CSS(b), nil
+}
+
+func serveRoomJS(w http.ResponseWriter, _ *http.Request) {
+	b, err := tplFS.ReadFile("room.js")
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	_, _ = w.Write(b)
 }
 
 func loadCustomHTML(dir string) (customHTML, error) {

@@ -1,78 +1,7 @@
-<!DOCTYPE html>
-<html lang="en">
-
-<head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+{{template "doc-open"}}
   <title>Fibo Planner</title>
-  <script src="https://cdn.jsdelivr.net/npm/htmx.org@2.0.10/dist/htmx.min.js" integrity="sha384-H5SrcfygHmAuTDZphMHqBJLc3FhssKjG7w/CeCpFReSfwBWDTKpkzPP8c+cLsK+V" crossorigin="anonymous"></script>
-  <script src="https://cdn.jsdelivr.net/npm/htmx-ext-ws@2.0.4/dist/ws.js" integrity="sha384-nIP+hMv+/j0KKPtmqpKlRK1ibiKk/4JWLfgfEC+HRGkMQUK2RMiK3/L2oU1RcJMb" crossorigin="anonymous"></script>
-  <style>
-    html,
-    body {
-      min-height: 100%;
-    }
-
-    body {
-      font-family: system-ui, sans-serif;
-      display: flex;
-      flex-direction: column;
-      box-sizing: border-box;
-      max-width: 40rem;
-      min-height: 100vh;
-      margin: 0 auto;
-      padding: 2rem 1rem;
-      line-height: 1.5;
-    }
-
-    .copyright {
-      margin-top: auto;
-      padding: 10px;
-      width: 100%;
-      text-align: center;
-      background: #f5f5f5;
-      border-top: 1px solid #ccc;
-    }
-    .copyright a {
-      color: #2563eb;
-    }
-    h1 {
-      font-size: 1.5rem;
-    }
-
-    .meta {
-      color: #444;
-      margin-top: 1rem;
-    }
-
-    .lobby-table {
-      width: 100%;
-      max-width: 28rem;
-      border-collapse: collapse;
-      font-size: 0.95rem;
-      margin-bottom: 2rem;
-    }
-
-    .lobby-table th,
-    .lobby-table td {
-      text-align: left;
-      padding: 0.45rem 0.6rem;
-      border: 1px solid #ddd;
-    }
-
-    .lobby-table thead th {
-      background: #f5f5f5;
-      font-weight: 600;
-    }
-
-    .lobby-table tbody tr:nth-child(even) {
-      background: #fafafa;
-    }
-
-    .lobby-table a {
-      color: #2563eb;
-    }
-  </style>
+  {{template "htmx-scripts"}}
+  <style>{{baseCSS}}{{indexCSS}}</style>
 </head>
 
 <body>
@@ -82,22 +11,20 @@
     on effort quickly.
   </p>
 
-  <section style="margin-top: 2rem; padding-top: 1.5rem; border-top: 1px solid #ddd;">
-    <h2 style="font-size: 1.15rem; margin: 0 0 0.75rem;">Create a room</h2>
+  <section class="create-room">
+    <h2>Create a room</h2>
     <form method="post" action="/rooms">
-      <label for="room-name" style="display: block; margin-bottom: 0.35rem;">Room name <span
-          style="color:#666;font-weight:normal">(optional)</span></label>
-      <input id="room-name" type="text" name="name" maxlength="{{maxDisplayNameLen}}" autocomplete="off"
-        placeholder="e.g. Sprint 42 backlog"
-        style="width: 100%; max-width: 22rem; padding: 0.5rem; margin-bottom: 0.75rem; box-sizing: border-box;" />
+      <label for="room-name" class="field-label">Room name <span class="field-hint">(optional)</span></label>
+      <input id="room-name" class="field-input" type="text" name="name" maxlength="{{maxDisplayNameLen}}" autocomplete="off"
+        placeholder="e.g. Sprint 42 backlog" />
       <div>
-        <button type="submit" style="padding: 0.45rem 1rem;">Create room</button>
+        <button type="submit" class="btn">Create room</button>
       </div>
     </form>
   </section>
   <section>
-    <h2 style="font-size: 1.15rem; margin: 1.5rem 0 0.5rem;">Lobby and rooms</h2>
-    <p style="margin: 0 0 0.75rem; color: #444; font-size: 0.95rem;">Live counts update while this page is open.</p>
+    <h2>Lobby and rooms</h2>
+    <p class="lede">Live counts update while this page is open.</p>
     <div hx-ext="ws" ws-connect="/ws" class="meta">
       {{template "lobby-overview-table" .}}
     </div>
