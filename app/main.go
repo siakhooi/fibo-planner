@@ -15,6 +15,7 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/siakhooi/fibo-planner/app/versioninfo"
+	"github.com/urfave/cli/v3"
 )
 
 func accessLogURI(path, rawQuery string) string {
@@ -75,29 +76,35 @@ func newRouter(app *App) http.Handler {
 	return r
 }
 
-func hasVersionFlag(args []string) bool {
-	for _, a := range args {
-		if a == "--version" {
-			return true
-		}
+func init() {
+	// --version prints commit and build date as well as the version string.
+	cli.VersionPrinter = func(cmd *cli.Command) {
+		fmt.Fprint(cmd.Root().Writer, versioninfo.Format())
 	}
-	return false
 }
 
-func main() {
-	if hasVersionFlag(os.Args[1:]) {
-		versioninfo.PrintBuildInfo()
-		return
+func newRootCommand() *cli.Command {
+	return &cli.Command{
+		Name:    "fibo-planner",
+		Usage:   "real-time planning poker server",
+		Version: versioninfo.Version,
+		Action:  serveAction,
 	}
+}
 
-	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+func serveAction(ctx context.Context, _ *cli.Command) error {
+	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
 	addr := listenAddr()
 	srv := newHTTPServer(addr, newRouter(newApp()))
 	log.Printf("Version: %s Commit: %s BuildDate: %s", versioninfo.Version, versioninfo.Commit, versioninfo.Date)
 	log.Printf("listening on %s", listenLogURL(addr))
-	if err := runServer(ctx, srv); err != nil {
+	return runServer(ctx, srv)
+}
+
+func main() {
+	if err := newRootCommand().Run(context.Background(), os.Args); err != nil {
 		log.Fatal(err)
 	}
 }
