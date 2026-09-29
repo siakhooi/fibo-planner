@@ -1,0 +1,114 @@
+# Fibo Planner
+
+> Real-time planning poker in one process. No accounts, no database. People estimate a story with Fibonacci cards over a WebSocket, then the room shows a tally and whether the votes meet the agreement rules.
+
+Fibo Planner is a small web app for agile estimation. A room is a shared session: a topic, a list of people, their votes, and consensus settings. Anyone who has joined the room can change the topic, the vote queue, and the agreement rules. There is no facilitator role.
+
+Use the HTTP and WebSocket steps below to run a session. The HTML pages are the human UI; an agent can ignore them after it has a room id.
+
+## Pages
+
+- [Home](/): create a room and see live lobby counts
+- [Room](/100000): room page; the id is six digits assigned at creation (100000–999999)
+- [Disclaimer](/disclaimer): stock disclaimer
+- [Privacy Policy](/privacy): what the server stores (nothing durable) and what it logs
+- [Terms of Use](/terms): how to use a hosted copy
+- [Agent guide](/llms.txt): this file
+
+## Create a room
+
+`POST /rooms` with `Content-Type: application/x-www-form-urlencoded`.
+
+- `name` — optional room label, trimmed, at most 120 Unicode characters. This is the room title, not a person's name.
+- Response: `303` redirect to `/{roomID}`. Read the id from the `Location` path. The id is six digits and does not change.
+- A missing room returns `404` for both `GET /{roomID}` and the room WebSocket.
+
+Example:
+
+```
+POST /rooms
+Content-Type: application/x-www-form-urlencoded
+
+name=Sprint%2042%20backlog
+```
+
+Empty rooms are deleted after 30 minutes with no WebSocket connections. Creating a room starts that timer; connecting a participant cancels it.
+
+## Join and vote
+
+Open a WebSocket at `/ws/{roomID}` (for example `/ws/123456`).
+
+- Send the display name in the first text frame, not in the URL. The access log records the path, so a `?name=` query would store the name. Do not put the name in the query string.
+- First message must be JSON: `{"name":"Ada"}`. Later messages are ignored until this arrives. A blank name is stored as `Guest`. Names are trimmed and cut at 120 characters.
+- The browser reconnects with the same JSON. Do the same if the socket drops.
+- A client that sends no `Origin` header is accepted. Browsers must send a same-origin `Origin`, unless the operator listed extra origins in `FIBO_PLANNER_WS_ORIGINS`.
+
+After the join is accepted, send one JSON object per action. Unknown fields are ignored. Invalid JSON is ignored.
+
+Vote (voters only):
+
+```json
+{"points":"8"}
+```
+
+Allowed `points` values are `"1"`, `"2"`, `"3"`, `"5"`, `"8"`, `"13"`, `"20"`, and `""` (clear your vote). A number is accepted too (`{"points":8}`). Any other value is ignored. An observer's vote is ignored.
+
+## Room controls
+
+Every joined socket can send these. `admin` is a string.
+
+- `{"admin":"clear-votes"}` — clear every vote. Does not change the topic.
+- `{"admin":"set-topic","topic-title":"Login story"}` — set the story title (trimmed, max 120 characters). An empty title clears it.
+- `{"admin":"set-preloaded-topics","preloaded-topics":"Login story\nPay flow"}` — replace the queue. One title per line, blank lines skipped, each title max 120 characters, at most 200 titles. A missing or empty field clears the queue.
+- `{"admin":"load-next-topic"}` — set the topic to the first queued title, drop that title, and clear votes. No effect when the queue is empty.
+- `{"admin":"always-show-votes"}` — toggle the room-wide switch. There is no separate "off" message; send it again to flip back.
+- `{"admin":"observer-mode"}` — toggle the sender only. Observers are listed as `observer`, their vote is cleared, and they do not have to vote before results appear. This is not an admin role.
+- `{"admin":"consensus-agreement","percentage":80,"max-spread":1}` — set either or both. `percentage` is an integer 50–100. `max-spread` is an integer 0–6. An out-of-range field is skipped; the other field still applies. Defaults are 100 and 0.
+
+Presets, if you want both knobs at once:
+
+- Full: percentage 100, max spread 0
+- Good: percentage 80, max spread 1
+- Relaxed: percentage 50, max spread 3
+
+## What the server sends
+
+Room sockets receive HTML fragments, not JSON. Each update replaces elements by id (`hx-swap-oob="true"`). Read these ids:
+
+- `session-count` — number of joined sockets
+- `user-list` — table of name and points. Your row has `class="current-user"`. Voters sort before observers, then by name.
+- `topic-title` — current story. The `hidden` attribute means there is no topic.
+- `preloaded-topics-data` — remaining queue, one title per line, inside a hidden `<pre>`
+- `load-next-topic` — disabled when the queue is empty; otherwise the button label includes the queue length
+- `always-show-votes` — `aria-pressed="true"` when votes are visible as they arrive
+- `observer-mode` — `aria-pressed` reflects the recipient, not the room
+- `consensus-controls` — current percentage and max spread
+- `vote-results` — tally (points, count, percent). Hidden until every voter has a non-blank card. A leading value has `class="vote-leader"`.
+- `agreed-points` — `Agreed Points:` plus the value, or `N/A`. Class `agreed-yes` or `agreed-no`. Hidden while votes are still out.
+- `agreement-status` — whether the leading share and the spread meet the rules. `met` / `unmet`.
+
+Until reveal, every non-blank vote in `user-list` is the text `???`, including your own row. The browser fills your cell back in locally; a WebSocket client does not get that. Remember the points you sent. When always-show is on, the table contains the real values immediately.
+
+Results stay hidden while any non-observer still has a blank vote. Observers do not block reveal. With only observers, results stay hidden.
+
+Agreement, once everyone has voted:
+
+- Spread is the distance on the card scale between the lowest and highest vote. Cards in order are 1, 2, 3, 5, 8, 13, 20, so 3 and 5 have spread 1, and 1 and 20 have spread 6. Observers are left out.
+- The leading percentage must meet the threshold. At 50 the share must be greater than 50%. At 100 it must be 100%. Otherwise it must be at least the threshold.
+- Spread must be less than or equal to max spread.
+- Agreed points are the card values that meet the percentage. If the spread is too wide, or no value meets the percentage, agreed points are `N/A`.
+
+## Lobby
+
+`GET /` is the home page. Its live counts use a second WebSocket, `GET /ws`, which pushes an HTML table `lobby-overview` (people on the lobby, number of rooms, people in rooms). You do not need this socket to create or join a room.
+
+Room ids are not listed unless the process was started with `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y`. Otherwise keep the id from the create redirect or from the link a person shared.
+
+## Limits
+
+- Display names, room names, and topic titles: 120 characters
+- Preloaded topics: 200 lines
+- WebSocket message: 128 KiB
+- Vote cards: 1, 2, 3, 5, 8, 13, 20, or blank
+- Consensus percentage: 50–100; max spread: 0–6
+- Idle room lifetime: 30 minutes with zero room sockets
