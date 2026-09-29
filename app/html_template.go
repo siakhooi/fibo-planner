@@ -212,7 +212,7 @@ func tryReadCustomSnippet(dir, name string) (content string, found bool, err err
 		}
 		return "", false, fmt.Errorf("read %s: %w", path, err)
 	}
-	log.Printf("loaded custom HTML %s", path)
+	log.Printf("loaded custom file %s", path)
 	return string(b), true, nil
 }
 

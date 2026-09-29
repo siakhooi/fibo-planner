@@ -135,8 +135,11 @@ Set `FIBO_PLANNER_CUSTOM_HTML_DIR` to a directory of optional snippets. Each fil
 | `disclaimer.html` | body copy of `/disclaimer` only, after the heading and before the site footer   |
 | `privacy.html`    | body copy of `/privacy` only, after the heading and before the site footer      |
 | `terms.html`      | body copy of `/terms` only, after the heading and before the site footer        |
+| `llms.txt`        | replaces the built-in body of `GET /llms.txt` (not inserted into HTML pages)    |
 
 The legal files are HTML fragments (paragraphs, headings, links), not full pages. Title, crumb, `<h1>`, footer, `head.html`, `body-start.html`, and `body-end.html` stay in place.
+
+`GET /llms.txt` returns a plain-text guide for agents (create a room, join over the WebSocket, vote, and read results). A `llms.txt` in the custom directory replaces that guide entirely, including when the file is empty.
 
 Missing files are skipped. Snippets are inserted as-is (not escaped); only use a directory you control. Restart the process after changing files.
 
