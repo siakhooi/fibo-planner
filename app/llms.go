@@ -1,7 +1,7 @@
 package main
 
 import (
-	_ "embed"
+	_ "embed" // required so //go:embed can compile llms.txt into stockLLMSTxt; no embed symbol is referenced
 	"log"
 	"net/http"
 	"os"
