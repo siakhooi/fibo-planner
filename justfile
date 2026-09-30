@@ -1,3 +1,4 @@
+set shell := ["bash", "-cuo", "pipefail"]
 default:
 	@just --list
 all: build docker-build build-release

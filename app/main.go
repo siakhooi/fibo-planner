@@ -79,7 +79,9 @@ func newRouter(app *App) http.Handler {
 func init() {
 	// --version prints commit and build date as well as the version string.
 	cli.VersionPrinter = func(cmd *cli.Command) {
-		fmt.Fprint(cmd.Root().Writer, versioninfo.Format())
+		if _, err := fmt.Fprint(cmd.Root().Writer, versioninfo.Format()); err != nil {
+			log.Fatal(err)
+		}
 	}
 }
 
