@@ -1,3 +1,4 @@
+set shell := ["bash", "-cuo", "pipefail"]
 default:
 	@just --list
 all: build docker-build build-release
@@ -9,8 +10,8 @@ build:
 	./scripts/test.sh
 build-release:
 	go tool goreleaser release --snapshot --clean --skip=publish
-run:
-	go run ./app
+run *args:
+	go run ./app {{args}}
 release:
 	scripts/create-release.sh
 clean:

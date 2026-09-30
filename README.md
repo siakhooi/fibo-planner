@@ -71,11 +71,13 @@ That sample is built from [fibo-planner-on-gcp](https://github.com/siakhooi/fibo
 go run ./app
 ```
 
-Print the build version and exit (`0.0.0` / `unknown` unless the binary was built with GoReleaser or `just build`):
+Print the build version and exit (`0.0.0` / `unknown` unless the binary was built with GoReleaser or `just build`). `-v` is the short form:
 
 ```bash
 go run ./app --version
 ```
+
+`-h` or `--help` prints command help and exits.
 
 Or with Docker:
 
