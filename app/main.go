@@ -85,6 +85,8 @@ func init() {
 	}
 }
 
+const lobbyListRoomsFlag = "lobby-list-rooms"
+
 func newRootCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "fibo-planner",
@@ -106,7 +108,7 @@ func newRootCommand() *cli.Command {
 				Config:  cli.StringConfig{TrimSpace: true},
 			},
 			&cli.BoolFlag{
-				Name:  "lobby-list-rooms",
+				Name:  lobbyListRoomsFlag,
 				Usage: "list each open room on the lobby; FIBO_PLANNER_LOBBY_LIST_ROOMS=Y does the same when this flag is omitted",
 			},
 			&cli.StringFlag{
@@ -132,8 +134,8 @@ func applyServerFlags(cmd *cli.Command) (addr string, listLobbyRooms bool, err e
 }
 
 func lobbyListRoomsEnabled(cmd *cli.Command) bool {
-	if cmd.IsSet("lobby-list-rooms") {
-		return cmd.Bool("lobby-list-rooms")
+	if cmd.IsSet(lobbyListRoomsFlag) {
+		return cmd.Bool(lobbyListRoomsFlag)
 	}
 	return os.Getenv(lobbyListRoomsEnv) == "Y"
 }
