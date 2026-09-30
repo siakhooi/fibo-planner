@@ -26,17 +26,6 @@ func TestListenAddrFrom(t *testing.T) {
 	}
 }
 
-func TestListenAddrEnv(t *testing.T) {
-	t.Setenv(listenAddrEnv, "")
-	if got := listenAddr(); got != defaultListenAddr {
-		t.Fatalf("empty env: got %q", got)
-	}
-	t.Setenv(listenAddrEnv, ":9090")
-	if got := listenAddr(); got != ":9090" {
-		t.Fatalf("set env: got %q", got)
-	}
-}
-
 func TestListenLogURL(t *testing.T) {
 	t.Parallel()
 

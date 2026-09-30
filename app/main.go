@@ -90,16 +90,50 @@ func newRootCommand() *cli.Command {
 		Name:    "fibo-planner",
 		Usage:   "real-time planning poker server",
 		Version: versioninfo.Version,
-		Action:  serveAction,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "addr",
+				Aliases: []string{"a"},
+				Value:   defaultListenAddr,
+				Usage:   "listen address",
+				Sources: cli.EnvVars(listenAddrEnv),
+				Config:  cli.StringConfig{TrimSpace: true},
+			},
+			&cli.StringFlag{
+				Name:    "ws-origins",
+				Usage:   "comma-separated extra WebSocket origins",
+				Sources: cli.EnvVars(wsOriginsEnv),
+				Config:  cli.StringConfig{TrimSpace: true},
+			},
+			&cli.BoolFlag{
+				Name:  "lobby-list-rooms",
+				Usage: "list each open room on the lobby; FIBO_PLANNER_LOBBY_LIST_ROOMS=Y does the same when this flag is omitted",
+			},
+		},
+		Action: serveAction,
 	}
 }
 
-func serveAction(ctx context.Context, _ *cli.Command) error {
+// applyServerFlags resolves listen address, WebSocket origins, and the lobby
+// room list. A flag that was passed wins over the matching environment variable.
+func applyServerFlags(cmd *cli.Command) (addr string, listLobbyRooms bool) {
+	setAllowedWSOrigins(cmd.String("ws-origins"))
+	return listenAddrFrom(cmd.String("addr")), lobbyListRoomsEnabled(cmd)
+}
+
+func lobbyListRoomsEnabled(cmd *cli.Command) bool {
+	if cmd.IsSet("lobby-list-rooms") {
+		return cmd.Bool("lobby-list-rooms")
+	}
+	return os.Getenv(lobbyListRoomsEnv) == "Y"
+}
+
+func serveAction(ctx context.Context, cmd *cli.Command) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	addr := listenAddr()
-	srv := newHTTPServer(addr, newRouter(newApp()))
+	addr, listLobbyRooms := applyServerFlags(cmd)
+	srv := newHTTPServer(addr, newRouter(newAppConfig(listLobbyRooms)))
 	log.Printf("Version: %s Commit: %s BuildDate: %s", versioninfo.Version, versioninfo.Commit, versioninfo.Date)
 	log.Printf("listening on %s", listenLogURL(addr))
 	return runServer(ctx, srv)
