@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"os"
+	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
@@ -62,8 +64,10 @@ func TestRootCommandHelp(t *testing.T) {
 				"--addr string, -a string",
 				"--ws-origins string",
 				"--lobby-list-rooms",
+				"--custom-html-dir string",
 				"$" + listenAddrEnv,
 				"$" + wsOriginsEnv,
+				"$" + customHTMLDirEnv,
 			} {
 				if !strings.Contains(text, want) {
 					t.Errorf("help missing %q\n%s", want, text)
@@ -162,10 +166,16 @@ func TestApplyServerFlags(t *testing.T) {
 			t.Setenv(listenAddrEnv, "")
 			t.Setenv(wsOriginsEnv, "")
 			t.Setenv(lobbyListRoomsEnv, "")
+			t.Setenv(customHTMLDirEnv, "")
 			for k, v := range tc.env {
 				t.Setenv(k, v)
 			}
-			t.Cleanup(func() { setAllowedWSOrigins("") })
+			t.Cleanup(func() {
+				setAllowedWSOrigins("")
+				if err := loadCustomContent(""); err != nil {
+					t.Errorf("restore templates: %v", err)
+				}
+			})
 
 			cmd := newRootCommand()
 			cmd.Writer = io.Discard
@@ -173,8 +183,9 @@ func TestApplyServerFlags(t *testing.T) {
 			var addr string
 			var list bool
 			cmd.Action = func(_ context.Context, c *cli.Command) error {
-				addr, list = applyServerFlags(c)
-				return nil
+				var err error
+				addr, list, err = applyServerFlags(c)
+				return err
 			}
 			args := append([]string{"fibo-planner"}, tc.args...)
 			if err := cmd.Run(context.Background(), args); err != nil {
@@ -190,6 +201,63 @@ func TestApplyServerFlags(t *testing.T) {
 				t.Fatalf("origins=%q, want %q", allowedWSOrigins, parseWSOrigins(tc.origins))
 			}
 		})
+	}
+}
+
+func TestCustomHTMLDirFlag(t *testing.T) {
+	envDir := t.TempDir()
+	flagDir := t.TempDir()
+	writeSnippet(t, envDir, customHeadFile, `<!--ENV-HEAD-->`)
+	writeSnippet(t, envDir, customLLMSFile, "from-env\n")
+	writeSnippet(t, flagDir, customHeadFile, `<!--FLAG-HEAD-->`)
+	writeSnippet(t, flagDir, customLLMSFile, "from-flag\n")
+
+	t.Setenv(customHTMLDirEnv, envDir)
+	t.Cleanup(func() {
+		if err := loadCustomContent(""); err != nil {
+			t.Errorf("restore templates: %v", err)
+		}
+	})
+
+	run := func(args ...string) error {
+		cmd := newRootCommand()
+		cmd.Writer = io.Discard
+		cmd.ErrWriter = io.Discard
+		cmd.Action = func(_ context.Context, c *cli.Command) error {
+			_, _, err := applyServerFlags(c)
+			return err
+		}
+		return cmd.Run(context.Background(), append([]string{"fibo-planner"}, args...))
+	}
+
+	if err := run(); err != nil {
+		t.Fatal(err)
+	}
+	page := executeNamed(t, tmpl, "index.html")
+	if !strings.Contains(page, "<!--ENV-HEAD-->") {
+		t.Fatal("env dir was not applied")
+	}
+	if string(llmsBody) != "from-env\n" {
+		t.Fatalf("llms body %q", llmsBody)
+	}
+
+	if err := run("--custom-html-dir", flagDir); err != nil {
+		t.Fatal(err)
+	}
+	page = executeNamed(t, tmpl, "index.html")
+	if !strings.Contains(page, "<!--FLAG-HEAD-->") || strings.Contains(page, "<!--ENV-HEAD-->") {
+		t.Fatal("flag did not override the env dir")
+	}
+	if string(llmsBody) != "from-flag\n" {
+		t.Fatalf("llms body %q", llmsBody)
+	}
+
+	file := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run("--custom-html-dir", file); err == nil {
+		t.Fatal("expected an error when the custom HTML path is not a directory")
 	}
 }
 

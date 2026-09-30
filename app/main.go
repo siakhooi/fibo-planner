@@ -109,16 +109,26 @@ func newRootCommand() *cli.Command {
 				Name:  "lobby-list-rooms",
 				Usage: "list each open room on the lobby; FIBO_PLANNER_LOBBY_LIST_ROOMS=Y does the same when this flag is omitted",
 			},
+			&cli.StringFlag{
+				Name:    "custom-html-dir",
+				Usage:   "directory of optional HTML snippets and llms.txt",
+				Sources: cli.EnvVars(customHTMLDirEnv),
+				Config:  cli.StringConfig{TrimSpace: true},
+			},
 		},
 		Action: serveAction,
 	}
 }
 
-// applyServerFlags resolves listen address, WebSocket origins, and the lobby
-// room list. A flag that was passed wins over the matching environment variable.
-func applyServerFlags(cmd *cli.Command) (addr string, listLobbyRooms bool) {
+// applyServerFlags resolves listen address, WebSocket origins, the lobby room
+// list, and the custom HTML directory. A flag that was passed wins over the
+// matching environment variable.
+func applyServerFlags(cmd *cli.Command) (addr string, listLobbyRooms bool, err error) {
 	setAllowedWSOrigins(cmd.String("ws-origins"))
-	return listenAddrFrom(cmd.String("addr")), lobbyListRoomsEnabled(cmd)
+	if err = loadCustomContent(cmd.String("custom-html-dir")); err != nil {
+		return "", false, err
+	}
+	return listenAddrFrom(cmd.String("addr")), lobbyListRoomsEnabled(cmd), nil
 }
 
 func lobbyListRoomsEnabled(cmd *cli.Command) bool {
@@ -132,7 +142,10 @@ func serveAction(ctx context.Context, cmd *cli.Command) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	addr, listLobbyRooms := applyServerFlags(cmd)
+	addr, listLobbyRooms, err := applyServerFlags(cmd)
+	if err != nil {
+		return err
+	}
 	srv := newHTTPServer(addr, newRouter(newAppConfig(listLobbyRooms)))
 	log.Printf("Version: %s Commit: %s BuildDate: %s", versioninfo.Version, versioninfo.Commit, versioninfo.Date)
 	log.Printf("listening on %s", listenLogURL(addr))

@@ -139,7 +139,7 @@ docker run -p 8080:8080 -e FIBO_PLANNER_LOBBY_LIST_ROOMS=Y siakhooi/fibo-planner
 
 ### Custom HTML
 
-Set `FIBO_PLANNER_CUSTOM_HTML_DIR` to a directory of optional snippets. Each file that exists is applied at process start:
+Set `FIBO_PLANNER_CUSTOM_HTML_DIR` or pass `--custom-html-dir` to a directory of optional snippets. The flag wins when both are set. Each file that exists is applied at process start:
 
 | File              | Insertion point                                                                 |
 | ----------------- | ------------------------------------------------------------------------------- |
@@ -159,6 +159,10 @@ Missing files are skipped. Snippets are inserted as-is (not escaped); only use a
 
 ```bash
 FIBO_PLANNER_CUSTOM_HTML_DIR=/path/to/custom-html go run ./app
+```
+
+```bash
+go run ./app --custom-html-dir /path/to/custom-html
 ```
 
 Docker (`FROM scratch`, UID 65532) can still read a mounted directory. The files must be readable by that user:

@@ -46,6 +46,8 @@ type customHTML struct {
 	Legal map[string]string
 }
 
+// tmpl starts as the stock pages so tests can render before flags are parsed.
+// applyServerFlags replaces it from --custom-html-dir before the server listens.
 var tmpl = mustParseAppTemplates()
 
 // writeHTML renders a named template and writes it as text/html.
@@ -62,11 +64,27 @@ func writeHTML(w http.ResponseWriter, status int, name string, data any) {
 }
 
 func mustParseAppTemplates() *template.Template {
-	t, err := parseAppTemplates(tplFS, os.Getenv(customHTMLDirEnv))
+	t, err := parseAppTemplates(tplFS, "")
 	if err != nil {
 		log.Fatalf("html templates: %v", err)
 	}
 	return t
+}
+
+// loadCustomContent parses pages and llms.txt from dir. An empty dir keeps the
+// embedded copies. On success both package globals are replaced together.
+func loadCustomContent(dir string) error {
+	t, err := parseAppTemplates(tplFS, dir)
+	if err != nil {
+		return fmt.Errorf("html templates: %w", err)
+	}
+	b, err := loadLLMSTxt(dir)
+	if err != nil {
+		return fmt.Errorf("llms.txt: %w", err)
+	}
+	tmpl = t
+	llmsBody = b
+	return nil
 }
 
 func parseAppTemplates(htmlFS fs.FS, customDir string) (*template.Template, error) {
@@ -162,13 +180,13 @@ func loadCustomHTML(dir string) (customHTML, error) {
 	fi, err := os.Stat(dir)
 	if err != nil {
 		if os.IsNotExist(err) {
-			log.Printf("%s=%s does not exist; skipping custom HTML", customHTMLDirEnv, dir)
+			log.Printf("custom HTML dir %s does not exist; skipping", dir)
 			return c, nil
 		}
-		return c, fmt.Errorf("%s: %w", customHTMLDirEnv, err)
+		return c, fmt.Errorf("custom HTML dir: %w", err)
 	}
 	if !fi.IsDir() {
-		return c, fmt.Errorf("%s=%s is not a directory", customHTMLDirEnv, dir)
+		return c, fmt.Errorf("custom HTML dir %s is not a directory", dir)
 	}
 
 	log.Printf("loading custom HTML from %s", dir)

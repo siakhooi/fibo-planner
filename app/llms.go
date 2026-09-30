@@ -4,7 +4,6 @@ import (
 	_ "embed" // required so //go:embed can compile llms.txt into stockLLMSTxt; no embed symbol is referenced
 	"log"
 	"net/http"
-	"os"
 	"strings"
 )
 
@@ -13,10 +12,11 @@ const customLLMSFile = "llms.txt"
 //go:embed llms.txt
 var stockLLMSTxt []byte
 
+// llmsBody starts as the embedded guide. loadCustomContent replaces it.
 var llmsBody = mustLoadLLMSTxt()
 
 func mustLoadLLMSTxt() []byte {
-	b, err := loadLLMSTxt(os.Getenv(customHTMLDirEnv))
+	b, err := loadLLMSTxt("")
 	if err != nil {
 		log.Fatalf("llms.txt: %v", err)
 	}
