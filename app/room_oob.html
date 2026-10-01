@@ -1,0 +1,65 @@
+{{define "room-state" -}}
+<strong id="session-count" hx-swap-oob="true">{{.Count}}</strong>{{template "room-user-list" .Users}}<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="{{.AlwaysPressed}}">Always show votes</button><button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="{{.ObserverPressed}}">I'm an observer</button>{{template "consensus-controls" .Consensus}}{{template "vote-results" .Results}}{{template "topic-heading" .Topic}}{{template "load-next-topic" .Queue}}{{template "preloaded-topics-data" .Queue}}
+{{- end}}
+
+{{define "room-user-list" -}}
+<table id="user-list" class="user-table" hx-swap-oob="true"><thead><tr><th scope="col">Name</th><th scope="col">Points</th></tr></thead><tbody>
+{{- range . -}}
+<tr{{if .Self}} class="current-user"{{end}}><td{{if .Flash}} class="vote-flash"{{end}}>{{.Name}}</td><td{{if .Flash}} class="vote-flash"{{end}}>{{.Points}}</td></tr>
+{{- end -}}
+</tbody></table>
+{{- end}}
+
+{{define "consensus-controls" -}}
+<div id="consensus-controls" hx-swap-oob="true"><div class="consensus-slider"><label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">{{.Percent}}</output></label><input type="range" id="consensus-percent" name="percentage" min="{{.MinPercent}}" max="{{.MaxPercent}}" step="1" value="{{.Percent}}" list="consensus-majors" /><div class="consensus-majors" aria-hidden="true"><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span></div><datalist id="consensus-majors"><option value="50"></option><option value="60"></option><option value="70"></option><option value="80"></option><option value="90"></option><option value="100"></option></datalist></div><div class="consensus-slider"><label for="consensus-max-spread">Max Spread <output id="consensus-max-spread-value" for="consensus-max-spread">{{.MaxSpread}}</output></label><input type="range" id="consensus-max-spread" name="max-spread" min="{{.MinSpread}}" max="{{.MaxSpreadLimit}}" step="1" value="{{.MaxSpread}}" list="consensus-spread-ticks" /><div class="consensus-majors" aria-hidden="true">
+{{- range .Ticks -}}
+<span>{{.}}</span>
+{{- end -}}
+</div><datalist id="consensus-spread-ticks">
+{{- range .Ticks -}}
+<option value="{{.}}"></option>
+{{- end -}}
+</datalist></div>{{template "maturity-presets" .Presets}}</div>
+{{- end}}
+
+{{define "maturity-presets" -}}
+<div class="maturity-presets"><h4 id="maturity-presets-heading">Team maturity (presets)</h4><ul aria-labelledby="maturity-presets-heading">
+{{- range . -}}
+<li><button type="button" class="maturity-preset" data-percentage="{{.Percent}}" data-max-spread="{{.Spread}}" aria-pressed="{{.Pressed}}">{{.Label}}</button></li>
+{{- end -}}
+</ul></div>
+{{- end}}
+
+{{define "vote-results" -}}
+{{if .ShowAgreed -}}
+<p id="agreed-points" class="{{.AgreedClass}}" hx-swap-oob="true">Agreed Points: <strong>{{.AgreedPoints}}</strong></p>
+{{- else -}}
+<p id="agreed-points" hx-swap-oob="true" hidden></p>
+{{- end -}}
+{{if .ShowAgreement -}}
+<p id="agreement-status" class="agreement-status" hx-swap-oob="true"><span class="{{.PercentKind}}">{{.PercentMark}} {{.LeadingPercent}}% ({{.PercentRequire}})</span><span class="{{.SpreadKind}}">{{.SpreadMark}} spread = {{.Spread}} ({{.SpreadRequire}})</span></p>
+{{- else -}}
+<p id="agreement-status" class="agreement-status" hx-swap-oob="true" hidden></p>
+{{- end -}}
+<table id="vote-results" class="user-table results-table" hx-swap-oob="true"{{if .Hidden}} hidden{{end}}><thead><tr><th scope="col">Points</th><th scope="col">Count</th><th scope="col">%</th></tr></thead><tbody>
+{{- range .Rows -}}
+<tr{{if .Leader}} class="vote-leader"{{end}}><td>{{.Points}}</td><td>{{.Count}}</td><td>{{.Percent}}%</td></tr>
+{{- end -}}
+</tbody></table>
+{{- end}}
+
+{{define "topic-heading" -}}
+<h2 id="topic-title" class="topic-title" hx-swap-oob="true"{{if .Empty}} hidden{{end}}>{{.Title}}</h2>
+{{- end}}
+
+{{define "load-next-topic" -}}
+{{if .Empty -}}
+<button type="submit" id="load-next-topic" hx-swap-oob="true" disabled>Load Next Topic</button>
+{{- else -}}
+<button type="submit" id="load-next-topic" hx-swap-oob="true" title="Next Topic: {{.Next}}">Load Next Topic [{{.Count}}]</button>
+{{- end -}}
+{{- end}}
+
+{{define "preloaded-topics-data" -}}
+<pre id="preloaded-topics-data" hx-swap-oob="true" hidden>{{.Body}}</pre>
+{{- end}}
