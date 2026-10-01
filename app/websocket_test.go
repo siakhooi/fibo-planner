@@ -680,7 +680,8 @@ func TestCheckWSOrigin(t *testing.T) {
 }
 
 func TestCheckWSOriginAllowlist(t *testing.T) {
-	t.Setenv(wsOriginsEnv, " https://app.example.com/,http://localhost:3000 ")
+	setAllowedWSOrigins(" https://app.example.com/,http://localhost:3000 ")
+	t.Cleanup(func() { setAllowedWSOrigins("") })
 	req := httptest.NewRequest(http.MethodGet, "http://internal:8080/ws", nil)
 	req.Host = "internal:8080"
 	req.Header.Set("Origin", "https://app.example.com")

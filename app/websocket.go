@@ -4,7 +4,6 @@ import (
 	"log"
 	"net/http"
 	"net/url"
-	"os"
 	"strings"
 	"sync"
 	"time"
@@ -30,6 +29,14 @@ var upgrader = websocket.Upgrader{
 	ReadBufferSize:  1024,
 	WriteBufferSize: 1024,
 	CheckOrigin:     checkWSOrigin,
+}
+
+// allowedWSOrigins is the extra origin allowlist. applyServerFlags sets it
+// before the process accepts connections.
+var allowedWSOrigins []string
+
+func setAllowedWSOrigins(v string) {
+	allowedWSOrigins = parseWSOrigins(v)
 }
 
 func parseWSOrigins(v string) []string {
@@ -60,7 +67,7 @@ func checkWSOrigin(r *http.Request) bool {
 		return true
 	}
 	normalized := strings.TrimRight(origin, "/")
-	for _, allowed := range parseWSOrigins(os.Getenv(wsOriginsEnv)) {
+	for _, allowed := range allowedWSOrigins {
 		if strings.EqualFold(normalized, allowed) {
 			return true
 		}

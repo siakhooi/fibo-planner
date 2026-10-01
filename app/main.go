@@ -85,21 +85,70 @@ func init() {
 	}
 }
 
+const lobbyListRoomsFlag = "lobby-list-rooms"
+
 func newRootCommand() *cli.Command {
 	return &cli.Command{
 		Name:    "fibo-planner",
 		Usage:   "real-time planning poker server",
 		Version: versioninfo.Version,
-		Action:  serveAction,
+		Flags: []cli.Flag{
+			&cli.StringFlag{
+				Name:    "addr",
+				Aliases: []string{"a"},
+				Value:   defaultListenAddr,
+				Usage:   "listen address",
+				Sources: cli.EnvVars(listenAddrEnv),
+				Config:  cli.StringConfig{TrimSpace: true},
+			},
+			&cli.StringFlag{
+				Name:    "ws-origins",
+				Usage:   "comma-separated extra WebSocket origins",
+				Sources: cli.EnvVars(wsOriginsEnv),
+				Config:  cli.StringConfig{TrimSpace: true},
+			},
+			&cli.BoolFlag{
+				Name:  lobbyListRoomsFlag,
+				Usage: "list each open room on the lobby; FIBO_PLANNER_LOBBY_LIST_ROOMS=Y does the same when this flag is omitted",
+			},
+			&cli.StringFlag{
+				Name:    "custom-html-dir",
+				Usage:   "directory of optional HTML snippets and llms.txt",
+				Sources: cli.EnvVars(customHTMLDirEnv),
+				Config:  cli.StringConfig{TrimSpace: true},
+			},
+		},
+		Action: serveAction,
 	}
 }
 
-func serveAction(ctx context.Context, _ *cli.Command) error {
+// applyServerFlags resolves listen address, WebSocket origins, the lobby room
+// list, and the custom HTML directory. A flag that was passed wins over the
+// matching environment variable.
+func applyServerFlags(cmd *cli.Command) (addr string, listLobbyRooms bool, err error) {
+	setAllowedWSOrigins(cmd.String("ws-origins"))
+	if err = loadCustomContent(cmd.String("custom-html-dir")); err != nil {
+		return "", false, err
+	}
+	return listenAddrFrom(cmd.String("addr")), lobbyListRoomsEnabled(cmd), nil
+}
+
+func lobbyListRoomsEnabled(cmd *cli.Command) bool {
+	if cmd.IsSet(lobbyListRoomsFlag) {
+		return cmd.Bool(lobbyListRoomsFlag)
+	}
+	return os.Getenv(lobbyListRoomsEnv) == "Y"
+}
+
+func serveAction(ctx context.Context, cmd *cli.Command) error {
 	ctx, stop := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
 	defer stop()
 
-	addr := listenAddr()
-	srv := newHTTPServer(addr, newRouter(newApp()))
+	addr, listLobbyRooms, err := applyServerFlags(cmd)
+	if err != nil {
+		return err
+	}
+	srv := newHTTPServer(addr, newRouter(newAppConfig(listLobbyRooms)))
 	log.Printf("Version: %s Commit: %s BuildDate: %s", versioninfo.Version, versioninfo.Commit, versioninfo.Date)
 	log.Printf("listening on %s", listenLogURL(addr))
 	return runServer(ctx, srv)

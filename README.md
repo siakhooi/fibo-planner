@@ -9,7 +9,7 @@ No accounts, no database, no extra services. A single Go binary (or Docker image
 ### Rooms and lobby
 
 - **Create a room in one click.** Optional display name (for example, “Sprint 42 backlog”) plus a random 6-digit ID and a shareable URL (`/123456`).
-- **Live lobby.** The home page shows how many people are on the lobby, how many rooms are open, and how many people are in rooms. Counts update while the page is open. Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` to also list each room with its user count (off by default).
+- **Live lobby.** The home page shows how many people are on the lobby, how many rooms are open, and how many people are in rooms. Counts update while the page is open. Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` or pass `--lobby-list-rooms` to also list each room with its user count (off by default).
 - **Named join.** Each person enters a display name before voting. The name is remembered in the browser for that room and sent on the WebSocket after connect, not as a `?name=` query string, so the process access log does not record it.
 - **Idle cleanup.** Empty rooms are removed after 30 minutes so the lobby does not fill with abandoned sessions.
 
@@ -46,7 +46,7 @@ Team maturity presets apply both knobs at once:
 ### Live, self-contained app
 
 - Instant updates for votes, joins, role changes, and lobby counts (WebSocket + HTMX).
-- One process, default port `8080` (`FIBO_PLANNER_ADDR`). Pages are embedded in the binary; the default UI still loads HTMX from jsDelivr. The Docker image is a static binary `FROM scratch`, running as UID 65532.
+- One process, default port `8080` (`FIBO_PLANNER_ADDR` or `--addr`). Pages are embedded in the binary; the default UI still loads HTMX from jsDelivr. The Docker image is a static binary `FROM scratch`, running as UID 65532.
 - MIT licensed.
 
 ### Who can administer a room
@@ -91,10 +91,14 @@ With [just](https://github.com/casey/just): `just run` or `just docker-run`.
 
 ### Listen address
 
-By default the process listens on `:8080` (all interfaces, port 8080). Set `FIBO_PLANNER_ADDR` to bind somewhere else. Restart the process after changing it.
+By default the process listens on `:8080` (all interfaces, port 8080). Set `FIBO_PLANNER_ADDR` or pass `--addr` (`-a`) to bind somewhere else. The flag wins when both are set. Restart the process after changing it.
 
 ```bash
 FIBO_PLANNER_ADDR=127.0.0.1:9090 go run ./app
+```
+
+```bash
+go run ./app --addr 127.0.0.1:9090
 ```
 
 ```bash
@@ -105,20 +109,28 @@ SIGINT and SIGTERM stop the HTTP server (header timeout 10s, idle timeout 60s). 
 
 ### WebSocket origins
 
-Browsers must send a same-origin `Origin` header (the page host). If the public site origin differs from the process `Host` header (some reverse proxies), set `FIBO_PLANNER_WS_ORIGINS` to a comma-separated list of allowed origins. Restart the process after changing it.
+Browsers must send a same-origin `Origin` header (the page host). If the public site origin differs from the process `Host` header (some reverse proxies), set `FIBO_PLANNER_WS_ORIGINS` or pass `--ws-origins` with a comma-separated list of allowed origins. The flag wins when both are set. Restart the process after changing it.
 
 ```bash
 FIBO_PLANNER_WS_ORIGINS=https://planner.example.com go run ./app
+```
+
+```bash
+go run ./app --ws-origins https://planner.example.com
 ```
 
 The server pings idle sockets so proxies (including Cloud Run) are less likely to drop a quiet planning session. If the room socket drops, the room page shows a reconnecting banner; HTMX tries to reconnect.
 
 ### Lobby room list
 
-By default the home page shows totals only (people in the lobby, number of rooms, people in all rooms). Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` to also list every open room with a link and its user count. Any other value (or unset) keeps the list hidden. Restart the process after changing it.
+By default the home page shows totals only (people in the lobby, number of rooms, people in all rooms). Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` or pass `--lobby-list-rooms` to also list every open room with a link and its user count. Any other env value (or unset) keeps the list hidden. When the flag is passed it wins, including `--lobby-list-rooms=false` while the env var is `Y`. Restart the process after changing it.
 
 ```bash
 FIBO_PLANNER_LOBBY_LIST_ROOMS=Y go run ./app
+```
+
+```bash
+go run ./app --lobby-list-rooms
 ```
 
 ```bash
@@ -127,7 +139,7 @@ docker run -p 8080:8080 -e FIBO_PLANNER_LOBBY_LIST_ROOMS=Y siakhooi/fibo-planner
 
 ### Custom HTML
 
-Set `FIBO_PLANNER_CUSTOM_HTML_DIR` to a directory of optional snippets. Each file that exists is applied at process start:
+Set `FIBO_PLANNER_CUSTOM_HTML_DIR` or pass `--custom-html-dir` to a directory of optional snippets. The flag wins when both are set. Each file that exists is applied at process start:
 
 | File              | Insertion point                                                                 |
 | ----------------- | ------------------------------------------------------------------------------- |
@@ -147,6 +159,10 @@ Missing files are skipped. Snippets are inserted as-is (not escaped); only use a
 
 ```bash
 FIBO_PLANNER_CUSTOM_HTML_DIR=/path/to/custom-html go run ./app
+```
+
+```bash
+go run ./app --custom-html-dir /path/to/custom-html
 ```
 
 Docker (`FROM scratch`, UID 65532) can still read a mounted directory. The files must be readable by that user:

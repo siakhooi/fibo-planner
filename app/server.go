@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"net/http"
-	"os"
 	"strings"
 	"time"
 )
@@ -16,10 +15,6 @@ const (
 	idleTimeout       = 60 * time.Second
 	shutdownTimeout   = 10 * time.Second
 )
-
-func listenAddr() string {
-	return listenAddrFrom(os.Getenv(listenAddrEnv))
-}
 
 func listenAddrFrom(v string) string {
 	v = strings.TrimSpace(v)
