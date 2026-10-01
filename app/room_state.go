@@ -71,8 +71,24 @@ type consensusView struct {
 	MaxSpread      int
 	MinSpread      int
 	MaxSpreadLimit int
-	Ticks          []int
+	PercentTicks   []int
+	SpreadTicks    []int
 	Presets        []maturityButton
+}
+
+// roomPageData is the first paint of a room. The widgets it embeds are the
+// same templates the WebSocket later swaps in.
+type roomPageData struct {
+	RoomID          string
+	RoomName        string
+	Count           int
+	AlwaysPressed   string
+	ObserverPressed string
+	Users           []roomUserView
+	Consensus       consensusView
+	Results         voteResultsView
+	Topic           topicView
+	Queue           queueView
 }
 
 type voteResultRow struct {
@@ -193,8 +209,19 @@ var teamMaturityPresets = []maturityPreset{
 	{label: "relaxed (50%, spread of 3)", percent: 50, spread: 3},
 }
 
-func consensusControlsHTML(percent, maxSpread int) string {
-	return execRoomTemplate("consensus-controls", consensusViewFrom(percent, maxSpread))
+func roomPageFrom(roomID string, h *Hub) roomPageData {
+	name, count, alwaysShow, topic, consensus, maxSpread, preloaded := h.pageView()
+	return roomPageData{
+		RoomID:          roomID,
+		RoomName:        name,
+		Count:           count,
+		AlwaysPressed:   pressedAttr(alwaysShow),
+		ObserverPressed: pressedAttr(false),
+		Consensus:       consensusViewFrom(consensus, maxSpread),
+		Results:         voteResultsViewFrom(nil, consensus, maxSpread),
+		Topic:           topicView{Title: topic, Empty: topic == ""},
+		Queue:           queueViewFrom(preloaded),
+	}
 }
 
 func consensusViewFrom(percent, maxSpread int) consensusView {
@@ -207,9 +234,25 @@ func consensusViewFrom(percent, maxSpread int) consensusView {
 		MaxSpread:      maxSpread,
 		MinSpread:      minMaxSpread,
 		MaxSpreadLimit: maxMaxSpread,
-		Ticks:          spreadTicks(),
+		PercentTicks:   percentTicks(),
+		SpreadTicks:    spreadTicks(),
 		Presets:        maturityButtons(percent, maxSpread),
 	}
+}
+
+func percentTicks() []int {
+	step := consensusPercentTickStep
+	if step <= 0 {
+		step = 1
+	}
+	ticks := make([]int, 0, (maxConsensusPercent-minConsensusPercent)/step+1)
+	for n := minConsensusPercent; n <= maxConsensusPercent; n += step {
+		ticks = append(ticks, n)
+	}
+	if len(ticks) == 0 || ticks[len(ticks)-1] != maxConsensusPercent {
+		ticks = append(ticks, maxConsensusPercent)
+	}
+	return ticks
 }
 
 func spreadTicks() []int {

@@ -104,6 +104,16 @@ func (h *Hub) name() string {
 	return h.roomName
 }
 
+// pageView is the room-level state for the first paint. Votes stay empty until
+// a socket joins; each connection then receives its own masked copy.
+func (h *Hub) pageView() (name string, count int, alwaysShow bool, topic string, consensus, maxSpread int, preloaded []string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	preloaded = append([]string(nil), h.preloadedTopics...)
+	return h.roomName, len(h.conns), h.alwaysShowVotes, h.topicTitle,
+		normalizeConsensusPercent(h.consensusPercent), normalizeMaxSpread(h.maxSpread), preloaded
+}
+
 func (h *Hub) add(c *websocket.Conn, displayName string) int {
 	h.mu.Lock()
 	defer h.mu.Unlock()
@@ -202,22 +212,10 @@ func (h *Hub) topic() string {
 	return h.topicTitle
 }
 
-func (h *Hub) consensus() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return normalizeConsensusPercent(h.consensusPercent)
-}
-
 func (h *Hub) setConsensusPercent(n int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.consensusPercent = normalizeConsensusPercent(n)
-}
-
-func (h *Hub) allowedMaxSpread() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return normalizeMaxSpread(h.maxSpread)
 }
 
 func (h *Hub) setMaxSpread(n int) {
