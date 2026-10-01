@@ -1,21 +1,38 @@
 set shell := ["bash", "-cuo", "pipefail"]
 default:
 	@just --list
-all: build docker-build build-release
-build:
-	go mod tidy
-	gofmt -w -s . 2>&1 | tee gofmt.log
-	golangci-lint run 2>&1 | tee golangci-lint.log
-	go build -C app -trimpath -ldflags="-s -w -X github.com/siakhooi/fibo-planner/app/versioninfo.Version=$(git describe --tags --always --dirty 2>/dev/null || echo 0.0.0) -X github.com/siakhooi/fibo-planner/app/versioninfo.Commit=$(git rev-parse HEAD 2>/dev/null || echo unknown) -X github.com/siakhooi/fibo-planner/app/versioninfo.Date=$(date -u +%Y-%m-%dT%H:%M:%SZ)" -o ../target/server
+
+all: check docker-build build-release
+
+check: fmt-check lint test build
+
+fmt-check:
+	./scripts/fmt-check.sh
+
+lint:
+	./scripts/lint.sh
+
+test:
 	./scripts/test.sh
+
+build:
+	./scripts/build.sh
+
+tidy:
+	go mod tidy
+
 build-release:
 	go tool goreleaser release --snapshot --clean --skip=publish
+
 run *args:
 	go run ./app {{args}}
+
 release:
-	scripts/create-release.sh
+	./scripts/create-release.sh
+
 clean:
 	rm -rf *.log target test-* dist
+
 docker-build:
 	./scripts/docker-build.sh
 

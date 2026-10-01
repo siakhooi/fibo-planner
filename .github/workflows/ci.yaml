@@ -1,0 +1,48 @@
+name: ci
+
+on:
+  workflow_call:
+    inputs:
+      fetch-depth:
+        description: Git checkout depth. 0 fetches full history.
+        required: false
+        type: string
+        default: "1"
+    secrets:
+      SONAR_TOKEN:
+        required: false
+      QLTY_COVERAGE_TOKEN:
+        required: false
+
+jobs:
+  check:
+    name: format, lint, test, build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1  # v7.0.1
+        with:
+          fetch-depth: ${{ inputs.fetch-depth }}
+
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
+
+      - run: scripts/fmt-check.sh
+
+      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
+        with:
+          version: 'latest'
+          args: --timeout 5m
+
+      - run: scripts/test.sh
+
+      - uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
+        env:
+          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+      - uses: qltysh/qlty-action/coverage@c9b09987143d1e4ac955f4803c7bea742102feb5 # v2.4.0
+        with:
+          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
+          files: test-coverage.out
+
+      - run: scripts/build.sh
