@@ -2,8 +2,6 @@ package main
 
 import (
 	"bytes"
-	"encoding/json"
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
@@ -20,16 +18,7 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	roomID := createRoom(t, srv, "sprint")
-	resp, err := http.Get(srv.URL + "/" + roomID)
-	if err != nil {
-		t.Fatalf("room page: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read: %v", err)
-	}
-	page := string(body)
+	page := getHTML(t, srv, "/"+roomID, http.StatusOK)
 	for _, want := range []string{
 		`id="copy-room-url"`,
 		`aria-label="Copy room link"`,
@@ -102,22 +91,13 @@ func TestRoomJSHasClientBehavior(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/room.js")
-	if err != nil {
-		t.Fatalf("room.js: %v", err)
+	status, ct, js := getResponse(t, srv.URL+"/room.js")
+	if status != http.StatusOK {
+		t.Fatalf("room.js status %d", status)
 	}
-	defer func() { _ = resp.Body.Close() }()
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("room.js status %d", resp.StatusCode)
-	}
-	if ct := resp.Header.Get("Content-Type"); !strings.Contains(ct, "javascript") {
+	if !strings.Contains(ct, "javascript") {
 		t.Fatalf("room.js content-type %q", ct)
 	}
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read room.js: %v", err)
-	}
-	js := string(body)
 	for _, want := range []string{
 		`document.body.dataset.roomId`,
 		`navigator.clipboard.writeText`,
@@ -145,16 +125,7 @@ func TestRoomPageResponsiveLayout(t *testing.T) {
 	t.Cleanup(srv.Close)
 
 	roomID := createRoom(t, srv, "sprint")
-	resp, err := http.Get(srv.URL + "/" + roomID)
-	if err != nil {
-		t.Fatalf("room page: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read: %v", err)
-	}
-	page := string(body)
+	page := getHTML(t, srv, "/"+roomID, http.StatusOK)
 
 	for _, want := range []string{
 		`<details class="admin-panel"`,
@@ -194,16 +165,7 @@ func TestCreateRoomWithoutName(t *testing.T) {
 
 	roomID := createRoom(t, srv, "")
 
-	home, err := http.Get(srv.URL + "/")
-	if err != nil {
-		t.Fatalf("home: %v", err)
-	}
-	defer func() { _ = home.Body.Close() }()
-	body, err := io.ReadAll(home.Body)
-	if err != nil {
-		t.Fatalf("read home: %v", err)
-	}
-	page := string(body)
+	page := getHTML(t, srv, "/", http.StatusOK)
 	if strings.Contains(page, "Room "+roomID) || strings.Contains(page, `href="/`+roomID+`"`) {
 		t.Fatalf("default lobby should not list rooms: %s", page)
 	}
@@ -219,15 +181,9 @@ func TestCreateRoomWithoutName(t *testing.T) {
 		t.Fatalf("lobby scripts should use SRI: %s", page)
 	}
 
-	room, err := http.Get(srv.URL + "/" + roomID)
-	if err != nil {
-		t.Fatalf("room page: %v", err)
-	}
-	defer func() { _ = room.Body.Close() }()
-	if room.StatusCode != http.StatusOK {
-		t.Fatalf("room page status %d", room.StatusCode)
-	}
+	_ = getHTML(t, srv, "/"+roomID, http.StatusOK)
 }
+
 func TestVoteBroadcastToAllParticipants(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
@@ -597,66 +553,6 @@ func TestObserverModeDuplicateNamesSyncsOnlySelf(t *testing.T) {
 	if strings.Contains(firstMsg, `<tr class="current-user"><td class="vote-flash">Alex</td><td class="vote-flash">observer</td></tr>`) {
 		t.Fatalf("first Alex must not treat the other Alex as self: %s", firstMsg)
 	}
-}
-
-func createRoom(t *testing.T, srv *httptest.Server, name string) string {
-	t.Helper()
-	client := &http.Client{
-		CheckRedirect: func(*http.Request, []*http.Request) error {
-			return http.ErrUseLastResponse
-		},
-	}
-	resp, err := client.PostForm(srv.URL+"/rooms", url.Values{"name": {name}})
-	if err != nil {
-		t.Fatalf("create room: %v", err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	_, _ = io.Copy(io.Discard, resp.Body)
-	loc := resp.Header.Get("Location")
-	id := strings.TrimPrefix(loc, "/")
-	if len(id) != 6 {
-		t.Fatalf("unexpected room location %q", loc)
-	}
-	return id
-}
-
-func dialRoom(t *testing.T, srv *httptest.Server, roomID, name string) *websocket.Conn {
-	t.Helper()
-	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws/" + roomID
-	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
-	if err != nil {
-		t.Fatalf("dial %s: %v", name, err)
-	}
-	t.Cleanup(func() { _ = conn.Close() })
-	payload, err := json.Marshal(map[string]string{"name": name})
-	if err != nil {
-		t.Fatal(err)
-	}
-	if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {
-		t.Fatalf("join %s: %v", name, err)
-	}
-	return conn
-}
-
-func waitForMessage(t *testing.T, conn *websocket.Conn, substr string) string {
-	t.Helper()
-	deadline := time.Now().Add(2 * time.Second)
-	if err := conn.SetReadDeadline(deadline); err != nil {
-		t.Fatalf("deadline: %v", err)
-	}
-	var last string
-	for time.Now().Before(deadline) {
-		_, msg, err := conn.ReadMessage()
-		if err != nil {
-			t.Fatalf("read waiting for %q: %v (last=%q)", substr, err, last)
-		}
-		last = string(msg)
-		if strings.Contains(last, substr) {
-			return last
-		}
-	}
-	t.Fatalf("timeout waiting for %q (last=%q)", substr, last)
-	return ""
 }
 
 func TestCheckWSOrigin(t *testing.T) {

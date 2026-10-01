@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -92,21 +91,4 @@ func TestPagesShareLegalFooter(t *testing.T) {
 			}
 		})
 	}
-}
-
-func getHTML(t *testing.T, srv *httptest.Server, path string, wantStatus int) string {
-	t.Helper()
-	resp, err := http.Get(srv.URL + path)
-	if err != nil {
-		t.Fatalf("GET %s: %v", path, err)
-	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatalf("read %s: %v", path, err)
-	}
-	if resp.StatusCode != wantStatus {
-		t.Fatalf("GET %s: status %d, want %d", path, resp.StatusCode, wantStatus)
-	}
-	return string(body)
 }
