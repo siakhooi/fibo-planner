@@ -31,17 +31,7 @@
 {{- end}}
 
 {{define "vote-results" -}}
-{{if .ShowAgreed -}}
-<p id="agreed-points" class="{{.AgreedClass}}" hx-swap-oob="true">Agreed Points: <strong>{{.AgreedPoints}}</strong></p>
-{{- else -}}
-<p id="agreed-points" hx-swap-oob="true" hidden></p>
-{{- end -}}
-{{if .ShowAgreement -}}
-<p id="agreement-status" class="agreement-status" hx-swap-oob="true"><span class="{{.PercentKind}}">{{.PercentMark}} {{.LeadingPercent}}% ({{.PercentRequire}})</span><span class="{{.SpreadKind}}">{{.SpreadMark}} spread = {{.Spread}} ({{.SpreadRequire}})</span></p>
-{{- else -}}
-<p id="agreement-status" class="agreement-status" hx-swap-oob="true" hidden></p>
-{{- end -}}
-<table id="vote-results" class="user-table results-table" hx-swap-oob="true"{{if .Hidden}} hidden{{end}}><thead><tr><th scope="col">Points</th><th scope="col">Count</th><th scope="col">%</th></tr></thead><tbody>
+<p id="agreed-points"{{if .ShowAgreed}} class="{{.AgreedClass}}"{{end}} hx-swap-oob="true"{{if not .ShowAgreed}} hidden{{end}}>{{if .ShowAgreed}}Agreed Points: <strong>{{.AgreedPoints}}</strong>{{end}}</p><p id="agreement-status" class="agreement-status" hx-swap-oob="true"{{if not .ShowAgreement}} hidden{{end}}>{{if .ShowAgreement}}<span class="{{.PercentKind}}">{{.PercentMark}} {{.LeadingPercent}}% ({{.PercentRequire}})</span><span class="{{.SpreadKind}}">{{.SpreadMark}} spread = {{.Spread}} ({{.SpreadRequire}})</span>{{end}}</p><table id="vote-results" class="user-table results-table" hx-swap-oob="true"{{if .Hidden}} hidden{{end}}><thead><tr><th scope="col">Points</th><th scope="col">Count</th><th scope="col">%</th></tr></thead><tbody>
 {{- range .Rows -}}
 <tr{{if .Leader}} class="vote-leader"{{end}}><td>{{.Points}}</td><td>{{.Count}}</td><td>{{.Percent}}%</td></tr>
 {{- end -}}
@@ -53,11 +43,7 @@
 {{- end}}
 
 {{define "load-next-topic" -}}
-{{if .Empty -}}
-<button type="submit" id="load-next-topic" hx-swap-oob="true" disabled>Load Next Topic</button>
-{{- else -}}
-<button type="submit" id="load-next-topic" hx-swap-oob="true" title="Next Topic: {{.Next}}">Load Next Topic [{{.Count}}]</button>
-{{- end -}}
+<button type="submit" id="load-next-topic" hx-swap-oob="true"{{if .Empty}} disabled{{else}} title="Next Topic: {{.Next}}"{{end}}>Load Next Topic{{if not .Empty}} [{{.Count}}]{{end}}</button>
 {{- end}}
 
 {{define "preloaded-topics-data" -}}
