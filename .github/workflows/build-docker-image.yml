@@ -36,16 +36,7 @@ jobs:
             tools/go.sum
 
       - name: Build linux binaries
-        env:
-          SNAPSHOT: ${{ inputs.snapshot }}
-        run: |
-          extra=()
-          if [ "${SNAPSHOT:-true}" != "false" ]; then
-            extra+=(--snapshot)
-          fi
-          go tool -modfile=tools/go.mod goreleaser build --clean "${extra[@]}"
-
-      - run: scripts/stage-docker-binaries.sh
+        run: scripts/build-docker-binaries.sh ${{ inputs.snapshot == false && 'release' || 'snapshot' }}
 
       - uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         if: ${{ inputs.push-images }}

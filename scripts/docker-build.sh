@@ -6,8 +6,7 @@ set -euxo pipefail
 . ./release-build.env
 
 (
-	go tool -modfile=tools/go.mod goreleaser build --snapshot --clean
-	./scripts/stage-docker-binaries.sh
+	./scripts/build-docker-binaries.sh snapshot
 
 	docker build dist/docker -f docker/Dockerfile \
 		-t "$DOCKER_IMAGE_NAME:latest" \
