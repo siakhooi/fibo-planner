@@ -12,3 +12,9 @@ updates:
       interval: "weekly"
     assignees:
       - "siakhooi"
+  - package-ecosystem: "gomod"
+    directory: "/tools"
+    schedule:
+      interval: "weekly"
+    assignees:
+      - "siakhooi"

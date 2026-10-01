@@ -34,6 +34,12 @@ func TestRoomStateHTML(t *testing.T) {
 	if !strings.Contains(html, `name="max-spread" min="0" max="6" step="1" value="0"`) {
 		t.Fatalf("max spread slider should default to 0: %s", html)
 	}
+	if !strings.Contains(html, `<span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span>`) {
+		t.Fatalf("percentage ticks should follow the 50–100 step: %s", html)
+	}
+	if !strings.Contains(html, `<span>0</span><span>1</span><span>2</span><span>3</span><span>4</span><span>5</span><span>6</span>`) {
+		t.Fatalf("spread ticks should follow 0–6: %s", html)
+	}
 	ada := strings.Index(html, "Ada")
 	bob := strings.Index(html, "Bob")
 	if ada < 0 || bob < 0 || ada > bob {

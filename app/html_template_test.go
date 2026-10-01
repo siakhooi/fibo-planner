@@ -301,14 +301,13 @@ func executeNamed(t *testing.T, tmpl *template.Template, name string) string {
 	case "index.html":
 		data = lobbyPageData{}
 	case "room.html":
-		data = struct {
-			RoomID                string
-			RoomName              string
-			TopicTitle            string
-			Count                 int
-			ConsensusControlsHTML template.HTML
-		}{
-			RoomID: "123456",
+		data = roomPageData{
+			RoomID:          "123456",
+			AlwaysPressed:   "false",
+			ObserverPressed: "false",
+			Results:         voteResultsView{Hidden: true},
+			Topic:           topicView{Empty: true},
+			Queue:           queueView{Empty: true},
 		}
 	case "room_not_found.html":
 		data = struct{ RoomID string }{RoomID: "123456"}

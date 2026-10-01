@@ -57,7 +57,7 @@
         <h3>Preloaded Topics</h3>
         <form id="load-next-topic-form" class="js-ws-send" action="#">
           <input type="hidden" name="admin" value="load-next-topic" />
-          <button type="submit" id="load-next-topic" disabled>Load Next Topic</button>
+          {{template "load-next-topic" .Queue}}
         </form>
         <form id="edit-preloaded-topics-form" action="#">
           <button type="button" id="edit-preloaded-topics">Edit Preloaded Topics</button>
@@ -65,22 +65,22 @@
         <h3>Global Options</h3>
         <form id="always-show-votes-form" class="js-ws-send" action="#">
           <input type="hidden" name="admin" value="always-show-votes" />
-          <button type="submit" id="always-show-votes" aria-pressed="false">Always show votes</button>
+          {{template "always-show-votes" .AlwaysPressed}}
         </form>
         <h3>Consensus Agreement</h3>
         <form id="consensus-form" class="js-ws-send" action="#">
           <input type="hidden" name="admin" value="consensus-agreement" />
-          {{.ConsensusControlsHTML}}
+          {{template "consensus-controls" .Consensus}}
         </form>
       </details>
       <div class="main-stack">
       <div class="room-body">
-        <h2 id="topic-title" class="topic-title"{{if not .TopicTitle}} hidden{{end}}>{{.TopicTitle}}</h2>
+        {{template "topic-heading" .Topic}}
         <div class="voter-toolbar">
           <h2 id="user-name">Your name</h2>
           <form id="observer-mode-form" class="observer-form js-ws-send" action="#">
             <input type="hidden" name="admin" value="observer-mode" />
-            <button type="submit" id="observer-mode" aria-pressed="false">I'm an observer</button>
+            {{template "observer-mode" .ObserverPressed}}
           </form>
         </div>
         <form id="points-form" class="js-ws-send" action="#">
@@ -95,36 +95,17 @@
       </div>
       <section class="users-panel" aria-label="Users in this room">
         <p class="meta">
-          Users in this room (<strong id="session-count">{{.Count}}</strong>):
+          Users in this room ({{template "session-count" .Count}}):
         </p>
-        <table id="user-list" class="user-table">
-          <thead>
-            <tr>
-              <th scope="col">Name</th>
-              <th scope="col">Points</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        {{template "room-user-list" .Users}}
       </section>
       </div>
       <aside class="results-panel" aria-labelledby="results-heading">
         <h3 id="results-heading">Results</h3>
-        <p id="agreed-points" hidden></p>
-        <p id="agreement-status" class="agreement-status" hidden></p>
-        <table id="vote-results" class="user-table results-table" hidden>
-          <thead>
-            <tr>
-              <th scope="col">Points</th>
-              <th scope="col">Count</th>
-              <th scope="col">%</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
+        {{template "vote-results" .Results}}
       </aside>
       </div>
-      <pre id="preloaded-topics-data" hidden></pre>
+      {{template "preloaded-topics-data" .Queue}}
       <dialog id="preloaded-topics-dialog" aria-labelledby="preloaded-topics-heading">
         <form id="set-preloaded-topics-form" class="js-ws-send" action="#">
           <h3 id="preloaded-topics-heading">Edit Preloaded Topics</h3>

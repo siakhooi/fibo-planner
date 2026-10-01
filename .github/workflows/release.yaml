@@ -6,7 +6,14 @@ on:
       - created
 
 jobs:
+  check:
+    uses: ./.github/workflows/ci.yaml
+    secrets: inherit
+    with:
+      fetch-depth: "0"
+
   build:
+    needs: check
     runs-on: ubuntu-latest
     permissions:
       actions: write
@@ -18,27 +25,12 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: '1.27.1'
+          go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
 
-      - uses: golangci/golangci-lint-action@ba0d7d2ec06a0ea1cb5fa41b2e4a3ab91d21278a # v9.3.0
-        with:
-          version: 'latest'
-          args: --timeout 5m
-
-      - run: scripts/test.sh
-
-      - uses: SonarSource/sonarqube-scan-action@ba9859eae8dd6bd29e412f25ddbbef3d032000f4 # v8.2.2
-        env:
-          SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
-
-      - uses: qltysh/qlty-action/coverage@c9b09987143d1e4ac955f4803c7bea742102feb5 # v2.4.0
-        with:
-          token: ${{ secrets.QLTY_COVERAGE_TOKEN }}
-          files: test-coverage.out
-
-      - run: scripts/build.sh
-
-      - run: go tool goreleaser release --clean
+      - run: go tool -modfile=tools/go.mod goreleaser release --clean
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

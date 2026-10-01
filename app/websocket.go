@@ -80,6 +80,30 @@ func writeWS(c *websocket.Conn, messageType int, payload []byte) error {
 	return c.WriteMessage(messageType, payload)
 }
 
+// wsPayload is one text frame for one socket.
+type wsPayload struct {
+	conn    *websocket.Conn
+	payload []byte
+}
+
+// writeWSPayloads writes each text frame while holding writeMu, then closes
+// sockets that failed. The caller removes those sockets from its set.
+func writeWSPayloads(writeMu *sync.Mutex, msgs []wsPayload) []*websocket.Conn {
+	var failed []*websocket.Conn
+	writeMu.Lock()
+	for _, m := range msgs {
+		if err := writeWS(m.conn, websocket.TextMessage, m.payload); err != nil {
+			log.Printf("websocket write: %v", err)
+			failed = append(failed, m.conn)
+		}
+	}
+	writeMu.Unlock()
+	for _, c := range failed {
+		_ = c.Close()
+	}
+	return failed
+}
+
 func prepareWebSocket(conn *websocket.Conn) {
 	conn.SetReadLimit(maxWSMessageBytes)
 	_ = conn.SetReadDeadline(time.Now().Add(wsPongWait))

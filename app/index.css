@@ -1,25 +1,5 @@
 .lobby-table {
-  width: 100%;
-  max-width: 28rem;
-  border-collapse: collapse;
-  font-size: 0.95rem;
   margin-bottom: 2rem;
-}
-
-.lobby-table th,
-.lobby-table td {
-  text-align: left;
-  padding: 0.45rem 0.6rem;
-  border: 1px solid #ddd;
-}
-
-.lobby-table thead th {
-  background: #f5f5f5;
-  font-weight: 600;
-}
-
-.lobby-table tbody tr:nth-child(even) {
-  background: #fafafa;
 }
 
 .lobby-table a {

@@ -3,7 +3,6 @@ package main
 import (
 	"crypto/rand"
 	"fmt"
-	"html/template"
 	"io"
 	"log"
 	"math/big"
@@ -108,20 +107,7 @@ func (a *App) roomPage(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	data := struct {
-		RoomID                string
-		RoomName              string
-		TopicTitle            string
-		Count                 int
-		ConsensusControlsHTML template.HTML
-	}{
-		RoomID:                roomID,
-		RoomName:              h.name(),
-		TopicTitle:            h.topic(),
-		Count:                 h.count(),
-		ConsensusControlsHTML: template.HTML(consensusControlsHTML(h.consensus(), h.allowedMaxSpread())),
-	}
-	writeHTML(w, http.StatusOK, "room.html", data)
+	writeHTML(w, http.StatusOK, "room.html", roomPageFrom(roomID, h))
 }
 
 func (a *App) roomWS(w http.ResponseWriter, r *http.Request) {

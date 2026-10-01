@@ -1,5 +1,25 @@
 {{define "room-state" -}}
-<strong id="session-count" hx-swap-oob="true">{{.Count}}</strong>{{template "room-user-list" .Users}}<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="{{.AlwaysPressed}}">Always show votes</button><button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="{{.ObserverPressed}}">I'm an observer</button>{{template "consensus-controls" .Consensus}}{{template "vote-results" .Results}}{{template "topic-heading" .Topic}}{{template "load-next-topic" .Queue}}{{template "preloaded-topics-data" .Queue}}
+{{- template "session-count" .Count -}}
+{{- template "room-user-list" .Users -}}
+{{- template "always-show-votes" .AlwaysPressed -}}
+{{- template "observer-mode" .ObserverPressed -}}
+{{- template "consensus-controls" .Consensus -}}
+{{- template "vote-results" .Results -}}
+{{- template "topic-heading" .Topic -}}
+{{- template "load-next-topic" .Queue -}}
+{{- template "preloaded-topics-data" .Queue -}}
+{{- end}}
+
+{{define "session-count" -}}
+<strong id="session-count" hx-swap-oob="true">{{.}}</strong>
+{{- end}}
+
+{{define "always-show-votes" -}}
+<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="{{.}}">Always show votes</button>
+{{- end}}
+
+{{define "observer-mode" -}}
+<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="{{.}}">I'm an observer</button>
 {{- end}}
 
 {{define "room-user-list" -}}
@@ -11,12 +31,20 @@
 {{- end}}
 
 {{define "consensus-controls" -}}
-<div id="consensus-controls" hx-swap-oob="true"><div class="consensus-slider"><label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">{{.Percent}}</output></label><input type="range" id="consensus-percent" name="percentage" min="{{.MinPercent}}" max="{{.MaxPercent}}" step="1" value="{{.Percent}}" list="consensus-majors" /><div class="consensus-majors" aria-hidden="true"><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span></div><datalist id="consensus-majors"><option value="50"></option><option value="60"></option><option value="70"></option><option value="80"></option><option value="90"></option><option value="100"></option></datalist></div><div class="consensus-slider"><label for="consensus-max-spread">Max Spread <output id="consensus-max-spread-value" for="consensus-max-spread">{{.MaxSpread}}</output></label><input type="range" id="consensus-max-spread" name="max-spread" min="{{.MinSpread}}" max="{{.MaxSpreadLimit}}" step="1" value="{{.MaxSpread}}" list="consensus-spread-ticks" /><div class="consensus-majors" aria-hidden="true">
-{{- range .Ticks -}}
+<div id="consensus-controls" hx-swap-oob="true"><div class="consensus-slider"><label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">{{.Percent}}</output></label><input type="range" id="consensus-percent" name="percentage" min="{{.MinPercent}}" max="{{.MaxPercent}}" step="1" value="{{.Percent}}" list="consensus-majors" /><div class="consensus-majors" aria-hidden="true">
+{{- range .PercentTicks -}}
+<span>{{.}}</span>
+{{- end -}}
+</div><datalist id="consensus-majors">
+{{- range .PercentTicks -}}
+<option value="{{.}}"></option>
+{{- end -}}
+</datalist></div><div class="consensus-slider"><label for="consensus-max-spread">Max Spread <output id="consensus-max-spread-value" for="consensus-max-spread">{{.MaxSpread}}</output></label><input type="range" id="consensus-max-spread" name="max-spread" min="{{.MinSpread}}" max="{{.MaxSpreadLimit}}" step="1" value="{{.MaxSpread}}" list="consensus-spread-ticks" /><div class="consensus-majors" aria-hidden="true">
+{{- range .SpreadTicks -}}
 <span>{{.}}</span>
 {{- end -}}
 </div><datalist id="consensus-spread-ticks">
-{{- range .Ticks -}}
+{{- range .SpreadTicks -}}
 <option value="{{.}}"></option>
 {{- end -}}
 </datalist></div>{{template "maturity-presets" .Presets}}</div>

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"strings"
 	"sync"
 
@@ -50,24 +49,13 @@ func (s *connSet) count() int {
 
 func (s *connSet) writeAll(payload []byte) {
 	s.mu.Lock()
-	conns := make([]*websocket.Conn, 0, len(s.conns))
+	msgs := make([]wsPayload, 0, len(s.conns))
 	for c := range s.conns {
-		conns = append(conns, c)
+		msgs = append(msgs, wsPayload{conn: c, payload: payload})
 	}
 	s.mu.Unlock()
 
-	var failed []*websocket.Conn
-	s.writeMu.Lock()
-	for _, c := range conns {
-		if err := writeWS(c, websocket.TextMessage, payload); err != nil {
-			log.Printf("websocket write: %v", err)
-			failed = append(failed, c)
-		}
-	}
-	s.writeMu.Unlock()
-
-	for _, c := range failed {
-		_ = c.Close()
+	for _, c := range writeWSPayloads(&s.writeMu, msgs) {
 		s.remove(c)
 	}
 }
@@ -102,6 +90,16 @@ func (h *Hub) name() string {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	return h.roomName
+}
+
+// pageView is the room-level state for the first paint. Votes stay empty until
+// a socket joins; each connection then receives its own masked copy.
+func (h *Hub) pageView() (name string, count int, alwaysShow bool, topic string, consensus, maxSpread int, preloaded []string) {
+	h.mu.Lock()
+	defer h.mu.Unlock()
+	preloaded = append([]string(nil), h.preloadedTopics...)
+	return h.roomName, len(h.conns), h.alwaysShowVotes, h.topicTitle,
+		normalizeConsensusPercent(h.consensusPercent), normalizeMaxSpread(h.maxSpread), preloaded
 }
 
 func (h *Hub) add(c *websocket.Conn, displayName string) int {
@@ -202,22 +200,10 @@ func (h *Hub) topic() string {
 	return h.topicTitle
 }
 
-func (h *Hub) consensus() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return normalizeConsensusPercent(h.consensusPercent)
-}
-
 func (h *Hub) setConsensusPercent(n int) {
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	h.consensusPercent = normalizeConsensusPercent(n)
-}
-
-func (h *Hub) allowedMaxSpread() int {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return normalizeMaxSpread(h.maxSpread)
 }
 
 func (h *Hub) setMaxSpread(n int) {
@@ -255,8 +241,7 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	}
 	h.mu.Unlock()
 
-	h.writeMu.Lock()
-	var failed []*websocket.Conn
+	msgs := make([]wsPayload, 0, n)
 	for _, recipient := range snaps {
 		rows := make([]participant, 0, n)
 		for _, s := range snaps {
@@ -265,16 +250,12 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 			p.self = s.c == recipient.c
 			rows = append(rows, p)
 		}
-		payload := []byte(renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, preloaded))
-		if err := writeWS(recipient.c, websocket.TextMessage, payload); err != nil {
-			log.Printf("websocket write: %v", err)
-			failed = append(failed, recipient.c)
-		}
+		msgs = append(msgs, wsPayload{
+			conn:    recipient.c,
+			payload: []byte(renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, preloaded)),
+		})
 	}
-	h.writeMu.Unlock()
-
-	for _, c := range failed {
-		_ = c.Close()
+	for _, c := range writeWSPayloads(&h.writeMu, msgs) {
 		h.remove(c)
 	}
 }

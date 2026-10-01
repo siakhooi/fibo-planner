@@ -25,21 +25,22 @@ var allowedVotePoints = func() map[string]bool {
 var maxMaxSpread = len(voteScale) - 1
 
 const (
-	adminAlwaysShowVotes    = "always-show-votes"
-	adminClearVotes         = "clear-votes"
-	adminSetTopic           = "set-topic"
-	adminObserverMode       = "observer-mode"
-	adminConsensusAgreement = "consensus-agreement"
-	adminLoadNextTopic      = "load-next-topic"
-	adminSetPreloadedTopics = "set-preloaded-topics"
-	minConsensusPercent     = 50
-	maxConsensusPercent     = 100
-	defaultConsensusPercent = 100
-	minMaxSpread            = 0
-	defaultMaxSpread        = 0
-	maxDisplayNameLen       = 120
-	maxTopicTitleLen        = maxDisplayNameLen
-	maxPreloadedTopicCount  = 200
+	adminAlwaysShowVotes     = "always-show-votes"
+	adminClearVotes          = "clear-votes"
+	adminSetTopic            = "set-topic"
+	adminObserverMode        = "observer-mode"
+	adminConsensusAgreement  = "consensus-agreement"
+	adminLoadNextTopic       = "load-next-topic"
+	adminSetPreloadedTopics  = "set-preloaded-topics"
+	minConsensusPercent      = 50
+	maxConsensusPercent      = 100
+	defaultConsensusPercent  = 100
+	consensusPercentTickStep = 10
+	minMaxSpread             = 0
+	defaultMaxSpread         = 0
+	maxDisplayNameLen        = 120
+	maxTopicTitleLen         = maxDisplayNameLen
+	maxPreloadedTopicCount   = 200
 
 	// roomIdleEvictionDelay is how long a room with zero WebSocket connections may stay before it is removed.
 	// README documents this as "30 minutes".
