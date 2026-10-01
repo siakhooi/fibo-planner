@@ -6,7 +6,7 @@ set -euxo pipefail
 . ./release-build.env
 
 (
-	go tool goreleaser build --snapshot --clean
+	go tool -modfile=tools/go.mod goreleaser build --snapshot --clean
 	./scripts/stage-docker-binaries.sh
 
 	docker build dist/docker -f docker/Dockerfile \

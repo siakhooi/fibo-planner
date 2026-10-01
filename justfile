@@ -20,9 +20,10 @@ build:
 
 tidy:
 	go mod tidy
+	go mod tidy -C tools
 
 build-release:
-	go tool goreleaser release --snapshot --clean --skip=publish
+	go tool -modfile=tools/go.mod goreleaser release --snapshot --clean --skip=publish
 
 run *args:
 	go run ./app {{args}}

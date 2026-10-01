@@ -31,6 +31,9 @@ jobs:
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
           go-version-file: go.mod
+          cache-dependency-path: |
+            go.sum
+            tools/go.sum
 
       - name: Build linux binaries
         env:
@@ -40,7 +43,7 @@ jobs:
           if [ "${SNAPSHOT:-true}" != "false" ]; then
             extra+=(--snapshot)
           fi
-          go tool goreleaser build --clean "${extra[@]}"
+          go tool -modfile=tools/go.mod goreleaser build --clean "${extra[@]}"
 
       - run: scripts/stage-docker-binaries.sh
 
