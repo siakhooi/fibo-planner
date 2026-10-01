@@ -1,7 +1,6 @@
 package main
 
 import (
-	"log"
 	"strings"
 	"sync"
 
@@ -50,24 +49,13 @@ func (s *connSet) count() int {
 
 func (s *connSet) writeAll(payload []byte) {
 	s.mu.Lock()
-	conns := make([]*websocket.Conn, 0, len(s.conns))
+	msgs := make([]wsPayload, 0, len(s.conns))
 	for c := range s.conns {
-		conns = append(conns, c)
+		msgs = append(msgs, wsPayload{conn: c, payload: payload})
 	}
 	s.mu.Unlock()
 
-	var failed []*websocket.Conn
-	s.writeMu.Lock()
-	for _, c := range conns {
-		if err := writeWS(c, websocket.TextMessage, payload); err != nil {
-			log.Printf("websocket write: %v", err)
-			failed = append(failed, c)
-		}
-	}
-	s.writeMu.Unlock()
-
-	for _, c := range failed {
-		_ = c.Close()
+	for _, c := range writeWSPayloads(&s.writeMu, msgs) {
 		s.remove(c)
 	}
 }
@@ -253,8 +241,7 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 	}
 	h.mu.Unlock()
 
-	h.writeMu.Lock()
-	var failed []*websocket.Conn
+	msgs := make([]wsPayload, 0, n)
 	for _, recipient := range snaps {
 		rows := make([]participant, 0, n)
 		for _, s := range snaps {
@@ -263,16 +250,12 @@ func (h *Hub) broadcastRoomState(highlight *websocket.Conn) {
 			p.self = s.c == recipient.c
 			rows = append(rows, p)
 		}
-		payload := []byte(renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, preloaded))
-		if err := writeWS(recipient.c, websocket.TextMessage, payload); err != nil {
-			log.Printf("websocket write: %v", err)
-			failed = append(failed, recipient.c)
-		}
+		msgs = append(msgs, wsPayload{
+			conn:    recipient.c,
+			payload: []byte(renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, preloaded)),
+		})
 	}
-	h.writeMu.Unlock()
-
-	for _, c := range failed {
-		_ = c.Close()
+	for _, c := range writeWSPayloads(&h.writeMu, msgs) {
 		h.remove(c)
 	}
 }
