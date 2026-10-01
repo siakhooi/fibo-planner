@@ -1,6 +1,6 @@
 # Fibo Planner
 
-Fibo Planner is a lightweight, real-time planning poker app for agile teams. Open a room, share the link, and estimate stories with Fibonacci cards until the team agrees on effort.
+Fibo Planner is a lightweight, real-time planning poker app for agile teams. Open a room, share the link, and estimate stories on a modified Fibonacci scale until the team agrees on effort.
 
 No accounts, no database, no extra services. A single Go binary (or Docker image) serves the UI and keeps everyone in sync over WebSockets.
 
@@ -15,11 +15,11 @@ No accounts, no database, no extra services. A single Go binary (or Docker image
 
 ### Planning poker
 
-- **Fibonacci cards:** 1, 2, 3, 5, 8, 13, 20, plus a blank card to clear your vote.
+- **Modified Fibonacci scale:** 1, 2, 3, 5, 8, 13, 20 (20 in place of the usual 21), plus a blank card to clear your vote.
 - **Hidden votes by default.** Other people’s points stay masked (`???`) until every voter has picked a card, so nobody anchors on the first vote.
 - **Always show votes.** Flip a room-wide switch when you want scores visible as they come in.
 - **Observer mode.** Sit out of voting (for example as a stakeholder). Observers are listed separately and do not block reveal. This only changes whether you vote; it is not an admin role.
-- **Topic title.** Set the story or ticket the room is estimating; it updates live for everyone.
+- **Topic title.** Set the story or ticket the room is estimating; it updates live for everyone. Set Topic changes the heading only and leaves the current votes in place.
 - **Preloaded topic queue.** Paste a backlog (one title per line, up to 200). Load Next Topic advances the queue, sets the heading, and clears votes for the next round.
 
 ### Consensus and results
@@ -35,7 +35,7 @@ You can tune what “agreement” means:
 | Control        | Meaning                                                                                                 | Range   |
 | -------------- | ------------------------------------------------------------------------------------------------------- | ------- |
 | **Percentage** | Share of voters that must land on the same value                                                        | 50–100% |
-| **Max spread** | Allowed distance on the Fibonacci scale between the lowest and highest vote (3 and 5 → 1; 1 and 20 → 6) | 0–6     |
+| **Max spread** | Allowed distance on the modified Fibonacci scale between the lowest and highest vote (3 and 5 → 1; 1 and 20 → 6) | 0–6     |
 
 Team maturity presets apply both knobs at once:
 
@@ -178,10 +178,10 @@ docker run -p 8080:8080 \
 
 1. Create a room from the home page and share the URL.
 2. Teammates join with their names.
-3. Anyone in the room can set a topic (or load the next preloaded title).
+3. Anyone in the room can set a topic. Set Topic changes the heading and leaves the current votes in place. Load Next Topic sets the heading from the preloaded queue and clears votes.
 4. Everyone votes. Votes stay hidden until the last voter submits (unless always-show is on).
 5. Read the tally, agreed points, and agreement status. Anyone can adjust consensus rules if the team wants a looser or tighter bar.
-6. Anyone can clear votes or load the next topic and repeat.
+6. Clear votes to estimate the same topic again, or load the next topic (that also clears votes) and repeat.
 
 ## Reference
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
 
 set -xe
-gofmt -d ./..
+gofmt -d .
 golangci-lint run

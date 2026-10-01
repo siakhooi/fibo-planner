@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"fmt"
-	"html"
+	htmltemplate "html/template"
+	"log"
 	"sort"
 	"strings"
 )
@@ -12,6 +14,101 @@ func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, con
 }
 
 func renderRoomState(n int, rows []participant, alwaysShow bool, topic string, consensus, maxSpread int, preloaded []string) string {
+	sortParticipants(rows)
+	return execRoomTemplate("room-state", roomStateData{
+		Count:           n,
+		Users:           roomUserViews(rows, maskedVotes(alwaysShow, rows)),
+		AlwaysPressed:   pressedAttr(alwaysShow),
+		ObserverPressed: pressedAttr(selfIsObserver(rows)),
+		Consensus:       consensusViewFrom(consensus, maxSpread),
+		Results:         voteResultsViewFrom(rows, consensus, maxSpread),
+		Topic:           topicView{Title: topic, Empty: topic == ""},
+		Queue:           queueViewFrom(preloaded),
+	})
+}
+
+type roomStateData struct {
+	Count           int
+	Users           []roomUserView
+	AlwaysPressed   string
+	ObserverPressed string
+	Consensus       consensusView
+	Results         voteResultsView
+	Topic           topicView
+	Queue           queueView
+}
+
+type roomUserView struct {
+	Name   string
+	Points string
+	Self   bool
+	Flash  bool
+}
+
+type topicView struct {
+	Title string
+	Empty bool
+}
+
+type queueView struct {
+	Empty bool
+	Next  string
+	Count int
+	Body  string
+}
+
+type maturityButton struct {
+	Label   string
+	Percent int
+	Spread  int
+	Pressed string
+}
+
+type consensusView struct {
+	Percent        int
+	MinPercent     int
+	MaxPercent     int
+	MaxSpread      int
+	MinSpread      int
+	MaxSpreadLimit int
+	Ticks          []int
+	Presets        []maturityButton
+}
+
+type voteResultRow struct {
+	Leader  bool
+	Points  string
+	Count   int
+	Percent int
+}
+
+type voteResultsView struct {
+	Hidden         bool
+	ShowAgreed     bool
+	AgreedClass    string
+	AgreedPoints   string
+	ShowAgreement  bool
+	PercentKind    string
+	PercentMark    string
+	LeadingPercent int
+	PercentRequire htmltemplate.HTML
+	SpreadKind     string
+	SpreadMark     string
+	Spread         int
+	SpreadRequire  htmltemplate.HTML
+	Rows           []voteResultRow
+}
+
+func execRoomTemplate(name string, data any) string {
+	var buf bytes.Buffer
+	if err := tmpl.ExecuteTemplate(&buf, name, data); err != nil {
+		log.Printf("room state template %s: %v", name, err)
+		return ""
+	}
+	return buf.String()
+}
+
+func sortParticipants(rows []participant) {
 	sort.Slice(rows, func(i, j int) bool {
 		if rows[i].observer != rows[j].observer {
 			return !rows[i].observer
@@ -21,72 +118,67 @@ func renderRoomState(n int, rows []participant, alwaysShow bool, topic string, c
 		}
 		return rows[i].points < rows[j].points
 	})
-	masked := false
-	if !alwaysShow {
-		for _, row := range rows {
-			if row.observer {
-				continue
-			}
-			if row.points == "" {
-				masked = true
-				break
-			}
+}
+
+func maskedVotes(alwaysShow bool, rows []participant) bool {
+	if alwaysShow {
+		return false
+	}
+	for _, row := range rows {
+		if row.observer {
+			continue
+		}
+		if row.points == "" {
+			return true
 		}
 	}
-	var listHTML strings.Builder
-	listHTML.WriteString(`<table id="user-list" class="user-table" hx-swap-oob="true">`)
-	listHTML.WriteString(`<thead><tr><th scope="col">Name</th><th scope="col">Points</th></tr></thead><tbody>`)
+	return false
+}
+
+func selfIsObserver(rows []participant) bool {
 	for _, row := range rows {
+		if row.self && row.observer {
+			return true
+		}
+	}
+	return false
+}
+
+func pressedAttr(on bool) string {
+	if on {
+		return "true"
+	}
+	return "false"
+}
+
+func roomUserViews(rows []participant, masked bool) []roomUserView {
+	out := make([]roomUserView, len(rows))
+	for i, row := range rows {
 		points := row.points
 		if row.observer {
 			points = "observer"
 		} else if masked && points != "" {
 			points = "???"
 		}
-		trClass := ""
-		if row.self {
-			trClass = ` class="current-user"`
+		out[i] = roomUserView{
+			Name:   row.name,
+			Points: points,
+			Self:   row.self,
+			Flash:  row.flash,
 		}
-		flash := ""
-		if row.flash {
-			flash = ` class="vote-flash"`
-		}
-		fmt.Fprintf(&listHTML, "<tr%s><td%s>%s</td><td%s>%s</td></tr>", trClass, flash, html.EscapeString(row.name), flash, html.EscapeString(points))
 	}
-	listHTML.WriteString("</tbody></table>")
+	return out
+}
 
-	pressed := "false"
-	if alwaysShow {
-		pressed = "true"
+func queueViewFrom(topics []string) queueView {
+	if len(topics) == 0 {
+		return queueView{Empty: true}
 	}
-	observerPressed := "false"
-	for _, row := range rows {
-		if row.self && row.observer {
-			observerPressed = "true"
-			break
-		}
+	return queueView{
+		Next:  topics[0],
+		Count: len(topics),
+		Body:  strings.Join(topics, "\n"),
 	}
-
-	return fmt.Sprintf(
-		`<strong id="session-count" hx-swap-oob="true">%d</strong>`+
-			"%s"+
-			`<button type="submit" id="always-show-votes" hx-swap-oob="true" aria-pressed="%s">Always show votes</button>`+
-			`<button type="submit" id="observer-mode" hx-swap-oob="true" aria-pressed="%s">I'm an observer</button>`+
-			"%s"+
-			"%s"+
-			"%s"+
-			"%s"+
-			"%s",
-		n,
-		listHTML.String(),
-		pressed,
-		observerPressed,
-		consensusControlsHTML(consensus, maxSpread),
-		voteResultsHTML(rows, consensus, maxSpread),
-		topicHeadingHTML(topic),
-		loadNextTopicButtonHTML(preloaded),
-		preloadedTopicsDataHTML(preloaded),
-	)
 }
 
 type maturityPreset struct {
@@ -102,100 +194,56 @@ var teamMaturityPresets = []maturityPreset{
 }
 
 func consensusControlsHTML(percent, maxSpread int) string {
-	percent = normalizeConsensusPercent(percent)
-	maxSpread = normalizeMaxSpread(maxSpread)
-	spreadLabels, spreadOptions := consensusSpreadTicksHTML()
-	return fmt.Sprintf(
-		`<div id="consensus-controls" hx-swap-oob="true">`+
-			`<div class="consensus-slider">`+
-			`<label for="consensus-percent">Percentage <output id="consensus-percent-value" for="consensus-percent">%d</output></label>`+
-			`<input type="range" id="consensus-percent" name="percentage" min="%d" max="%d" step="1" value="%d" list="consensus-majors" />`+
-			`<div class="consensus-majors" aria-hidden="true"><span>50</span><span>60</span><span>70</span><span>80</span><span>90</span><span>100</span></div>`+
-			`<datalist id="consensus-majors">`+
-			`<option value="50"></option><option value="60"></option><option value="70"></option>`+
-			`<option value="80"></option><option value="90"></option><option value="100"></option>`+
-			`</datalist>`+
-			`</div>`+
-			`<div class="consensus-slider">`+
-			`<label for="consensus-max-spread">Max Spread <output id="consensus-max-spread-value" for="consensus-max-spread">%d</output></label>`+
-			`<input type="range" id="consensus-max-spread" name="max-spread" min="%d" max="%d" step="1" value="%d" list="consensus-spread-ticks" />`+
-			`<div class="consensus-majors" aria-hidden="true">%s</div>`+
-			`<datalist id="consensus-spread-ticks">%s</datalist>`+
-			`</div>`+
-			"%s"+
-			`</div>`,
-		percent,
-		minConsensusPercent,
-		maxConsensusPercent,
-		percent,
-		maxSpread,
-		minMaxSpread,
-		maxMaxSpread,
-		maxSpread,
-		spreadLabels,
-		spreadOptions,
-		maturityPresetsHTML(percent, maxSpread),
-	)
+	return execRoomTemplate("consensus-controls", consensusViewFrom(percent, maxSpread))
 }
 
-func consensusSpreadTicksHTML() (labels, options string) {
-	var lab, opt strings.Builder
-	for i := minMaxSpread; i <= maxMaxSpread; i++ {
-		fmt.Fprintf(&lab, `<span>%d</span>`, i)
-		fmt.Fprintf(&opt, `<option value="%d"></option>`, i)
+func consensusViewFrom(percent, maxSpread int) consensusView {
+	percent = normalizeConsensusPercent(percent)
+	maxSpread = normalizeMaxSpread(maxSpread)
+	return consensusView{
+		Percent:        percent,
+		MinPercent:     minConsensusPercent,
+		MaxPercent:     maxConsensusPercent,
+		MaxSpread:      maxSpread,
+		MinSpread:      minMaxSpread,
+		MaxSpreadLimit: maxMaxSpread,
+		Ticks:          spreadTicks(),
+		Presets:        maturityButtons(percent, maxSpread),
 	}
-	return lab.String(), opt.String()
+}
+
+func spreadTicks() []int {
+	ticks := make([]int, 0, maxMaxSpread-minMaxSpread+1)
+	for i := minMaxSpread; i <= maxMaxSpread; i++ {
+		ticks = append(ticks, i)
+	}
+	return ticks
 }
 
 func maturityPresetsHTML(percent, maxSpread int) string {
-	var b strings.Builder
-	b.WriteString(`<div class="maturity-presets">`)
-	b.WriteString(`<h4 id="maturity-presets-heading">Team maturity (presets)</h4>`)
-	b.WriteString(`<ul aria-labelledby="maturity-presets-heading">`)
-	for _, p := range teamMaturityPresets {
-		pressed := "false"
-		if p.percent == percent && p.spread == maxSpread {
-			pressed = "true"
-		}
-		fmt.Fprintf(
-			&b,
-			`<li><button type="button" class="maturity-preset" data-percentage="%d" data-max-spread="%d" aria-pressed="%s">%s</button></li>`,
-			p.percent,
-			p.spread,
-			pressed,
-			html.EscapeString(p.label),
-		)
-	}
-	b.WriteString(`</ul></div>`)
-	return b.String()
+	return execRoomTemplate("maturity-presets", maturityButtons(percent, maxSpread))
 }
 
-func topicHeadingHTML(topic string) string {
-	if topic == "" {
-		return `<h2 id="topic-title" class="topic-title" hx-swap-oob="true" hidden></h2>`
+func maturityButtons(percent, maxSpread int) []maturityButton {
+	out := make([]maturityButton, len(teamMaturityPresets))
+	for i, p := range teamMaturityPresets {
+		out[i] = maturityButton{
+			Label:   p.label,
+			Percent: p.percent,
+			Spread:  p.spread,
+			Pressed: pressedAttr(p.percent == percent && p.spread == maxSpread),
+		}
 	}
-	return fmt.Sprintf(`<h2 id="topic-title" class="topic-title" hx-swap-oob="true">%s</h2>`, html.EscapeString(topic))
+	return out
 }
 
 func loadNextTopicButtonHTML(topics []string) string {
-	if len(topics) == 0 {
-		return `<button type="submit" id="load-next-topic" hx-swap-oob="true" disabled>Load Next Topic</button>`
-	}
-	return fmt.Sprintf(
-		`<button type="submit" id="load-next-topic" hx-swap-oob="true" title="Next Topic: %s">Load Next Topic [%d]</button>`,
-		html.EscapeString(topics[0]),
-		len(topics),
-	)
+	return execRoomTemplate("load-next-topic", queueViewFrom(topics))
 }
 
 func preloadedTopicsDataHTML(topics []string) string {
-	return fmt.Sprintf(
-		`<pre id="preloaded-topics-data" hx-swap-oob="true" hidden>%s</pre>`,
-		html.EscapeString(strings.Join(topics, "\n")),
-	)
+	return execRoomTemplate("preloaded-topics-data", queueViewFrom(topics))
 }
-
-const voteResultsHead = `<thead><tr><th scope="col">Points</th><th scope="col">Count</th><th scope="col">%</th></tr></thead>`
 
 func percentRequireLabel(threshold int) string {
 	if threshold <= minConsensusPercent {
@@ -225,52 +273,9 @@ func agreementKind(ok bool) string {
 	return "unmet"
 }
 
-func agreedPointsHTML(points string) string {
-	if points == "" {
-		return `<p id="agreed-points" hx-swap-oob="true" hidden></p>`
-	}
-	kind := "agreed-yes"
-	if points == "N/A" {
-		kind = "agreed-no"
-	}
-	return fmt.Sprintf(
-		`<p id="agreed-points" class="%s" hx-swap-oob="true">Agreed Points: <strong>%s</strong></p>`,
-		kind,
-		html.EscapeString(points),
-	)
-}
-
-func agreementStatusHTML(show bool, leadingPercent, consensus, spread, maxSpread int) string {
-	if !show {
-		return `<p id="agreement-status" class="agreement-status" hx-swap-oob="true" hidden></p>`
-	}
-	percentOK := meetsConsensus(leadingPercent, consensus)
-	spreadOK := meetsSpread(spread, maxSpread)
-	return fmt.Sprintf(
-		`<p id="agreement-status" class="agreement-status" hx-swap-oob="true">`+
-			`<span class="%s">%s %d%% (%s)</span>`+
-			`<span class="%s">%s spread = %d (%s)</span>`+
-			`</p>`,
-		agreementKind(percentOK),
-		agreementMark(percentOK),
-		leadingPercent,
-		percentRequireLabel(consensus),
-		agreementKind(spreadOK),
-		agreementMark(spreadOK),
-		spread,
-		spreadRequireLabel(maxSpread),
-	)
-}
-
-func voteResultsHTML(rows []participant, consensus, maxSpread int) string {
-	var b strings.Builder
+func voteResultsViewFrom(rows []participant, consensus, maxSpread int) voteResultsView {
 	if !allVotersHaveVoted(rows) {
-		b.WriteString(agreedPointsHTML(""))
-		b.WriteString(agreementStatusHTML(false, 0, consensus, 0, maxSpread))
-		b.WriteString(`<table id="vote-results" class="user-table results-table" hx-swap-oob="true" hidden>`)
-		b.WriteString(voteResultsHead)
-		b.WriteString("<tbody></tbody></table>")
-		return b.String()
+		return voteResultsView{Hidden: true}
 	}
 
 	tallies := tallyVotes(rows)
@@ -287,19 +292,35 @@ func voteResultsHTML(rows []participant, consensus, maxSpread int) string {
 		leadingPercent = percentOf(tallies[0].count, total)
 	}
 	spread := voteSpread(rows)
-
-	b.WriteString(agreedPointsHTML(agreedPoints(tallies, total, consensus, spread, maxSpread)))
-	b.WriteString(agreementStatusHTML(true, leadingPercent, consensus, spread, maxSpread))
-	b.WriteString(`<table id="vote-results" class="user-table results-table" hx-swap-oob="true">`)
-	b.WriteString(voteResultsHead)
-	b.WriteString("<tbody>")
-	for _, t := range tallies {
-		cls := ""
-		if t.count == maxCount {
-			cls = ` class="vote-leader"`
-		}
-		fmt.Fprintf(&b, "<tr%s><td>%s</td><td>%d</td><td>%d%%</td></tr>", cls, html.EscapeString(t.points), t.count, percentOf(t.count, total))
+	points := agreedPoints(tallies, total, consensus, spread, maxSpread)
+	kind := "agreed-yes"
+	if points == "N/A" {
+		kind = "agreed-no"
 	}
-	b.WriteString("</tbody></table>")
-	return b.String()
+	percentOK := meetsConsensus(leadingPercent, consensus)
+	spreadOK := meetsSpread(spread, maxSpread)
+	rowsOut := make([]voteResultRow, len(tallies))
+	for i, t := range tallies {
+		rowsOut[i] = voteResultRow{
+			Leader:  t.count == maxCount,
+			Points:  t.points,
+			Count:   t.count,
+			Percent: percentOf(t.count, total),
+		}
+	}
+	return voteResultsView{
+		ShowAgreed:     true,
+		AgreedClass:    kind,
+		AgreedPoints:   points,
+		ShowAgreement:  true,
+		PercentKind:    agreementKind(percentOK),
+		PercentMark:    agreementMark(percentOK),
+		LeadingPercent: leadingPercent,
+		PercentRequire: htmltemplate.HTML(percentRequireLabel(consensus)),
+		SpreadKind:     agreementKind(spreadOK),
+		SpreadMark:     agreementMark(spreadOK),
+		Spread:         spread,
+		SpreadRequire:  htmltemplate.HTML(spreadRequireLabel(maxSpread)),
+		Rows:           rowsOut,
+	}
 }
