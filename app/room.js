@@ -227,7 +227,7 @@
   });
 
   const stored = localStorage.getItem(key);
-  if (stored && stored.trim()) {
+  if (stored?.trim()) {
     input.value = stored.trim();
   }
   input.focus();
