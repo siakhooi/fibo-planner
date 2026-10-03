@@ -3,6 +3,8 @@ package main
 import (
 	"strings"
 	"testing"
+
+	"github.com/gorilla/websocket"
 )
 
 func roomHTML(n int, rows []participant, alwaysShow bool) string {
@@ -559,5 +561,107 @@ func TestRoomStateHTMLAgreementStatus(t *testing.T) {
 	}
 	if strings.Contains(wide, `Agreed Points: <strong>`) && strings.Contains(wide, `class="agreed-yes"`) {
 		t.Fatalf("wide spread should not agree: %s", wide)
+	}
+}
+
+func TestExecRoomTemplateMissingName(t *testing.T) {
+	t.Parallel()
+
+	if got := execRoomTemplate("missing-room-template", nil); got != "" {
+		t.Fatalf("missing template should render empty, got %q", got)
+	}
+}
+
+func TestSortParticipantsBreaksNameTiesByPoints(t *testing.T) {
+	t.Parallel()
+
+	rows := []participant{
+		{name: "Ada", points: "8"},
+		{name: "Ada", points: "3"},
+		{name: "Ada", points: "5", observer: true},
+		{name: "Ada", points: "1", observer: true},
+	}
+	sortParticipants(rows)
+	want := []participant{
+		{name: "Ada", points: "3"},
+		{name: "Ada", points: "8"},
+		{name: "Ada", points: "1", observer: true},
+		{name: "Ada", points: "5", observer: true},
+	}
+	if len(rows) != len(want) {
+		t.Fatalf("got %#v", rows)
+	}
+	for i := range want {
+		if rows[i] != want[i] {
+			t.Fatalf("index %d: got %#v want %#v", i, rows, want)
+		}
+	}
+}
+
+func TestRoomPageFrom(t *testing.T) {
+	t.Parallel()
+
+	h := newRoomHub("sprint")
+	h.add(&websocket.Conn{}, "Ada")
+	h.setTopic("Login")
+	h.setPreloadedTopics([]string{"Next", "Later"})
+	h.setConsensusPercent(80)
+	h.setMaxSpread(1)
+	h.toggleAlwaysShowVotes()
+
+	got := roomPageFrom("123456", h)
+	if got.RoomID != "123456" || got.RoomName != "sprint" || got.Count != 1 {
+		t.Fatalf("page identity: %+v", got)
+	}
+	if got.AlwaysPressed != "true" || got.ObserverPressed != "false" {
+		t.Fatalf("pressed always=%s observer=%s", got.AlwaysPressed, got.ObserverPressed)
+	}
+	if got.Topic != (topicView{Title: "Login"}) {
+		t.Fatalf("topic %+v", got.Topic)
+	}
+	if got.Queue != (queueView{Next: "Next", Count: 2, Body: "Next\nLater"}) {
+		t.Fatalf("queue %+v", got.Queue)
+	}
+	if got.Consensus.Percent != 80 || got.Consensus.MaxSpread != 1 {
+		t.Fatalf("consensus percent=%d spread=%d", got.Consensus.Percent, got.Consensus.MaxSpread)
+	}
+	if !got.Results.Hidden {
+		t.Fatal("first paint should hide results")
+	}
+
+	blank := roomPageFrom("000000", newRoomHub(""))
+	if blank.RoomName != "" || blank.Count != 0 || blank.AlwaysPressed != "false" {
+		t.Fatalf("blank page: %+v", blank)
+	}
+	if blank.Topic != (topicView{Empty: true}) {
+		t.Fatalf("empty topic %+v", blank.Topic)
+	}
+	if blank.Queue != (queueView{Empty: true}) {
+		t.Fatalf("empty queue %+v", blank.Queue)
+	}
+}
+
+func TestPercentTicksForStep(t *testing.T) {
+	t.Parallel()
+
+	byOne := percentTicksForStep(0)
+	wantLen := maxConsensusPercent - minConsensusPercent + 1
+	if len(byOne) != wantLen || byOne[0] != minConsensusPercent || byOne[len(byOne)-1] != maxConsensusPercent {
+		t.Fatalf("non-positive step should tick by 1: %v", byOne)
+	}
+	negative := percentTicksForStep(-4)
+	if len(negative) != len(byOne) || negative[0] != byOne[0] || negative[len(negative)-1] != byOne[len(byOne)-1] {
+		t.Fatalf("negative step should tick by 1: %v", negative)
+	}
+
+	got := percentTicksForStep(30)
+	want := []int{50, 80, 100}
+	if len(got) != len(want) {
+		t.Fatalf("got %v want %v", got, want)
+	}
+	for i := range want {
+		if got[i] != want[i] {
+			t.Fatalf("got %v want %v", got, want)
+		}
 	}
 }
