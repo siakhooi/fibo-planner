@@ -566,6 +566,10 @@ body.room-page h2 {
   border-color: #ef4444;
 }
 
+.ws-status:not([hidden]) {
+  display: block;
+}
+
 .ws-status {
   margin: 0 0 0.75rem;
   padding: 0.55rem 0.75rem;
