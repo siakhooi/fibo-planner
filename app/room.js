@@ -60,11 +60,7 @@
         adminPanel.dataset.userToggled = "";
       }
     });
-    if (desktopAdmin.addEventListener) {
-      desktopAdmin.addEventListener("change", syncAdminPanelOpen);
-    } else if (desktopAdmin.addListener) {
-      desktopAdmin.addListener(syncAdminPanelOpen);
-    }
+    desktopAdmin.addEventListener("change", syncAdminPanelOpen);
     syncAdminPanelOpen();
   }
 
