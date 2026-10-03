@@ -21,11 +21,10 @@
   }
   function copyRoomLink() {
     const url = window.location.origin + "/" + roomID;
-    const pending = navigator.clipboard?.writeText(url);
-    if (!pending) {
+    if (!navigator.clipboard?.writeText) {
       return;
     }
-    pending.then(markRoomUrlCopied).catch(function () {
+    navigator.clipboard.writeText(url).then(markRoomUrlCopied).catch(function () {
       return undefined;
     });
   }
