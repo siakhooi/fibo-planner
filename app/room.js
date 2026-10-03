@@ -42,7 +42,7 @@
         markRoomUrlCopied();
       }
     } finally {
-      document.body.removeChild(ta);
+      ta.remove();
     }
   }
   if (copyRoomUrl) {
