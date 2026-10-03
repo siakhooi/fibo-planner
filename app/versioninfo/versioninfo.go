@@ -11,11 +11,6 @@ var (
 	Commit = "unknown"
 )
 
-// PrintBuildInfo outputs the build information.
-func PrintBuildInfo() {
-	fmt.Print(Format())
-}
-
 // Format returns the build information as a string.
 func Format() string {
 	return fmt.Sprintf("Version: %s\nCommit: %s\nBuildDate: %s\n", Version, Commit, Date)

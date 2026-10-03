@@ -12,7 +12,7 @@ import (
 )
 
 func TestRoomPageNotFound(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	page := getHTML(t, srv, "/000000", http.StatusNotFound)
@@ -26,7 +26,7 @@ func TestRoomPageNotFound(t *testing.T) {
 
 func TestRoomPageUnnamedHubUsesRoomID(t *testing.T) {
 	a := newAppConfig(false)
-	a.roomHubs["123456"] = newHub()
+	a.roomHubs["123456"] = newRoomHub("")
 
 	srv := httptest.NewServer(newRouter(a))
 	t.Cleanup(srv.Close)
@@ -53,7 +53,7 @@ func TestRoomPageAfterEvictionIsNotFound(t *testing.T) {
 }
 
 func TestRoomPageNamedRoom(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	id := createRoom(t, srv, "sprint")
@@ -64,7 +64,7 @@ func TestRoomPageNamedRoom(t *testing.T) {
 }
 
 func TestCreateRoomTruncatesMultibyteName(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	id := createRoom(t, srv, strings.Repeat("é", maxDisplayNameLen+3))

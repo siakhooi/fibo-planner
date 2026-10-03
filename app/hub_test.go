@@ -27,7 +27,7 @@ func TestNewRoomHubTruncatesName(t *testing.T) {
 func TestHubAddTruncatesDisplayName(t *testing.T) {
 	t.Parallel()
 
-	h := newHub()
+	h := newRoomHub("")
 	c := &websocket.Conn{}
 	h.add(c, strings.Repeat("é", maxDisplayNameLen+2))
 	got := h.conns[c].name
@@ -42,9 +42,9 @@ func TestHubAddTruncatesDisplayName(t *testing.T) {
 func TestHubSetTopicTruncatesMultibyte(t *testing.T) {
 	t.Parallel()
 
-	h := newHub()
+	h := newRoomHub("")
 	h.setTopic(strings.Repeat("é", maxTopicTitleLen+2))
-	got := h.topic()
+	_, _, _, got, _, _, _ := h.pageView()
 	if got != strings.Repeat("é", maxTopicTitleLen) {
 		t.Fatalf("got %d runes, want %d", utf8.RuneCountInString(got), maxTopicTitleLen)
 	}
@@ -56,10 +56,10 @@ func TestHubSetTopicTruncatesMultibyte(t *testing.T) {
 func TestHubLoadNextTopicTruncatesMultibyte(t *testing.T) {
 	t.Parallel()
 
-	h := newHub()
+	h := newRoomHub("")
 	h.setPreloadedTopics([]string{strings.Repeat("é", maxTopicTitleLen+2)})
 	h.loadNextTopic()
-	got := h.topic()
+	_, _, _, got, _, _, _ := h.pageView()
 	if got != strings.Repeat("é", maxTopicTitleLen) {
 		t.Fatalf("got %d runes, want %d", utf8.RuneCountInString(got), maxTopicTitleLen)
 	}
@@ -95,7 +95,7 @@ func TestBroadcastRoomStateDropsFailed(t *testing.T) {
 	dead := dialTestWS(t)
 	_ = dead.Close()
 
-	h := newHub()
+	h := newRoomHub("")
 	h.add(alive, "Ada")
 	h.add(dead, "Bob")
 	if h.count() != 2 {

@@ -10,28 +10,6 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func TestNewAppLobbyListRoomsEnv(t *testing.T) {
-	cases := []struct {
-		val  string
-		want bool
-	}{
-		{val: "", want: false},
-		{val: "N", want: false},
-		{val: "Y", want: true},
-		{val: "y", want: false},
-		{val: "yes", want: false},
-	}
-	for _, tc := range cases {
-		t.Run("env="+tc.val, func(t *testing.T) {
-			t.Setenv(lobbyListRoomsEnv, tc.val)
-			a := newApp()
-			if a.listLobbyRooms != tc.want {
-				t.Fatalf("listLobbyRooms=%v, want %v", a.listLobbyRooms, tc.want)
-			}
-		})
-	}
-}
-
 func TestLobbyHomeShowsTotalsWithoutRoomList(t *testing.T) {
 	a := newAppConfig(false)
 	seedLobbyRoom(a, "111111", "sprint", 2)
@@ -81,7 +59,7 @@ func TestLobbyHomeListsRoomsWhenEnabled(t *testing.T) {
 
 func TestLobbySnapshotUnnamedHubUsesRoomID(t *testing.T) {
 	a := newAppConfig(true)
-	a.roomHubs["123456"] = newHub()
+	a.roomHubs["123456"] = newRoomHub("")
 
 	got := a.snapshotLobbyOverview(false)
 	if got.RoomCount != 1 {

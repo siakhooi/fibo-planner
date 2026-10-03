@@ -28,7 +28,11 @@ func TestParseVotePoints(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, ok := parseVotePoints([]byte(tt.payload))
+			m, parsed := parseWSMessage([]byte(tt.payload))
+			got, ok := "", false
+			if parsed {
+				got, ok = m.votePoints()
+			}
 			if ok != tt.ok {
 				t.Fatalf("ok=%v want %v", ok, tt.ok)
 			}
@@ -61,7 +65,11 @@ func TestParseAdminAction(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, ok := parseAdminAction([]byte(tt.payload))
+			m, parsed := parseWSMessage([]byte(tt.payload))
+			got, ok := "", false
+			if parsed {
+				got, ok = m.adminAction()
+			}
 			if ok != tt.ok {
 				t.Fatalf("ok=%v want %v", ok, tt.ok)
 			}
@@ -93,7 +101,11 @@ func TestParseJoinName(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, ok := parseJoinName([]byte(tt.payload))
+			m, parsed := parseWSMessage([]byte(tt.payload))
+			got, ok := "", false
+			if parsed {
+				got, ok = m.joinName()
+			}
 			if ok != tt.ok {
 				t.Fatalf("ok=%v want %v", ok, tt.ok)
 			}
@@ -107,10 +119,18 @@ func TestParseJoinName(t *testing.T) {
 func TestParseTopicTitle(t *testing.T) {
 	t.Parallel()
 
-	if got := parseTopicTitle([]byte(`{"admin":"set-topic","topic-title":" Login "}`)); got != "Login" {
+	titled, ok := parseWSMessage([]byte(`{"admin":"set-topic","topic-title":" Login "}`))
+	if !ok {
+		t.Fatal("expected topic JSON")
+	}
+	if got := titled.topicTitle(); got != "Login" {
 		t.Fatalf("got title=%q", got)
 	}
-	if got := parseTopicTitle([]byte(`{"admin":"set-topic"}`)); got != "" {
+	missing, ok := parseWSMessage([]byte(`{"admin":"set-topic"}`))
+	if !ok {
+		t.Fatal("expected topic JSON")
+	}
+	if got := missing.topicTitle(); got != "" {
 		t.Fatalf("missing title should be empty, got %q", got)
 	}
 }
@@ -118,7 +138,11 @@ func TestParseTopicTitle(t *testing.T) {
 func TestParsePreloadedTopics(t *testing.T) {
 	t.Parallel()
 
-	got := parsePreloadedTopics([]byte("{\"admin\":\"set-preloaded-topics\",\"preloaded-topics\":\"  Alpha  \\n\\nBeta\\n  \\nGamma  \"}"))
+	listed, ok := parseWSMessage([]byte("{\"admin\":\"set-preloaded-topics\",\"preloaded-topics\":\"  Alpha  \\n\\nBeta\\n  \\nGamma  \"}"))
+	if !ok {
+		t.Fatal("expected preloaded JSON")
+	}
+	got := listed.preloadedTopics()
 	want := []string{"Alpha", "Beta", "Gamma"}
 	if len(got) != len(want) {
 		t.Fatalf("got %v want %v", got, want)
@@ -129,7 +153,11 @@ func TestParsePreloadedTopics(t *testing.T) {
 		}
 	}
 
-	crlf := parsePreloadedTopics([]byte("{\"preloaded-topics\":\"One\\r\\n\\r\\nTwo\"}"))
+	crlfMsg, ok := parseWSMessage([]byte("{\"preloaded-topics\":\"One\\r\\n\\r\\nTwo\"}"))
+	if !ok {
+		t.Fatal("expected preloaded JSON")
+	}
+	crlf := crlfMsg.preloadedTopics()
 	if len(crlf) != 2 || crlf[0] != "One" || crlf[1] != "Two" {
 		t.Fatalf("CRLF should split and drop blanks: %v", crlf)
 	}
@@ -149,7 +177,11 @@ func TestParsePreloadedTopics(t *testing.T) {
 		t.Fatal("truncated multibyte title must be valid UTF-8")
 	}
 
-	if got := parsePreloadedTopics([]byte(`{"admin":"set-preloaded-topics"}`)); len(got) != 0 {
+	empty, ok := parseWSMessage([]byte(`{"admin":"set-preloaded-topics"}`))
+	if !ok {
+		t.Fatal("expected preloaded JSON")
+	}
+	if got := empty.preloadedTopics(); len(got) != 0 {
 		t.Fatalf("missing field should be empty, got %v", got)
 	}
 
@@ -183,7 +215,11 @@ func TestParseConsensusPercent(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, ok := parseConsensusPercent([]byte(tt.payload))
+			m, parsed := parseWSMessage([]byte(tt.payload))
+			got, ok := 0, false
+			if parsed {
+				got, ok = m.consensusPercent()
+			}
 			if ok != tt.ok {
 				t.Fatalf("ok=%v want %v", ok, tt.ok)
 			}
@@ -214,7 +250,11 @@ func TestParseMaxSpread(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-			got, ok := parseMaxSpread([]byte(tt.payload))
+			m, parsed := parseWSMessage([]byte(tt.payload))
+			got, ok := 0, false
+			if parsed {
+				got, ok = m.maxSpread()
+			}
 			if ok != tt.ok {
 				t.Fatalf("ok=%v want %v", ok, tt.ok)
 			}

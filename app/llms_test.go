@@ -1,7 +1,6 @@
 package main
 
 import (
-	"io"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -11,25 +10,16 @@ import (
 )
 
 func TestLLMSTxtRouteServesStockGuide(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
-	resp, err := http.Get(srv.URL + "/llms.txt")
-	if err != nil {
-		t.Fatalf("GET /llms.txt: %v", err)
+	status, contentType, text := getResponse(t, srv.URL+"/llms.txt")
+	if status != http.StatusOK {
+		t.Fatalf("status %d", status)
 	}
-	defer func() { _ = resp.Body.Close() }()
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		t.Fatal(err)
+	if contentType != "text/plain; charset=utf-8" {
+		t.Fatalf("content type %q", contentType)
 	}
-	if resp.StatusCode != http.StatusOK {
-		t.Fatalf("status %d", resp.StatusCode)
-	}
-	if got := resp.Header.Get("Content-Type"); got != "text/plain; charset=utf-8" {
-		t.Fatalf("content type %q", got)
-	}
-	text := string(body)
 	for _, want := range []string{
 		"# Fibo Planner",
 		"POST /rooms",
