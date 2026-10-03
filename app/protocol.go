@@ -148,47 +148,6 @@ func (m wsMessage) preloadedTopics() []string {
 	return normalizePreloadedTopics(jsonString(m.PreloadedTopics))
 }
 
-// Thin payload wrappers keep unit tests focused on wire formats.
-func parseVotePoints(payload []byte) (string, bool) {
-	m, ok := parseWSMessage(payload)
-	if !ok {
-		return "", false
-	}
-	return m.votePoints()
-}
-
-func parseAdminAction(payload []byte) (string, bool) {
-	m, ok := parseWSMessage(payload)
-	if !ok {
-		return "", false
-	}
-	return m.adminAction()
-}
-
-func parseJoinName(payload []byte) (string, bool) {
-	m, ok := parseWSMessage(payload)
-	if !ok {
-		return "", false
-	}
-	return m.joinName()
-}
-
-func parseConsensusPercent(payload []byte) (int, bool) {
-	m, ok := parseWSMessage(payload)
-	if !ok {
-		return 0, false
-	}
-	return m.consensusPercent()
-}
-
-func parseMaxSpread(payload []byte) (int, bool) {
-	m, ok := parseWSMessage(payload)
-	if !ok {
-		return 0, false
-	}
-	return m.maxSpread()
-}
-
 func jsonInt(v any) (int, bool) {
 	switch t := v.(type) {
 	case string:
@@ -206,22 +165,6 @@ func jsonInt(v any) (int, bool) {
 	default:
 		return 0, false
 	}
-}
-
-func parseTopicTitle(payload []byte) string {
-	m, ok := parseWSMessage(payload)
-	if !ok {
-		return ""
-	}
-	return m.topicTitle()
-}
-
-func parsePreloadedTopics(payload []byte) []string {
-	m, ok := parseWSMessage(payload)
-	if !ok {
-		return nil
-	}
-	return m.preloadedTopics()
 }
 
 func normalizePreloadedTopics(raw string) []string {

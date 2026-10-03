@@ -10,7 +10,7 @@ import (
 )
 
 func TestLegalPages(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	cases := []struct {
@@ -61,7 +61,7 @@ func TestLegalPages(t *testing.T) {
 }
 
 func TestPagesShareLegalFooter(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	roomID := createRoom(t, srv, "sprint")

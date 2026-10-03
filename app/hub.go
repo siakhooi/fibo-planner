@@ -73,10 +73,6 @@ type Hub struct {
 	maxSpread        int
 }
 
-func newHub() *Hub {
-	return newRoomHub("")
-}
-
 func newRoomHub(name string) *Hub {
 	return &Hub{
 		conns:            make(map[*websocket.Conn]participant),
@@ -192,12 +188,6 @@ func (h *Hub) loadNextTopic() {
 	copy(next, h.preloadedTopics[1:])
 	h.preloadedTopics = next
 	h.clearVotesLocked()
-}
-
-func (h *Hub) topic() string {
-	h.mu.Lock()
-	defer h.mu.Unlock()
-	return h.topicTitle
 }
 
 func (h *Hub) setConsensusPercent(n int) {

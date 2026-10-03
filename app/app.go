@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"sync"
 	"time"
 )
@@ -15,10 +14,6 @@ type App struct {
 	roomHubs        map[string]*Hub
 	roomEvictTimers map[string]*time.Timer // pending idle-eviction per room
 	listLobbyRooms  bool                   // FIBO_PLANNER_LOBBY_LIST_ROOMS=Y lists each room on the lobby
-}
-
-func newApp() *App {
-	return newAppConfig(os.Getenv(lobbyListRoomsEnv) == "Y")
 }
 
 func newAppConfig(listLobbyRooms bool) *App {

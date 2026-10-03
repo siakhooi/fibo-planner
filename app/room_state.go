@@ -9,10 +9,6 @@ import (
 	"strings"
 )
 
-func roomStateHTML(n int, rows []participant, alwaysShow bool, topic string, consensus, maxSpread int) string {
-	return renderRoomState(n, rows, alwaysShow, topic, consensus, maxSpread, nil)
-}
-
 func renderRoomState(n int, rows []participant, alwaysShow bool, topic string, consensus, maxSpread int, preloaded []string) string {
 	sortParticipants(rows)
 	return execRoomTemplate("room-state", roomStateData{
@@ -263,10 +259,6 @@ func spreadTicks() []int {
 	return ticks
 }
 
-func maturityPresetsHTML(percent, maxSpread int) string {
-	return execRoomTemplate("maturity-presets", maturityButtons(percent, maxSpread))
-}
-
 func maturityButtons(percent, maxSpread int) []maturityButton {
 	out := make([]maturityButton, len(teamMaturityPresets))
 	for i, p := range teamMaturityPresets {
@@ -278,14 +270,6 @@ func maturityButtons(percent, maxSpread int) []maturityButton {
 		}
 	}
 	return out
-}
-
-func loadNextTopicButtonHTML(topics []string) string {
-	return execRoomTemplate("load-next-topic", queueViewFrom(topics))
-}
-
-func preloadedTopicsDataHTML(topics []string) string {
-	return execRoomTemplate("preloaded-topics-data", queueViewFrom(topics))
 }
 
 func percentRequireLabel(threshold int) string {

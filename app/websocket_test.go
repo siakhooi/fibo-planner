@@ -14,7 +14,7 @@ import (
 )
 
 func TestRoomPageHasPointsTable(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	roomID := createRoom(t, srv, "sprint")
@@ -88,7 +88,7 @@ func TestRoomPageHasPointsTable(t *testing.T) {
 }
 
 func TestRoomJSHasClientBehavior(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	status, ct, js := getResponse(t, srv.URL+"/room.js")
@@ -121,7 +121,7 @@ func TestRoomJSHasClientBehavior(t *testing.T) {
 }
 
 func TestRoomPageResponsiveLayout(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	roomID := createRoom(t, srv, "sprint")
@@ -185,7 +185,7 @@ func TestCreateRoomWithoutName(t *testing.T) {
 }
 
 func TestVoteBroadcastToAllParticipants(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
@@ -225,7 +225,7 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 }
 
 func TestConsensusAgreementBroadcastAndAgreedPoints(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob", "Cyd")
@@ -305,7 +305,7 @@ func TestConsensusAgreementBroadcastAndAgreedPoints(t *testing.T) {
 }
 
 func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
@@ -345,7 +345,7 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 }
 
 func TestSetTopicKeepsVotes(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
@@ -373,7 +373,7 @@ func TestSetTopicKeepsVotes(t *testing.T) {
 }
 
 func TestPreloadedTopicsBroadcastAndLoadNext(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
@@ -441,7 +441,7 @@ func TestPreloadedTopicsBroadcastAndLoadNext(t *testing.T) {
 }
 
 func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
@@ -494,7 +494,7 @@ func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {
 }
 
 func TestObserverModeDuplicateNamesSyncsOnlySelf(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	_, conns := joinRoom(t, srv, "sprint", "Alex", "Alex")
@@ -564,7 +564,7 @@ func TestParseWSOrigins(t *testing.T) {
 }
 
 func TestWSUpgradeRejectsCrossOrigin(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	req, err := http.NewRequest(http.MethodGet, srv.URL+"/ws", nil)
@@ -587,7 +587,7 @@ func TestWSUpgradeRejectsCrossOrigin(t *testing.T) {
 }
 
 func TestWSOversizedMessageCloses(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	_, conns := joinRoom(t, srv, "sprint", "Ada")
@@ -614,7 +614,7 @@ func TestWSPingKeepsConnection(t *testing.T) {
 	wsPongWait = time.Second
 	wsPingPeriod = 200 * time.Millisecond
 
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	roomID := createRoom(t, srv, "sprint")
@@ -688,7 +688,7 @@ func TestWSPingKeepsConnection(t *testing.T) {
 }
 
 func TestRoomWSIgnoresNameQueryString(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	roomID := createRoom(t, srv, "sprint")
@@ -707,7 +707,7 @@ func TestRoomWSIgnoresNameQueryString(t *testing.T) {
 }
 
 func TestRoomWSVoteBeforeJoinIgnored(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	roomID := createRoom(t, srv, "sprint")

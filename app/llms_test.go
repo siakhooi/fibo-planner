@@ -10,7 +10,7 @@ import (
 )
 
 func TestLLMSTxtRouteServesStockGuide(t *testing.T) {
-	srv := httptest.NewServer(newRouter(newApp()))
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
 	t.Cleanup(srv.Close)
 
 	status, contentType, text := getResponse(t, srv.URL+"/llms.txt")
