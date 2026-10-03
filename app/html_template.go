@@ -46,6 +46,13 @@ type customHTML struct {
 	Legal map[string]string
 }
 
+// templateFS is the embedded page and room.js source. fatalf exits on a broken set.
+// Tests replace either one to exercise startup failure without stopping the process.
+var (
+	templateFS fs.FS = tplFS
+	fatalf           = log.Fatalf
+)
+
 // tmpl starts as the stock pages so tests can render before flags are parsed.
 // applyServerFlags replaces it from --custom-html-dir before the server listens.
 var tmpl = mustParseAppTemplates()
@@ -64,9 +71,9 @@ func writeHTML(w http.ResponseWriter, status int, name string, data any) {
 }
 
 func mustParseAppTemplates() *template.Template {
-	t, err := parseAppTemplates(tplFS, "")
+	t, err := parseAppTemplates(templateFS, "")
 	if err != nil {
-		log.Fatalf("html templates: %v", err)
+		fatalf("html templates: %v", err)
 	}
 	return t
 }
@@ -161,7 +168,7 @@ func readOptionalCSS(htmlFS fs.FS, name string) (template.CSS, error) {
 }
 
 func serveRoomJS(w http.ResponseWriter, _ *http.Request) {
-	b, err := tplFS.ReadFile("room.js")
+	b, err := fs.ReadFile(templateFS, "room.js")
 	if err != nil {
 		http.Error(w, "not found", http.StatusNotFound)
 		return
