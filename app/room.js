@@ -106,7 +106,7 @@
     });
     roomWs.addEventListener("htmx:wsOpen", function (evt) {
       setWSDisconnected(false);
-      const wrapper = evt.detail && evt.detail.socketWrapper;
+      const wrapper = evt.detail?.socketWrapper;
       if (wrapper && joinedName) {
         wrapper.send(JSON.stringify({ name: joinedName }));
       }
