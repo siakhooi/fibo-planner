@@ -67,6 +67,10 @@ That sample is built from [fibo-planner-on-gcp](https://github.com/siakhooi/fibo
 
 ## Run it
 
+Install a release binary with Homebrew, Scoop, APT, RPM, a GitHub release archive, or `go install`. Steps are in [INSTALL.md](INSTALL.md).
+
+From a checkout:
+
 ```bash
 go run ./app
 ```
