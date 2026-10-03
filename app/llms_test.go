@@ -1,6 +1,8 @@
 package main
 
 import (
+	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -95,6 +97,28 @@ func TestLoadLLMSTxtUnsetDirKeepsStock(t *testing.T) {
 		if !strings.Contains(string(got), "# Fibo Planner") {
 			t.Fatalf("dir %q: expected stock guide", dir)
 		}
+	}
+}
+
+func TestMustLoadLLMSTxtReportsReadError(t *testing.T) {
+	origLoad, origFatal := loadLLMS, fatalf
+	t.Cleanup(func() {
+		loadLLMS = origLoad
+		fatalf = origFatal
+	})
+	loadLLMS = func(string) ([]byte, error) {
+		return nil, errors.New("disk")
+	}
+	var message string
+	fatalf = func(format string, args ...any) {
+		message = fmt.Sprintf(format, args...)
+	}
+
+	if got := mustLoadLLMSTxt(); got != nil {
+		t.Fatalf("got %q", got)
+	}
+	if message != "llms.txt: disk" {
+		t.Fatalf("message %q", message)
 	}
 }
 
