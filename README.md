@@ -67,6 +67,10 @@ That sample is built from [fibo-planner-on-gcp](https://github.com/siakhooi/fibo
 
 ## Run it
 
+Install a release binary with Homebrew, Scoop, APT, RPM, a GitHub release archive, or `go install`. Steps are in [INSTALL.md](INSTALL.md).
+
+From a checkout:
+
 ```bash
 go run ./app
 ```
@@ -88,6 +92,19 @@ docker run -p 8080:8080 siakhooi/fibo-planner
 Then open [http://localhost:8080](http://localhost:8080).
 
 With [just](https://github.com/casey/just): `just run` or `just docker-run`.
+
+### Kubernetes
+
+A single-replica sample is in [`deploy/fibo-planner.yaml`](deploy/fibo-planner.yaml). Room state stays in the process, so keep `replicas: 1`.
+
+```bash
+kubectl apply -f deploy/fibo-planner.yaml
+kubectl port-forward svc/fibo-planner 8080:80
+```
+
+Then open [http://localhost:8080](http://localhost:8080). The Docker environment variables below can be set on the container. Leave `FIBO_PLANNER_ADDR` unset so the process listens on `:8080` inside the pod.
+
+[`deploy/fibo-planner-custom-html.yaml`](deploy/fibo-planner-custom-html.yaml) is the same sample with a ConfigMap mounted at `/custom`. Apply that file instead of the plain one. The process reads those files only at startup, so restart the Deployment after changing the ConfigMap.
 
 ### Listen address
 
