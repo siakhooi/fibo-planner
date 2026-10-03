@@ -3,12 +3,18 @@ package main
 import (
 	"bytes"
 	"context"
+	"crypto/tls"
+	"errors"
 	"io"
+	"log"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"slices"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/siakhooi/fibo-planner/app/versioninfo"
 	"github.com/urfave/cli/v3"
@@ -271,3 +277,171 @@ func TestRootCommandUnknownFlag(t *testing.T) {
 		t.Fatal("expected an error for an unknown flag")
 	}
 }
+
+func TestAccessLogURI(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		path, raw, want string
+	}{
+		{path: "/", want: "/"},
+		{path: "/rooms", raw: "name=Ada", want: "/rooms?name=Ada"},
+		{path: "/ws", want: "/ws"},
+		{path: "/ws", raw: "name=Ada", want: "/ws"},
+		{path: "/ws/123456", raw: "name=Ada&x=1", want: "/ws/123456?x=1"},
+		{path: "/ws", raw: "%zz", want: "/ws"},
+	}
+	for _, tc := range cases {
+		if got := accessLogURI(tc.path, tc.raw); got != tc.want {
+			t.Errorf("accessLogURI(%q, %q)=%q, want %q", tc.path, tc.raw, got, tc.want)
+		}
+	}
+}
+
+func TestAccessLogEntry(t *testing.T) {
+	var buf bytes.Buffer
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(os.Stderr) })
+
+	httpReq := httptest.NewRequest(http.MethodGet, "http://planner.example/rooms?x=1", nil)
+	httpReq.Host = "planner.example"
+	httpReq.RemoteAddr = "10.0.0.1:1234"
+	entry := accessLogFormatter{}.NewLogEntry(httpReq).(*accessLogEntry)
+	if !strings.Contains(entry.msg, `"GET http://planner.example/rooms?x=1 HTTP/1.1" from 10.0.0.1:1234`) {
+		t.Fatalf("http entry %q", entry.msg)
+	}
+
+	tlsReq := httptest.NewRequest(http.MethodGet, "https://planner.example/ws?name=Ada", nil)
+	tlsReq.TLS = &tls.ConnectionState{}
+	tlsReq.Host = "planner.example"
+	tlsReq.RemoteAddr = "10.0.0.2:9"
+	tlsEntry := accessLogFormatter{}.NewLogEntry(tlsReq).(*accessLogEntry)
+	if !strings.Contains(tlsEntry.msg, `"GET https://planner.example/ws HTTP/1.1" from 10.0.0.2:9`) {
+		t.Fatalf("https entry %q", tlsEntry.msg)
+	}
+
+	entry.Write(http.StatusOK, 12, nil, time.Millisecond, nil)
+	tlsEntry.Panic("boom", []byte("stack"))
+	text := buf.String()
+	if !strings.Contains(text, "200 12B") || !strings.Contains(text, "panic: boom") || !strings.Contains(text, "stack") {
+		t.Fatalf("log %q", text)
+	}
+}
+
+func TestNewRouterServesHome(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
+	t.Cleanup(srv.Close)
+
+	resp, err := http.Get(srv.URL + "/")
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if resp.StatusCode != http.StatusOK || !strings.Contains(string(body), "create-room") {
+		t.Fatalf("home status=%d body=%q", resp.StatusCode, body)
+	}
+}
+
+func TestServeAction(t *testing.T) {
+	t.Setenv(listenAddrEnv, "")
+	t.Setenv(wsOriginsEnv, "")
+	t.Setenv(lobbyListRoomsEnv, "")
+	t.Setenv(customHTMLDirEnv, "")
+	t.Cleanup(func() {
+		setAllowedWSOrigins("")
+		if err := loadCustomContent(""); err != nil {
+			t.Errorf("restore templates: %v", err)
+		}
+	})
+
+	run := func(args ...string) error {
+		cmd := newRootCommand()
+		cmd.Writer = io.Discard
+		cmd.ErrWriter = io.Discard
+		return cmd.Run(context.Background(), append([]string{"fibo-planner"}, args...))
+	}
+	if err := run("--addr", "127.0.0.1:99999"); err == nil {
+		t.Fatal("expected listen error")
+	}
+
+	file := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(file, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	if err := run("--custom-html-dir", file); err == nil {
+		t.Fatal("expected an error when the custom HTML path is not a directory")
+	}
+}
+
+func TestVersionPrinterWriteError(t *testing.T) {
+	orig := fatal
+	t.Cleanup(func() { fatal = orig })
+	var fataled any
+	fatal = func(v ...any) {
+		if len(v) > 0 {
+			fataled = v[0]
+		}
+	}
+
+	cmd := newRootCommand()
+	cmd.Writer = errWriter{err: errors.New("write failed")}
+	cmd.ErrWriter = io.Discard
+	if err := cmd.Run(context.Background(), []string{"fibo-planner", "--version"}); err != nil {
+		t.Fatal(err)
+	}
+	if fataled == nil {
+		t.Fatal("expected fatal when version output fails")
+	}
+}
+
+func TestProgramMain(t *testing.T) {
+	origArgs := os.Args
+	origStdout := os.Stdout
+	origFatal := fatal
+	t.Cleanup(func() {
+		os.Args = origArgs
+		os.Stdout = origStdout
+		fatal = origFatal
+	})
+
+	r, w, err := os.Pipe()
+	if err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = w
+	done := make(chan struct{})
+	go func() {
+		_, _ = io.Copy(io.Discard, r)
+		close(done)
+	}()
+
+	os.Args = []string{"fibo-planner", "--version"}
+	main()
+	if err := w.Close(); err != nil {
+		t.Fatal(err)
+	}
+	os.Stdout = origStdout
+	<-done
+
+	var fataled any
+	fatal = func(v ...any) {
+		if len(v) > 0 {
+			fataled = v[0]
+		}
+	}
+	os.Args = []string{"fibo-planner", "--not-a-flag"}
+	main()
+	if fataled == nil {
+		t.Fatal("expected fatal for an unknown flag")
+	}
+}
+
+type errWriter struct{ err error }
+
+func (w errWriter) Write([]byte) (int, error) { return 0, w.err }

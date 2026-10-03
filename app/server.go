@@ -13,8 +13,11 @@ const (
 	defaultListenAddr = ":8080"
 	readHeaderTimeout = 10 * time.Second
 	idleTimeout       = 60 * time.Second
-	shutdownTimeout   = 10 * time.Second
 )
+
+// shutdownTimeout bounds Server.Shutdown after the process is asked to stop.
+// Tests shorten it to cover a shutdown that does not finish.
+var shutdownTimeout = 10 * time.Second
 
 func listenAddrFrom(v string) string {
 	v = strings.TrimSpace(v)

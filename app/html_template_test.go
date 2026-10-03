@@ -2,8 +2,12 @@ package main
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
 	"html/template"
+	"io/fs"
+	"net/http"
+	"net/http/httptest"
 	"os"
 	"path/filepath"
 	"strings"
@@ -284,6 +288,272 @@ func TestParseAppTemplatesMinimalFS(t *testing.T) {
 		t.Fatalf("execute: %v", err)
 	}
 	assertSnippetPositions(t, "page.html", buf.String(), "", "", `<span id="END-MARK"></span>`)
+}
+
+func TestApplyCustomHTMLSlotsLeavesUntaggedSource(t *testing.T) {
+	t.Parallel()
+
+	src := "<p>no document shell</p>"
+	if got := applyCustomHTMLSlots(src); got != src {
+		t.Fatalf("untagged source changed: %q", got)
+	}
+}
+
+func TestParseAppTemplatesCSSReadError(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{"base.css", "index.css", "room.css"} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			_, err := parseAppTemplates(openFailFS{fail: name}, "")
+			if err == nil || !strings.Contains(err.Error(), "read "+name) {
+				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+}
+
+func TestParseAppTemplatesGlobError(t *testing.T) {
+	t.Parallel()
+
+	_, err := parseAppTemplates(globFailFS{}, "")
+	if err == nil || !strings.Contains(err.Error(), "glob failed") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestParseAppTemplatesHTMLReadError(t *testing.T) {
+	t.Parallel()
+
+	_, err := parseAppTemplates(htmlReadFailFS{}, "")
+	if err == nil || !strings.Contains(err.Error(), "read boom") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestParseAppTemplatesParseError(t *testing.T) {
+	t.Parallel()
+
+	htmlFS := fstest.MapFS{
+		"page.html": &fstest.MapFile{Data: []byte("{{")},
+	}
+	_, err := parseAppTemplates(htmlFS, "")
+	if err == nil || !strings.Contains(err.Error(), "parse page.html:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestLoadCustomHTMLStatError(t *testing.T) {
+	t.Parallel()
+
+	parent := filepath.Join(t.TempDir(), "file")
+	if err := os.WriteFile(parent, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	_, err := loadCustomHTML(filepath.Join(parent, "child"))
+	if err == nil || !strings.Contains(err.Error(), "custom HTML dir:") {
+		t.Fatalf("err = %v", err)
+	}
+}
+
+func TestLoadCustomHTMLSnippetReadError(t *testing.T) {
+	t.Parallel()
+
+	for _, name := range []string{customHeadFile, customBodyStartFile, customBodyEndFile, customDisclaimerFile, customPrivacyFile, customTermsFile} {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+			dir := t.TempDir()
+			if err := os.Mkdir(filepath.Join(dir, name), 0o755); err != nil {
+				t.Fatal(err)
+			}
+			_, err := loadCustomHTML(dir)
+			if err == nil || !strings.Contains(err.Error(), "read ") {
+				t.Fatalf("err = %v", err)
+			}
+		})
+	}
+}
+
+func TestWriteHTMLRendersTemplate(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeHTML(rec, http.StatusCreated, "room_not_found.html", struct{ RoomID string }{RoomID: "654321"})
+	if rec.Code != http.StatusCreated {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/html; charset=utf-8" {
+		t.Fatalf("content-type %q", got)
+	}
+	if !strings.Contains(rec.Body.String(), "<strong>654321</strong>") {
+		t.Fatalf("body %s", rec.Body.String())
+	}
+}
+
+func TestWriteHTMLTemplateError(t *testing.T) {
+	rec := httptest.NewRecorder()
+	writeHTML(rec, http.StatusOK, "missing.html", nil)
+	if rec.Code != http.StatusInternalServerError {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "template error") {
+		t.Fatalf("body %s", rec.Body.String())
+	}
+	if got := rec.Header().Get("Content-Type"); strings.Contains(got, "text/html") {
+		t.Fatalf("template error content-type %q", got)
+	}
+}
+
+func TestLoadCustomContentReplacesGlobals(t *testing.T) {
+	restoreContentGlobals(t)
+
+	dir := t.TempDir()
+	writeSnippet(t, dir, customHeadFile, `<!--LOAD-MARK-->`)
+	writeSnippet(t, dir, customLLMSFile, "custom llms")
+
+	if err := loadCustomContent(dir); err != nil {
+		t.Fatal(err)
+	}
+	if string(llmsBody) != "custom llms" {
+		t.Fatalf("llmsBody = %q", llmsBody)
+	}
+	rec := httptest.NewRecorder()
+	writeHTML(rec, http.StatusOK, "index.html", lobbyPageData{})
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "<!--LOAD-MARK-->") {
+		t.Fatalf("custom head missing: %s", rec.Body.String())
+	}
+}
+
+func TestLoadCustomContentTemplateError(t *testing.T) {
+	restoreContentGlobals(t)
+	origTmpl, origLLMS := tmpl, string(llmsBody)
+
+	path := filepath.Join(t.TempDir(), "not-a-dir")
+	if err := os.WriteFile(path, []byte("x"), 0o644); err != nil {
+		t.Fatal(err)
+	}
+	err := loadCustomContent(path)
+	if err == nil || !strings.Contains(err.Error(), "html templates:") {
+		t.Fatalf("err = %v", err)
+	}
+	if tmpl != origTmpl || string(llmsBody) != origLLMS {
+		t.Fatal("failed load should leave globals unchanged")
+	}
+}
+
+func TestLoadCustomContentLLMSError(t *testing.T) {
+	restoreContentGlobals(t)
+	origTmpl, origLLMS := tmpl, string(llmsBody)
+
+	dir := t.TempDir()
+	if err := os.Mkdir(filepath.Join(dir, customLLMSFile), 0o755); err != nil {
+		t.Fatal(err)
+	}
+	err := loadCustomContent(dir)
+	if err == nil || !strings.Contains(err.Error(), "llms.txt:") {
+		t.Fatalf("err = %v", err)
+	}
+	if tmpl != origTmpl || string(llmsBody) != origLLMS {
+		t.Fatal("failed load should leave globals unchanged")
+	}
+}
+
+func TestMustParseAppTemplatesReportsBrokenSource(t *testing.T) {
+	origFS, origFatal := templateFS, fatalf
+	t.Cleanup(func() {
+		templateFS = origFS
+		fatalf = origFatal
+	})
+	templateFS = fstest.MapFS{
+		"page.html": &fstest.MapFile{Data: []byte("{{")},
+	}
+	var message string
+	fatalf = func(format string, args ...any) {
+		message = fmt.Sprintf(format, args...)
+	}
+
+	if got := mustParseAppTemplates(); got != nil {
+		t.Fatal("broken templates should not be returned")
+	}
+	if !strings.Contains(message, "html templates:") || !strings.Contains(message, "parse page.html:") {
+		t.Fatalf("message %q", message)
+	}
+}
+
+func TestServeRoomJS(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	serveRoomJS(rec, httptest.NewRequest(http.MethodGet, "/room.js", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "text/javascript; charset=utf-8" {
+		t.Fatalf("content-type %q", got)
+	}
+	if !strings.Contains(rec.Body.String(), "fibo-planner-display-name-") {
+		t.Fatal("room.js body missing display-name key")
+	}
+}
+
+func TestServeRoomJSMissingFile(t *testing.T) {
+	orig := templateFS
+	t.Cleanup(func() { templateFS = orig })
+	templateFS = fstest.MapFS{}
+
+	rec := httptest.NewRecorder()
+	serveRoomJS(rec, httptest.NewRequest(http.MethodGet, "/room.js", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+	if !strings.Contains(rec.Body.String(), "not found") {
+		t.Fatalf("body %s", rec.Body.String())
+	}
+}
+
+func restoreContentGlobals(t *testing.T) {
+	t.Helper()
+	origTmpl := tmpl
+	origLLMS := append([]byte(nil), llmsBody...)
+	t.Cleanup(func() {
+		tmpl = origTmpl
+		llmsBody = origLLMS
+	})
+}
+
+type openFailFS struct {
+	fail string
+}
+
+func (f openFailFS) Open(name string) (fs.File, error) {
+	if name == f.fail {
+		return nil, errors.New("disk")
+	}
+	return nil, fs.ErrNotExist
+}
+
+type globFailFS struct{}
+
+func (globFailFS) Open(string) (fs.File, error) {
+	return nil, fs.ErrNotExist
+}
+
+func (globFailFS) Glob(string) ([]string, error) {
+	return nil, errors.New("glob failed")
+}
+
+type htmlReadFailFS struct{}
+
+func (htmlReadFailFS) Open(name string) (fs.File, error) {
+	if name == "page.html" {
+		return nil, errors.New("read boom")
+	}
+	return nil, fs.ErrNotExist
+}
+
+func (htmlReadFailFS) Glob(string) ([]string, error) {
+	return []string{"page.html"}, nil
 }
 
 func writeSnippet(t *testing.T, dir, name, content string) {

@@ -88,6 +88,79 @@ func TestConnSetWriteAllDropsFailed(t *testing.T) {
 	}
 }
 
+func TestHubParticipantState(t *testing.T) {
+	t.Parallel()
+
+	h := newRoomHub("room")
+	missing := &websocket.Conn{}
+	ada := &websocket.Conn{}
+
+	if n := h.add(ada, "  "); n != 1 || h.conns[ada].name != "Guest" {
+		t.Fatalf("blank name: count=%d name=%q", n, h.conns[ada].name)
+	}
+	if h.setPoints(missing, "5") {
+		t.Fatal("setPoints accepted an unknown connection")
+	}
+	if !h.setPoints(ada, "8") || h.conns[ada].points != "8" {
+		t.Fatalf("setPoints points=%q", h.conns[ada].points)
+	}
+	if h.toggleObserver(missing) {
+		t.Fatal("toggleObserver accepted an unknown connection")
+	}
+	if !h.toggleObserver(ada) || !h.conns[ada].observer || h.conns[ada].points != "" {
+		t.Fatalf("observer=%v points=%q", h.conns[ada].observer, h.conns[ada].points)
+	}
+	if h.setPoints(ada, "5") {
+		t.Fatal("setPoints accepted an observer")
+	}
+	if !h.toggleObserver(ada) || h.conns[ada].observer {
+		t.Fatal("second toggle did not leave observer mode")
+	}
+
+	if !h.setPoints(ada, "3") {
+		t.Fatal("setPoints after leaving observer mode")
+	}
+	h.clearVotes()
+	if h.conns[ada].points != "" {
+		t.Fatalf("clearVotes left %q", h.conns[ada].points)
+	}
+
+	h.setConsensusPercent(80)
+	h.setMaxSpread(2)
+	h.toggleAlwaysShowVotes()
+	name, count, always, topic, consensus, spread, preloaded := h.pageView()
+	if name != "room" || count != 1 || !always || topic != "" || consensus != 80 || spread != 2 || len(preloaded) != 0 {
+		t.Fatalf("page name=%q count=%d always=%v topic=%q consensus=%d spread=%d preloaded=%v", name, count, always, topic, consensus, spread, preloaded)
+	}
+	h.setConsensusPercent(10)
+	h.setMaxSpread(99)
+	h.toggleAlwaysShowVotes()
+	_, _, always, _, consensus, spread, _ = h.pageView()
+	if always || consensus != defaultConsensusPercent || spread != defaultMaxSpread {
+		t.Fatalf("normalized always=%v consensus=%d spread=%d", always, consensus, spread)
+	}
+
+	h.setTopic("keep")
+	h.loadNextTopic()
+	_, _, _, topic, _, _, preloaded = h.pageView()
+	if topic != "keep" || len(preloaded) != 0 {
+		t.Fatalf("empty queue topic=%q preloaded=%v", topic, preloaded)
+	}
+
+	if !h.setPoints(ada, "13") {
+		t.Fatal("setPoints before loadNextTopic")
+	}
+	h.setPreloadedTopics([]string{"Login", "Logout"})
+	h.loadNextTopic()
+	_, _, _, topic, _, _, preloaded = h.pageView()
+	if topic != "Login" || len(preloaded) != 1 || preloaded[0] != "Logout" || h.conns[ada].points != "" {
+		t.Fatalf("topic=%q preloaded=%v points=%q", topic, preloaded, h.conns[ada].points)
+	}
+	if h.remove(ada) != 0 || h.count() != 0 {
+		t.Fatalf("after remove count=%d", h.count())
+	}
+}
+
 func TestBroadcastRoomStateDropsFailed(t *testing.T) {
 	t.Parallel()
 

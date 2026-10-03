@@ -237,7 +237,10 @@ func consensusViewFrom(percent, maxSpread int) consensusView {
 }
 
 func percentTicks() []int {
-	step := consensusPercentTickStep
+	return percentTicksForStep(consensusPercentTickStep)
+}
+
+func percentTicksForStep(step int) []int {
 	if step <= 0 {
 		step = 1
 	}

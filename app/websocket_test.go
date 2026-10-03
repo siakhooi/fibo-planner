@@ -601,3 +601,102 @@ func TestRoomWSVoteBeforeJoinIgnored(t *testing.T) {
 		t.Fatalf("vote before join should be ignored, got %s", msg)
 	}
 }
+
+func TestIndexWSBroadcastsOnConnect(t *testing.T) {
+	a := newAppConfig(false)
+	srv := httptest.NewServer(newRouter(a))
+	t.Cleanup(srv.Close)
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := waitForMessage(t, conn, `id="lobby-overview"`)
+	if !strings.Contains(msg, `hx-swap-oob="true"`) {
+		t.Fatalf("connect broadcast missing OOB marker: %s", msg)
+	}
+	if !strings.Contains(msg, `id="session-count">1</strong>`) {
+		t.Fatalf("connect broadcast missing lobby count: %s", msg)
+	}
+
+	_ = conn.Close()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if a.indexConns.count() == 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("lobby socket was not removed")
+}
+
+func TestRoomWSUpgradeRejectsCrossOrigin(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
+	t.Cleanup(srv.Close)
+
+	roomID := createRoom(t, srv, "sprint")
+	req, err := http.NewRequest(http.MethodGet, srv.URL+"/ws/"+roomID, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	req.Header.Set("Origin", "https://evil.example")
+	req.Header.Set("Connection", "Upgrade")
+	req.Header.Set("Upgrade", "websocket")
+	req.Header.Set("Sec-WebSocket-Version", "13")
+	req.Header.Set("Sec-WebSocket-Key", "dGhlIHNhbXBsZSBub25jZQ==")
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer func() { _ = resp.Body.Close() }()
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("status %d, want %d", resp.StatusCode, http.StatusForbidden)
+	}
+}
+
+func TestRoomWSInvalidJSONIsIgnored(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
+	t.Cleanup(srv.Close)
+
+	_, conns := joinRoom(t, srv, "sprint", "Ada")
+	ada := conns[0]
+	if err := ada.WriteMessage(websocket.TextMessage, []byte("not-json")); err != nil {
+		t.Fatal(err)
+	}
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
+		t.Fatal(err)
+	}
+	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash">8</td>`)
+}
+
+func TestRoomWSInvalidVoteIsIgnored(t *testing.T) {
+	srv := httptest.NewServer(newRouter(newAppConfig(false)))
+	t.Cleanup(srv.Close)
+
+	_, conns := joinRoom(t, srv, "sprint", "Ada")
+	ada := conns[0]
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"99"}`)); err != nil {
+		t.Fatal(err)
+	}
+	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"5"}`)); err != nil {
+		t.Fatal(err)
+	}
+	msg := waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash">5</td>`)
+	if strings.Contains(msg, ">99<") {
+		t.Fatalf("invalid vote should be ignored, got %s", msg)
+	}
+}
+
+func TestWSPingWriteFailureStops(t *testing.T) {
+	orig := wsPingPeriod
+	t.Cleanup(func() { wsPingPeriod = orig })
+	wsPingPeriod = 20 * time.Millisecond
+
+	conn := dialTestWS(t)
+	_ = conn.Close()
+	var mu sync.Mutex
+	stop := startWSPing(&mu, conn)
+	t.Cleanup(stop)
+	time.Sleep(100 * time.Millisecond)
+}

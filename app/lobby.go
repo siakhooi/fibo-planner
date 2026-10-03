@@ -71,7 +71,12 @@ func (a *App) snapshotLobbyOverview(oob bool) lobbyPageData {
 
 func (a *App) lobbyOverviewOOBHTML() string {
 	var buf bytes.Buffer
-	if err := tmpl.ExecuteTemplate(&buf, "lobby-overview-table", a.snapshotLobbyOverview(true)); err != nil {
+	err := tmpl.ExecuteTemplate(&buf, "lobby-overview-table", a.snapshotLobbyOverview(true))
+	return lobbyOverviewFragment(&buf, err)
+}
+
+func lobbyOverviewFragment(buf *bytes.Buffer, err error) string {
+	if err != nil {
 		log.Printf("lobby overview template: %v", err)
 		return ""
 	}
