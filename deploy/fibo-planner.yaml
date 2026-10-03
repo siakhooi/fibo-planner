@@ -1,0 +1,66 @@
+# Sample Deployment and Service. Room state lives in the process, so keep replicas at 1.
+# kubectl apply -f deploy/fibo-planner.yaml
+# kubectl port-forward svc/fibo-planner 8080:80
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fibo-planner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fibo-planner
+  template:
+    metadata:
+      labels:
+        app: fibo-planner
+    spec:
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: fibo-planner
+          image: siakhooi/fibo-planner:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          # Optional. Leave FIBO_PLANNER_ADDR unset so the process listens on :8080.
+          # env:
+          #   - name: FIBO_PLANNER_LOBBY_LIST_ROOMS
+          #     value: "Y"
+          #   - name: FIBO_PLANNER_WS_ORIGINS
+          #     value: https://planner.example.com
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fibo-planner
+spec:
+  selector:
+    app: fibo-planner
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
