@@ -89,6 +89,19 @@ Then open [http://localhost:8080](http://localhost:8080).
 
 With [just](https://github.com/casey/just): `just run` or `just docker-run`.
 
+### Kubernetes
+
+A single-replica sample is in [`deploy/fibo-planner.yaml`](deploy/fibo-planner.yaml). Room state stays in the process, so keep `replicas: 1`.
+
+```bash
+kubectl apply -f deploy/fibo-planner.yaml
+kubectl port-forward svc/fibo-planner 8080:80
+```
+
+Then open [http://localhost:8080](http://localhost:8080). The Docker environment variables below can be set on the container. Leave `FIBO_PLANNER_ADDR` unset so the process listens on `:8080` inside the pod.
+
+[`deploy/fibo-planner-custom-html.yaml`](deploy/fibo-planner-custom-html.yaml) is the same sample with a ConfigMap mounted at `/custom`. Apply that file instead of the plain one. The process reads those files only at startup, so restart the Deployment after changing the ConfigMap.
+
 ### Listen address
 
 By default the process listens on `:8080` (all interfaces, port 8080). Set `FIBO_PLANNER_ADDR` or pass `--addr` (`-a`) to bind somewhere else. The flag wins when both are set. Restart the process after changing it.

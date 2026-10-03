@@ -1,0 +1,89 @@
+# Same sample as fibo-planner.yaml, plus a ConfigMap mounted as the custom HTML directory.
+# Applying this file replaces the Deployment and Service from fibo-planner.yaml.
+# The process reads these files only at startup. After editing the ConfigMap:
+#   kubectl rollout restart deployment/fibo-planner
+# kubectl apply -f deploy/fibo-planner-custom-html.yaml
+# kubectl port-forward svc/fibo-planner 8080:80
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fibo-planner-custom-html
+data:
+  head.html: |
+    <!-- custom head snippet -->
+  body-start.html: |
+    <p>Planning poker for this team.</p>
+  body-end.html: |
+    <!-- custom body end snippet -->
+  llms.txt: |
+    Custom agent guide. Replace this ConfigMap key with your own llms.txt.
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fibo-planner
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fibo-planner
+  template:
+    metadata:
+      labels:
+        app: fibo-planner
+    spec:
+      terminationGracePeriodSeconds: 15
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65532
+        seccompProfile:
+          type: RuntimeDefault
+      containers:
+        - name: fibo-planner
+          image: siakhooi/fibo-planner:latest
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: FIBO_PLANNER_CUSTOM_HTML_DIR
+              value: /custom
+          volumeMounts:
+            - name: custom-html
+              mountPath: /custom
+              readOnly: true
+          readinessProbe:
+            httpGet:
+              path: /
+              port: http
+          livenessProbe:
+            httpGet:
+              path: /
+              port: http
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities:
+              drop: ["ALL"]
+          resources:
+            requests:
+              cpu: 50m
+              memory: 32Mi
+            limits:
+              memory: 128Mi
+      volumes:
+        - name: custom-html
+          configMap:
+            name: fibo-planner-custom-html
+            defaultMode: 0444
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fibo-planner
+spec:
+  selector:
+    app: fibo-planner
+  ports:
+    - name: http
+      port: 80
+      targetPort: http
