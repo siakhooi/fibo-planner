@@ -21,7 +21,7 @@
   }
   function copyRoomLink() {
     const url = window.location.origin + "/" + roomID;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
+    if (navigator.clipboard?.writeText) {
       navigator.clipboard.writeText(url).then(markRoomUrlCopied).catch(function () {
         fallbackCopyRoomLink(url);
       });
