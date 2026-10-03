@@ -1,6 +1,8 @@
 package main
 
 import (
+	"bytes"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -124,6 +126,53 @@ func TestLobbyHomePeopleCountIncludesConnectedUsers(t *testing.T) {
 	if strings.Contains(page, "alpha") || strings.Contains(page, "beta") {
 		t.Fatalf("room names should stay hidden: %s", page)
 	}
+}
+
+func TestLobbyOverviewFragmentTemplateError(t *testing.T) {
+	var buf bytes.Buffer
+	buf.WriteString("stale")
+	if got := lobbyOverviewFragment(&buf, errors.New("boom")); got != "" {
+		t.Fatalf("template error should yield an empty fragment, got %q", got)
+	}
+}
+
+func TestIndexWSBroadcastsLobbyOnConnect(t *testing.T) {
+	a := newAppConfig(false)
+	seedLobbyRoom(a, "111111", "sprint", 1)
+	srv := httptest.NewServer(newRouter(a))
+	t.Cleanup(srv.Close)
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http") + "/ws"
+	conn, _, err := websocket.DefaultDialer.Dial(wsURL, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	msg := waitForMessage(t, conn, `id="lobby-overview"`)
+	if !strings.Contains(msg, `hx-swap-oob="true"`) {
+		t.Fatalf("connect broadcast missing OOB marker: %s", msg)
+	}
+	if !strings.Contains(msg, `id="session-count">1</strong>`) {
+		t.Fatalf("connect broadcast missing lobby count: %s", msg)
+	}
+	if !strings.Contains(msg, `id="room-count">1</strong>`) || !strings.Contains(msg, `id="rooms-user-count">1</strong>`) {
+		t.Fatalf("connect broadcast missing totals: %s", msg)
+	}
+	if strings.Contains(msg, "sprint") || strings.Contains(msg, `href="/111111"`) {
+		t.Fatalf("connect broadcast should hide the room list: %s", msg)
+	}
+	if a.indexConns.count() != 1 {
+		t.Fatalf("lobby connections=%d, want 1", a.indexConns.count())
+	}
+
+	_ = conn.Close()
+	deadline := time.Now().Add(2 * time.Second)
+	for time.Now().Before(deadline) {
+		if a.indexConns.count() == 0 {
+			return
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	t.Fatal("lobby socket was not removed")
 }
 
 func seedLobbyRoom(a *App, id, name string, users int) {
