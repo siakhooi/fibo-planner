@@ -21,6 +21,7 @@ func TestParseVotePoints(t *testing.T) {
 		{name: "twenty", payload: `{"points":"20"}`, want: "20", ok: true},
 		{name: "not json", payload: `points=5`, ok: false},
 		{name: "unknown value", payload: `{"points":"99"}`, ok: false},
+		{name: "boolean", payload: `{"points":true}`, ok: false},
 		{name: "missing points", payload: `{"HEADERS":{}}`, ok: false},
 		{name: "script", payload: `{"points":"<script>"}`, ok: false},
 		{name: "admin is not a vote", payload: `{"admin":"set-topic"}`, ok: false},
@@ -210,6 +211,7 @@ func TestParseConsensusPercent(t *testing.T) {
 		{name: "below min", payload: `{"percentage":"49"}`, ok: false},
 		{name: "above max", payload: `{"percentage":"101"}`, ok: false},
 		{name: "not an integer", payload: `{"percentage":"75.5"}`, ok: false},
+		{name: "fractional number", payload: `{"percentage":75.5}`, ok: false},
 		{name: "missing", payload: `{"admin":"consensus-agreement"}`, ok: false},
 	}
 	for _, tt := range tests {
@@ -245,6 +247,7 @@ func TestParseMaxSpread(t *testing.T) {
 		{name: "below min", payload: `{"max-spread":"-1"}`, ok: false},
 		{name: "above max", payload: `{"max-spread":"7"}`, ok: false},
 		{name: "not an integer", payload: `{"max-spread":"1.5"}`, ok: false},
+		{name: "fractional number", payload: `{"max-spread":1.5}`, ok: false},
 		{name: "missing", payload: `{"admin":"consensus-agreement","percentage":"75"}`, ok: false},
 	}
 	for _, tt := range tests {
