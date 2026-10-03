@@ -184,78 +184,98 @@ func runRoomHubWebSocket(w http.ResponseWriter, r *http.Request, a *App, roomID 
 	}
 
 	a.cancelRoomEviction(roomID)
+	go serveRoomWebSocket(a, roomID, h, conn)
+}
 
-	go func() {
-		stopPing := startWSPing(&h.writeMu, conn)
-		joined := false
-		defer func() {
-			stopPing()
-			_ = conn.Close()
-			remaining := h.remove(conn)
-			if joined {
-				h.broadcastRoomState(nil)
-				a.broadcastLobbyState()
-			}
-			if remaining == 0 {
-				a.scheduleRoomEviction(roomID, h)
-			}
-		}()
-		for {
-			_, msg, err := conn.ReadMessage()
-			if err != nil {
-				return
-			}
-			m, ok := parseWSMessage(msg)
-			if !ok {
-				continue
-			}
-			if !joined {
-				name, ok := m.joinName()
-				if !ok {
-					continue
-				}
-				h.add(conn, name)
-				a.cancelRoomEviction(roomID)
-				h.broadcastRoomState(conn)
-				a.broadcastLobbyState()
-				joined = true
-				continue
-			}
-			if action, isAdmin := m.adminAction(); isAdmin {
-				var highlight *websocket.Conn
-				switch action {
-				case adminClearVotes:
-					h.clearVotes()
-				case adminSetTopic:
-					h.setTopic(m.topicTitle())
-				case adminLoadNextTopic:
-					h.loadNextTopic()
-				case adminSetPreloadedTopics:
-					h.setPreloadedTopics(m.preloadedTopics())
-				case adminAlwaysShowVotes:
-					h.toggleAlwaysShowVotes()
-				case adminConsensusAgreement:
-					if p, ok := m.consensusPercent(); ok {
-						h.setConsensusPercent(p)
-					}
-					if s, ok := m.maxSpread(); ok {
-						h.setMaxSpread(s)
-					}
-				case adminObserverMode:
-					if h.toggleObserver(conn) {
-						highlight = conn
-					}
-				}
-				h.broadcastRoomState(highlight)
-				continue
-			}
-			points, ok := m.votePoints()
-			if !ok {
-				continue
-			}
-			if h.setPoints(conn, points) {
-				h.broadcastRoomState(conn)
-			}
-		}
+func serveRoomWebSocket(a *App, roomID string, h *Hub, conn *websocket.Conn) {
+	stopPing := startWSPing(&h.writeMu, conn)
+	joined := false
+	defer func() {
+		stopPing()
+		endRoomWebSocket(a, roomID, h, conn, joined)
 	}()
+	for {
+		_, msg, err := conn.ReadMessage()
+		if err != nil {
+			return
+		}
+		m, ok := parseWSMessage(msg)
+		if !ok {
+			continue
+		}
+		joined = handleRoomWSMessage(a, roomID, h, conn, m, joined)
+	}
+}
+
+func endRoomWebSocket(a *App, roomID string, h *Hub, conn *websocket.Conn, joined bool) {
+	_ = conn.Close()
+	remaining := h.remove(conn)
+	if joined {
+		h.broadcastRoomState(nil)
+		a.broadcastLobbyState()
+	}
+	if remaining == 0 {
+		a.scheduleRoomEviction(roomID, h)
+	}
+}
+
+func handleRoomWSMessage(a *App, roomID string, h *Hub, conn *websocket.Conn, m wsMessage, joined bool) bool {
+	if !joined {
+		return joinRoomWebSocket(a, roomID, h, conn, m)
+	}
+	if action, isAdmin := m.adminAction(); isAdmin {
+		h.broadcastRoomState(applyRoomAdmin(h, conn, m, action))
+		return true
+	}
+	points, ok := m.votePoints()
+	if !ok {
+		return true
+	}
+	if h.setPoints(conn, points) {
+		h.broadcastRoomState(conn)
+	}
+	return true
+}
+
+func joinRoomWebSocket(a *App, roomID string, h *Hub, conn *websocket.Conn, m wsMessage) bool {
+	name, ok := m.joinName()
+	if !ok {
+		return false
+	}
+	h.add(conn, name)
+	a.cancelRoomEviction(roomID)
+	h.broadcastRoomState(conn)
+	a.broadcastLobbyState()
+	return true
+}
+
+func applyRoomAdmin(h *Hub, conn *websocket.Conn, m wsMessage, action string) *websocket.Conn {
+	switch action {
+	case adminClearVotes:
+		h.clearVotes()
+	case adminSetTopic:
+		h.setTopic(m.topicTitle())
+	case adminLoadNextTopic:
+		h.loadNextTopic()
+	case adminSetPreloadedTopics:
+		h.setPreloadedTopics(m.preloadedTopics())
+	case adminAlwaysShowVotes:
+		h.toggleAlwaysShowVotes()
+	case adminConsensusAgreement:
+		applyRoomConsensus(h, m)
+	case adminObserverMode:
+		if h.toggleObserver(conn) {
+			return conn
+		}
+	}
+	return nil
+}
+
+func applyRoomConsensus(h *Hub, m wsMessage) {
+	if p, ok := m.consensusPercent(); ok {
+		h.setConsensusPercent(p)
+	}
+	if s, ok := m.maxSpread(); ok {
+		h.setMaxSpread(s)
+	}
 }
