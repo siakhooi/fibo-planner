@@ -21,29 +21,13 @@
   }
   function copyRoomLink() {
     const url = window.location.origin + "/" + roomID;
-    if (navigator.clipboard?.writeText) {
-      navigator.clipboard.writeText(url).then(markRoomUrlCopied).catch(function () {
-        fallbackCopyRoomLink(url);
-      });
+    const pending = navigator.clipboard?.writeText(url);
+    if (!pending) {
       return;
     }
-    fallbackCopyRoomLink(url);
-  }
-  function fallbackCopyRoomLink(url) {
-    const ta = document.createElement("textarea");
-    ta.value = url;
-    ta.setAttribute("readonly", "");
-    ta.style.position = "fixed";
-    ta.style.left = "-9999px";
-    document.body.appendChild(ta);
-    ta.select();
-    try {
-      if (document.execCommand("copy")) {
-        markRoomUrlCopied();
-      }
-    } finally {
-      ta.remove();
-    }
+    pending.then(markRoomUrlCopied).catch(function () {
+      return undefined;
+    });
   }
   if (copyRoomUrl) {
     copyRoomUrl.addEventListener("click", copyRoomLink);

@@ -100,7 +100,7 @@ func TestRoomJSHasClientBehavior(t *testing.T) {
 	}
 	for _, want := range []string{
 		`document.body.dataset.roomId`,
-		`navigator.clipboard.writeText`,
+		`navigator.clipboard?.writeText`,
 		`querySelectorAll(".js-ws-send")`,
 		`el.setAttribute("ws-connect", "/ws/" + roomID)`,
 		`htmx:wsClose`,
