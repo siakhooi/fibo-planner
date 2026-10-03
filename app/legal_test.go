@@ -92,3 +92,46 @@ func TestPagesShareLegalFooter(t *testing.T) {
 		})
 	}
 }
+
+func TestLegalPageViewFor(t *testing.T) {
+	cases := []struct {
+		name string
+		want legalPageView
+	}{
+		{
+			name: customDisclaimerFile,
+			want: legalPageView{File: customDisclaimerFile, Title: "Disclaimer · Fibo Planner", Crumb: "Disclaimer", Heading: "Disclaimer"},
+		},
+		{
+			name: customPrivacyFile,
+			want: legalPageView{File: customPrivacyFile, Title: "Privacy Policy · Fibo Planner", Crumb: "Privacy Policy", Heading: "Privacy Policy"},
+		},
+		{
+			name: customTermsFile,
+			want: legalPageView{File: customTermsFile, Title: "Terms of Use · Fibo Planner", Crumb: "Terms of Use", Heading: "Terms of Use"},
+		},
+	}
+	for _, tc := range cases {
+		got, ok := legalPageViewFor(tc.name)
+		if !ok || got != tc.want {
+			t.Fatalf("legalPageViewFor(%q) = %+v, %v", tc.name, got, ok)
+		}
+	}
+
+	if got, ok := legalPageViewFor("index.html"); ok || got != (legalPageView{}) {
+		t.Fatalf("unknown page = %+v, %v", got, ok)
+	}
+}
+
+func TestLegalPageUnknownNamePanics(t *testing.T) {
+	defer func() {
+		recovered := recover()
+		if recovered == nil {
+			t.Fatal("expected panic")
+		}
+		if recovered != "unknown legal page: index.html" {
+			t.Fatalf("panic %v", recovered)
+		}
+	}()
+	legalPage("index.html")
+}
