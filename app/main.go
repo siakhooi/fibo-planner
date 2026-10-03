@@ -80,7 +80,7 @@ func init() {
 	// --version prints commit and build date as well as the version string.
 	cli.VersionPrinter = func(cmd *cli.Command) {
 		if _, err := fmt.Fprint(cmd.Root().Writer, versioninfo.Format()); err != nil {
-			log.Fatal(err)
+			fatal(err)
 		}
 	}
 }
@@ -154,8 +154,11 @@ func serveAction(ctx context.Context, cmd *cli.Command) error {
 	return runServer(ctx, srv)
 }
 
+// fatal reports a fatal error and exits. Tests replace it.
+var fatal = log.Fatal
+
 func main() {
 	if err := newRootCommand().Run(context.Background(), os.Args); err != nil {
-		log.Fatal(err)
+		fatal(err)
 	}
 }
