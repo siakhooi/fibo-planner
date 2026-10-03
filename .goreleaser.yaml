@@ -39,6 +39,8 @@ archives:
     files:
       - LICENSE
       - README.md
+      - USER_GUIDE.md
+      - INSTALL.md
 
 nfpms:
   - package_name: fibo-planner

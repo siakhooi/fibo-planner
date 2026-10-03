@@ -6,54 +6,15 @@ No accounts, no database, no extra services. A single Go binary (or Docker image
 
 ## Key features
 
-### Rooms and lobby
+- **One-click rooms.** Optional display name, a random 6-digit ID, and a shareable URL. Empty rooms are removed after 30 minutes.
+- **Named join.** Each person enters a display name before voting. The name stays in the browser for that room and is not written to the process access log.
+- **Modified Fibonacci scale:** 1, 2, 3, 5, 8, 13, 20, plus a blank card. Votes stay hidden until everyone has voted, unless the room turns on always-show.
+- **Observer mode.** Sit out of voting. Observers do not block reveal.
+- **Topic and queue.** Set the story title, or paste a backlog and load the next topic.
+- **Consensus.** After everyone votes, the room shows a tally, agreed points, and whether the leading vote meets the percentage and spread rules.
+- **Anyone in the room** can change the topic, clear votes, and adjust consensus rules. There is no facilitator role.
 
-- **Create a room in one click.** Optional display name (for example, “Sprint 42 backlog”) plus a random 6-digit ID and a shareable URL (`/123456`).
-- **Live lobby.** The home page shows how many people are on the lobby, how many rooms are open, and how many people are in rooms. Counts update while the page is open. Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` or pass `--lobby-list-rooms` to also list each room with its user count (off by default).
-- **Named join.** Each person enters a display name before voting. The name is remembered in the browser for that room and sent on the WebSocket after connect, not as a `?name=` query string, so the process access log does not record it.
-- **Idle cleanup.** Empty rooms are removed after 30 minutes so the lobby does not fill with abandoned sessions.
-
-### Planning poker
-
-- **Modified Fibonacci scale:** 1, 2, 3, 5, 8, 13, 20 (20 in place of the usual 21), plus a blank card to clear your vote.
-- **Hidden votes by default.** Other people’s points stay masked (`???`) until every voter has picked a card, so nobody anchors on the first vote.
-- **Always show votes.** Flip a room-wide switch when you want scores visible as they come in.
-- **Observer mode.** Sit out of voting (for example as a stakeholder). Observers are listed separately and do not block reveal. This only changes whether you vote; it is not an admin role.
-- **Topic title.** Set the story or ticket the room is estimating; it updates live for everyone. Set Topic changes the heading only and leaves the current votes in place.
-- **Preloaded topic queue.** Paste a backlog (one title per line, up to 200). Load Next Topic advances the queue, sets the heading, and clears votes for the next round.
-
-### Consensus and results
-
-Results appear only after every voter has voted:
-
-- **Tally table** with point value, count, and percentage. The leading value is highlighted.
-- **Agreed points** when the room meets both consensus rules; otherwise `N/A`.
-- **Agreement status** showing whether the leading vote meets the percentage threshold and whether the spread is within the allowed range.
-
-You can tune what “agreement” means:
-
-| Control        | Meaning                                                                                                 | Range   |
-| -------------- | ------------------------------------------------------------------------------------------------------- | ------- |
-| **Percentage** | Share of voters that must land on the same value                                                        | 50–100% |
-| **Max spread** | Allowed distance on the modified Fibonacci scale between the lowest and highest vote (3 and 5 → 1; 1 and 20 → 6) | 0–6     |
-
-Team maturity presets apply both knobs at once:
-
-- **Full** — 100% agreement, 0 spread (everyone on the same card)
-- **Good** — 80% agreement, spread of 1
-- **Relaxed** — 50% agreement, spread of 3
-
-### Live, self-contained app
-
-- Instant updates for votes, joins, role changes, and lobby counts (WebSocket + HTMX).
-- One process, default port `8080` (`FIBO_PLANNER_ADDR` or `--addr`). Pages are embedded in the binary; the default UI still loads HTMX from jsDelivr. The Docker image is a static binary `FROM scratch`, running as UID 65532.
-- MIT licensed.
-
-### Who can administer a room
-
-There are no accounts. **Anyone who has joined the room** can clear votes, set the topic and preloaded queue, toggle always-show votes, and change consensus rules. The server does not distinguish a facilitator from other occupants; the Administration panel is the same for every socket.
-
-Limiting those controls to some members is a planned enhancement: [issue #60](https://github.com/siakhooi/fibo-planner/issues/60).
+Voting, consensus, and a full session walkthrough are in the [user guide](USER_GUIDE.md).
 
 ## Try it
 
@@ -63,25 +24,17 @@ A public sample is hosted on [Google Cloud Run](https://cloud.google.com/run):
 
 Create a room, share the link, and run a planning session there. Empty rooms are still removed after 30 minutes of idle time.
 
-That sample is built from [fibo-planner-on-gcp](https://github.com/siakhooi/fibo-planner-on-gcp): a custom Dockerfile and a `just` workflow that builds the image and deploys it to Cloud Run. Use it as a starting point if you want to host your own copy.
+That sample is built from [fibo-planner-on-gcp](https://github.com/siakhooi/fibo-planner-on-gcp). Use it as a starting point if you want to host your own copy.
 
 ## Run it
 
-Install a release binary with Homebrew, Scoop, APT, RPM, a GitHub release archive, or `go install`. Steps are in [INSTALL.md](INSTALL.md).
+Install a release binary with Homebrew, Scoop, APT, RPM, a GitHub release archive, or `go install`. Steps, flags, Docker, and Kubernetes are in [INSTALL.md](INSTALL.md).
 
 From a checkout:
 
 ```bash
 go run ./app
 ```
-
-Print the build version and exit (`0.0.0` / `unknown` unless the binary was built with GoReleaser or `just build`). `-v` is the short form:
-
-```bash
-go run ./app --version
-```
-
-`-h` or `--help` prints command help and exits.
 
 Or with Docker:
 
@@ -90,115 +43,6 @@ docker run -p 8080:8080 siakhooi/fibo-planner
 ```
 
 Then open [http://localhost:8080](http://localhost:8080).
-
-With [just](https://github.com/casey/just): `just run` or `just docker-run`.
-
-### Kubernetes
-
-A single-replica sample is in [`deploy/fibo-planner.yaml`](deploy/fibo-planner.yaml). Room state stays in the process, so keep `replicas: 1`.
-
-```bash
-kubectl apply -f deploy/fibo-planner.yaml
-kubectl port-forward svc/fibo-planner 8080:80
-```
-
-Then open [http://localhost:8080](http://localhost:8080). The Docker environment variables below can be set on the container. Leave `FIBO_PLANNER_ADDR` unset so the process listens on `:8080` inside the pod.
-
-[`deploy/fibo-planner-custom-html.yaml`](deploy/fibo-planner-custom-html.yaml) is the same sample with a ConfigMap mounted at `/custom`. Apply that file instead of the plain one. The process reads those files only at startup, so restart the Deployment after changing the ConfigMap.
-
-### Listen address
-
-By default the process listens on `:8080` (all interfaces, port 8080). Set `FIBO_PLANNER_ADDR` or pass `--addr` (`-a`) to bind somewhere else. The flag wins when both are set. Restart the process after changing it.
-
-```bash
-FIBO_PLANNER_ADDR=127.0.0.1:9090 go run ./app
-```
-
-```bash
-go run ./app --addr 127.0.0.1:9090
-```
-
-```bash
-docker run -p 9090:9090 -e FIBO_PLANNER_ADDR=:9090 siakhooi/fibo-planner
-```
-
-SIGINT and SIGTERM stop the HTTP server (header timeout 10s, idle timeout 60s). WebSocket sessions are not drained as part of that shutdown.
-
-### WebSocket origins
-
-Browsers must send a same-origin `Origin` header (the page host). If the public site origin differs from the process `Host` header (some reverse proxies), set `FIBO_PLANNER_WS_ORIGINS` or pass `--ws-origins` with a comma-separated list of allowed origins. The flag wins when both are set. Restart the process after changing it.
-
-```bash
-FIBO_PLANNER_WS_ORIGINS=https://planner.example.com go run ./app
-```
-
-```bash
-go run ./app --ws-origins https://planner.example.com
-```
-
-The server pings idle sockets so proxies (including Cloud Run) are less likely to drop a quiet planning session. If the room socket drops, the room page shows a reconnecting banner; HTMX tries to reconnect.
-
-### Lobby room list
-
-By default the home page shows totals only (people in the lobby, number of rooms, people in all rooms). Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` or pass `--lobby-list-rooms` to also list every open room with a link and its user count. Any other env value (or unset) keeps the list hidden. When the flag is passed it wins, including `--lobby-list-rooms=false` while the env var is `Y`. Restart the process after changing it.
-
-```bash
-FIBO_PLANNER_LOBBY_LIST_ROOMS=Y go run ./app
-```
-
-```bash
-go run ./app --lobby-list-rooms
-```
-
-```bash
-docker run -p 8080:8080 -e FIBO_PLANNER_LOBBY_LIST_ROOMS=Y siakhooi/fibo-planner
-```
-
-### Custom HTML
-
-Set `FIBO_PLANNER_CUSTOM_HTML_DIR` or pass `--custom-html-dir` to a directory of optional snippets. The flag wins when both are set. Each file that exists is applied at process start:
-
-| File              | Insertion point                                                                 |
-| ----------------- | ------------------------------------------------------------------------------- |
-| `head.html`       | last line of `<head>` on every full page, just before `</head>`                 |
-| `body-start.html` | first line of `<body>` on every full page, just after `<body>`                  |
-| `body-end.html`   | last line of `<body>` on every full page, just before `</body>`                 |
-| `disclaimer.html` | body copy of `/disclaimer` only, after the heading and before the site footer   |
-| `privacy.html`    | body copy of `/privacy` only, after the heading and before the site footer      |
-| `terms.html`      | body copy of `/terms` only, after the heading and before the site footer        |
-| `llms.txt`        | replaces the built-in body of `GET /llms.txt` (not inserted into HTML pages)    |
-
-The legal files are HTML fragments (paragraphs, headings, links), not full pages. Title, crumb, `<h1>`, footer, `head.html`, `body-start.html`, and `body-end.html` stay in place.
-
-`GET /llms.txt` returns a plain-text guide for agents (create a room, join over the WebSocket, vote, and read results). A `llms.txt` in the custom directory replaces that guide entirely, including when the file is empty.
-
-Missing files are skipped. Snippets are inserted as-is (not escaped); only use a directory you control. Restart the process after changing files.
-
-```bash
-FIBO_PLANNER_CUSTOM_HTML_DIR=/path/to/custom-html go run ./app
-```
-
-```bash
-go run ./app --custom-html-dir /path/to/custom-html
-```
-
-Docker (`FROM scratch`, UID 65532) can still read a mounted directory. The files must be readable by that user:
-
-```bash
-docker run -p 8080:8080 \
-  -e FIBO_PLANNER_CUSTOM_HTML_DIR=/custom \
-  -v /path/to/custom-html:/custom:ro \
-  siakhooi/fibo-planner
-```
-
-## Typical session
-
-1. Create a room from the home page and share the URL.
-2. Teammates join with their names.
-3. Anyone in the room can set a topic. Set Topic changes the heading and leaves the current votes in place. Load Next Topic sets the heading from the preloaded queue and clears votes.
-4. Everyone votes. Votes stay hidden until the last voter submits (unless always-show is on).
-5. Read the tally, agreed points, and agreement status. Anyone can adjust consensus rules if the team wants a looser or tighter bar.
-6. Clear votes to estimate the same topic again, or load the next topic (that also clears votes) and repeat.
 
 ## Reference
 

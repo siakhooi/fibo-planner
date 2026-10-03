@@ -6,7 +6,7 @@ Fibo Planner is a single binary. After any method below, start it and open [http
 fibo-planner
 ```
 
-The process listens on `:8080`. Flags, environment variables, Docker, and Kubernetes are in the [README](README.md#run-it).
+The process listens on `:8080`. Flags, environment variables, Kubernetes, and custom HTML are [below](#configure). How a planning session works is in the [user guide](USER_GUIDE.md).
 
 | Method                            | Where it runs                                              |
 | --------------------------------- | ---------------------------------------------------------- |
@@ -141,4 +141,122 @@ A `go install` build reports `Version: 0.0.0` from `--version`. Release archives
 docker run -p 8080:8080 siakhooi/fibo-planner
 ```
 
-Image: [hub.docker.com/r/siakhooi/fibo-planner](https://hub.docker.com/r/siakhooi/fibo-planner). Listen address, lobby list, and custom HTML mounts are in the [README](README.md#run-it).
+Image: [hub.docker.com/r/siakhooi/fibo-planner](https://hub.docker.com/r/siakhooi/fibo-planner). The image is a static binary `FROM scratch`, running as UID 65532. Listen address, lobby list, and custom HTML mounts are [below](#configure).
+
+## Run from a checkout
+
+```bash
+go run ./app
+```
+
+Print the build version and exit (`0.0.0` / `unknown` unless the binary was built with GoReleaser or `just build`). `-v` is the short form:
+
+```bash
+go run ./app --version
+```
+
+`-h` or `--help` prints command help and exits.
+
+With [just](https://github.com/casey/just): `just run` or `just docker-run`.
+
+Pages are embedded in the binary. The default UI still loads HTMX from jsDelivr.
+
+## Kubernetes
+
+A single-replica sample is in [`deploy/fibo-planner.yaml`](deploy/fibo-planner.yaml). Room state stays in the process, so keep `replicas: 1`.
+
+```bash
+kubectl apply -f deploy/fibo-planner.yaml
+kubectl port-forward svc/fibo-planner 8080:80
+```
+
+Then open [http://localhost:8080](http://localhost:8080). The environment variables in [Configure](#configure) can be set on the container. Leave `FIBO_PLANNER_ADDR` unset so the process listens on `:8080` inside the pod.
+
+[`deploy/fibo-planner-custom-html.yaml`](deploy/fibo-planner-custom-html.yaml) is the same sample with a ConfigMap mounted at `/custom`. Apply that file instead of the plain one. The process reads those files only at startup, so restart the Deployment after changing the ConfigMap.
+
+## Configure
+
+Restart the process after changing any of these. When a flag and its environment variable are both set, the flag wins.
+
+SIGINT and SIGTERM stop the HTTP server (header timeout 10s, idle timeout 60s). WebSocket sessions are not drained as part of that shutdown. The server pings idle sockets so proxies (including Cloud Run) are less likely to drop a quiet planning session.
+
+### Listen address
+
+By default the process listens on `:8080` (all interfaces, port 8080). Set `FIBO_PLANNER_ADDR` or pass `--addr` (`-a`) to bind somewhere else.
+
+```bash
+FIBO_PLANNER_ADDR=127.0.0.1:9090 go run ./app
+```
+
+```bash
+go run ./app --addr 127.0.0.1:9090
+```
+
+```bash
+docker run -p 9090:9090 -e FIBO_PLANNER_ADDR=:9090 siakhooi/fibo-planner
+```
+
+### WebSocket origins
+
+Browsers must send a same-origin `Origin` header (the page host). If the public site origin differs from the process `Host` header (some reverse proxies), set `FIBO_PLANNER_WS_ORIGINS` or pass `--ws-origins` with a comma-separated list of allowed origins.
+
+```bash
+FIBO_PLANNER_WS_ORIGINS=https://planner.example.com go run ./app
+```
+
+```bash
+go run ./app --ws-origins https://planner.example.com
+```
+
+### Lobby room list
+
+By default the home page shows totals only (people in the lobby, number of rooms, people in all rooms). Set `FIBO_PLANNER_LOBBY_LIST_ROOMS=Y` or pass `--lobby-list-rooms` to also list every open room with a link and its user count. Any other env value (or unset) keeps the list hidden. When the flag is passed it wins, including `--lobby-list-rooms=false` while the env var is `Y`.
+
+```bash
+FIBO_PLANNER_LOBBY_LIST_ROOMS=Y go run ./app
+```
+
+```bash
+go run ./app --lobby-list-rooms
+```
+
+```bash
+docker run -p 8080:8080 -e FIBO_PLANNER_LOBBY_LIST_ROOMS=Y siakhooi/fibo-planner
+```
+
+### Custom HTML
+
+Set `FIBO_PLANNER_CUSTOM_HTML_DIR` or pass `--custom-html-dir` to a directory of optional snippets. Each file that exists is applied at process start:
+
+| File              | Insertion point                                                                |
+| ----------------- | ------------------------------------------------------------------------------ |
+| `head.html`       | last line of `<head>` on every full page, just before `</head>`               |
+| `body-start.html` | first line of `<body>` on every full page, just after `<body>`                |
+| `body-end.html`   | last line of `<body>` on every full page, just before `</body>`               |
+| `disclaimer.html` | body copy of `/disclaimer` only, after the heading and before the site footer |
+| `privacy.html`    | body copy of `/privacy` only, after the heading and before the site footer    |
+| `terms.html`      | body copy of `/terms` only, after the heading and before the site footer      |
+| `llms.txt`        | replaces the built-in body of `GET /llms.txt` (not inserted into HTML pages)  |
+
+The legal files are HTML fragments (paragraphs, headings, links), not full pages. Title, crumb, `<h1>`, footer, `head.html`, `body-start.html`, and `body-end.html` stay in place.
+
+`GET /llms.txt` returns a plain-text guide for agents (create a room, join over the WebSocket, vote, and read results). A `llms.txt` in the custom directory replaces that guide entirely, including when the file is empty.
+
+Missing files are skipped. Snippets are inserted as-is (not escaped); only use a directory you control.
+
+```bash
+FIBO_PLANNER_CUSTOM_HTML_DIR=/path/to/custom-html go run ./app
+```
+
+```bash
+go run ./app --custom-html-dir /path/to/custom-html
+```
+
+Docker (`FROM scratch`, UID 65532) can still read a mounted directory. The files must be readable by that user:
+
+```bash
+docker run -p 8080:8080 \
+  -e FIBO_PLANNER_CUSTOM_HTML_DIR=/custom \
+  -v /path/to/custom-html:/custom:ro \
+  siakhooi/fibo-planner
+```
