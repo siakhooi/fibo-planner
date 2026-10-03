@@ -26,9 +26,9 @@ func listenAddrFrom(v string) string {
 
 func listenLogURL(addr string) string {
 	if strings.HasPrefix(addr, ":") {
-		return "http://localhost" + addr // sonar-resolve [accept] go:S5332 "plain HTTP listener; TLS is terminated in front"
+		return "http://localhost" + addr // NOSONAR - go:S5332 "plain HTTP listener; TLS is terminated in front"
 	}
-	return "http://" + addr // sonar-resolve [accept] go:S5332 "plain HTTP listener; TLS is terminated in front"
+	return "http://" + addr // NOSONAR - go:S5332 "plain HTTP listener; TLS is terminated in front"
 }
 
 func newHTTPServer(addr string, handler http.Handler) *http.Server {
