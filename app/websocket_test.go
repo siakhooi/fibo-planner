@@ -188,16 +188,8 @@ func TestVoteBroadcastToAllParticipants(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
-	roomID := createRoom(t, srv, "sprint")
-	ada := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
-
-	bob := dialRoom(t, srv, roomID, "Bob")
-	joined := waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
-	if !strings.Contains(joined, "<td>Ada</td><td></td>") {
-		t.Fatalf("Ada should not flash when Bob joins: %s", joined)
-	}
-	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
+	ada, bob := conns[0], conns[1]
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
 		t.Fatalf("ada vote: %v", err)
@@ -236,16 +228,8 @@ func TestConsensusAgreementBroadcastAndAgreedPoints(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
-	roomID := createRoom(t, srv, "sprint")
-	ada := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
-	bob := dialRoom(t, srv, roomID, "Bob")
-	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
-	waitForMessage(t, bob, "<td>Ada</td><td></td>")
-	cyd := dialRoom(t, srv, roomID, "Cyd")
-	waitForMessage(t, ada, `<td class="vote-flash">Cyd</td><td class="vote-flash"></td>`)
-	waitForMessage(t, bob, `<td class="vote-flash">Cyd</td><td class="vote-flash"></td>`)
-	waitForMessage(t, cyd, "<td>Ada</td><td></td>")
+	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob", "Cyd")
+	ada, bob, cyd := conns[0], conns[1], conns[2]
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"admin":"consensus-agreement","percentage":"75"}`)); err != nil {
 		t.Fatalf("consensus: %v", err)
@@ -324,12 +308,8 @@ func TestAdminAlwaysShowVotesAndClearVotes(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
-	roomID := createRoom(t, srv, "sprint")
-	ada := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
-	bob := dialRoom(t, srv, roomID, "Bob")
-	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
-	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
+	ada, bob := conns[0], conns[1]
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
 		t.Fatalf("ada vote: %v", err)
@@ -368,12 +348,8 @@ func TestSetTopicKeepsVotes(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
-	roomID := createRoom(t, srv, "sprint")
-	ada := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
-	bob := dialRoom(t, srv, roomID, "Bob")
-	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
-	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
+	ada, bob := conns[0], conns[1]
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
 		t.Fatalf("ada vote: %v", err)
@@ -400,12 +376,8 @@ func TestPreloadedTopicsBroadcastAndLoadNext(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
-	roomID := createRoom(t, srv, "sprint")
-	ada := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
-	bob := dialRoom(t, srv, roomID, "Bob")
-	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
-	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
+	ada, bob := conns[0], conns[1]
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte("{\"admin\":\"set-preloaded-topics\",\"preloaded-topics\":\"Alpha\\n\\nBeta\\n  \\nGamma\"}")); err != nil {
 		t.Fatalf("set preloaded: %v", err)
@@ -472,12 +444,8 @@ func TestObserverModeClearsVoteAndIsIgnoredForMasking(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
-	roomID := createRoom(t, srv, "sprint")
-	ada := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, ada, `<td class="vote-flash">Ada</td><td class="vote-flash"></td>`)
-	bob := dialRoom(t, srv, roomID, "Bob")
-	waitForMessage(t, ada, `<td class="vote-flash">Bob</td><td class="vote-flash"></td>`)
-	waitForMessage(t, bob, "<td>Ada</td><td></td>")
+	_, conns := joinRoom(t, srv, "sprint", "Ada", "Bob")
+	ada, bob := conns[0], conns[1]
 
 	if err := ada.WriteMessage(websocket.TextMessage, []byte(`{"points":"8"}`)); err != nil {
 		t.Fatalf("ada vote: %v", err)
@@ -529,13 +497,8 @@ func TestObserverModeDuplicateNamesSyncsOnlySelf(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
-	roomID := createRoom(t, srv, "sprint")
-	first := dialRoom(t, srv, roomID, "Alex")
-	waitForMessage(t, first, `<tr class="current-user"><td class="vote-flash">Alex</td><td class="vote-flash"></td></tr>`)
-
-	second := dialRoom(t, srv, roomID, "Alex")
-	waitForMessage(t, second, `<tr class="current-user">`)
-	waitForMessage(t, first, `<td class="vote-flash">Alex</td><td class="vote-flash"></td>`)
+	_, conns := joinRoom(t, srv, "sprint", "Alex", "Alex")
+	first, second := conns[0], conns[1]
 
 	if err := second.WriteMessage(websocket.TextMessage, []byte(`{"admin":"observer-mode"}`)); err != nil {
 		t.Fatalf("observer: %v", err)
@@ -627,9 +590,8 @@ func TestWSOversizedMessageCloses(t *testing.T) {
 	srv := httptest.NewServer(newRouter(newApp()))
 	t.Cleanup(srv.Close)
 
-	roomID := createRoom(t, srv, "sprint")
-	conn := dialRoom(t, srv, roomID, "Ada")
-	waitForMessage(t, conn, `<td class="vote-flash">Ada</td>`)
+	_, conns := joinRoom(t, srv, "sprint", "Ada")
+	conn := conns[0]
 
 	payload := bytes.Repeat([]byte("a"), maxWSMessageBytes+8)
 	if err := conn.WriteMessage(websocket.TextMessage, payload); err != nil {

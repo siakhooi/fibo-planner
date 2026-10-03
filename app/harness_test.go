@@ -73,6 +73,41 @@ func waitForMessage(t *testing.T, conn *websocket.Conn, substr string) string {
 	return ""
 }
 
+func joinFlashRow(name string) string {
+	return `<td class="vote-flash">` + name + `</td><td class="vote-flash"></td>`
+}
+
+func joinRoom(t *testing.T, srv *httptest.Server, roomName string, names ...string) (string, []*websocket.Conn) {
+	t.Helper()
+	if len(names) == 0 {
+		t.Fatal("joinRoom needs at least one name")
+	}
+	roomID := createRoom(t, srv, roomName)
+	conns := make([]*websocket.Conn, 0, len(names))
+	for _, name := range names {
+		conn := dialRoom(t, srv, roomID, name)
+		own := waitForMessage(t, conn, joinFlashRow(name))
+		self := `<tr class="current-user"><td class="vote-flash">` + name + `</td><td class="vote-flash"></td></tr>`
+		if !strings.Contains(own, self) {
+			t.Fatalf("%s should see their own join flash: %s", name, own)
+		}
+		for _, earlierName := range names[:len(conns)] {
+			plain := "<td>" + earlierName + "</td><td></td>"
+			if !strings.Contains(own, plain) {
+				t.Fatalf("%s should see %s without a join flash: %s", name, earlierName, own)
+			}
+		}
+		for i, earlier := range conns {
+			msg := waitForMessage(t, earlier, joinFlashRow(name))
+			if strings.Contains(msg, `<tr class="current-user"><td class="vote-flash">`) {
+				t.Fatalf("%s should not flash when %s joins: %s", names[i], name, msg)
+			}
+		}
+		conns = append(conns, conn)
+	}
+	return roomID, conns
+}
+
 func getResponse(t *testing.T, rawURL string) (status int, contentType, body string) {
 	t.Helper()
 	resp, err := http.Get(rawURL)
