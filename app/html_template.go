@@ -27,7 +27,7 @@ const (
 	customTermsFile      = "terms.html"
 )
 
-//go:embed *.html *.css room.js
+//go:embed *.html *.css room.js favicon.svg favicon.ico
 var tplFS embed.FS
 
 var (
@@ -174,6 +174,26 @@ func serveRoomJS(w http.ResponseWriter, _ *http.Request) {
 		return
 	}
 	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	_, _ = w.Write(b)
+}
+
+func serveFavicon(w http.ResponseWriter, _ *http.Request) {
+	b, err := fs.ReadFile(templateFS, "favicon.svg")
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "image/svg+xml")
+	_, _ = w.Write(b)
+}
+
+func serveFaviconICO(w http.ResponseWriter, _ *http.Request) {
+	b, err := fs.ReadFile(templateFS, "favicon.ico")
+	if err != nil {
+		http.Error(w, "not found", http.StatusNotFound)
+		return
+	}
+	w.Header().Set("Content-Type", "image/x-icon")
 	_, _ = w.Write(b)
 }
 

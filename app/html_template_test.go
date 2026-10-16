@@ -512,6 +512,63 @@ func TestServeRoomJSMissingFile(t *testing.T) {
 	}
 }
 
+func TestServeFavicon(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	serveFavicon(rec, httptest.NewRequest(http.MethodGet, "/favicon.svg", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "image/svg+xml" {
+		t.Fatalf("content-type %q", got)
+	}
+	if !strings.Contains(rec.Body.String(), "<svg") {
+		t.Fatal("favicon body missing svg root")
+	}
+}
+
+func TestServeFaviconMissingFile(t *testing.T) {
+	orig := templateFS
+	t.Cleanup(func() { templateFS = orig })
+	templateFS = fstest.MapFS{}
+
+	rec := httptest.NewRecorder()
+	serveFavicon(rec, httptest.NewRequest(http.MethodGet, "/favicon.svg", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+}
+
+func TestServeFaviconICO(t *testing.T) {
+	t.Parallel()
+
+	rec := httptest.NewRecorder()
+	serveFaviconICO(rec, httptest.NewRequest(http.MethodGet, "/favicon.ico", nil))
+	if rec.Code != http.StatusOK {
+		t.Fatalf("status %d", rec.Code)
+	}
+	if got := rec.Header().Get("Content-Type"); got != "image/x-icon" {
+		t.Fatalf("content-type %q", got)
+	}
+	body := rec.Body.Bytes()
+	if len(body) < 4 || body[0] != 0 || body[1] != 0 || body[2] != 1 || body[3] != 0 {
+		t.Fatalf("body is not a Windows ICO header: % x", body[:min(8, len(body))])
+	}
+}
+
+func TestServeFaviconICOMissingFile(t *testing.T) {
+	orig := templateFS
+	t.Cleanup(func() { templateFS = orig })
+	templateFS = fstest.MapFS{}
+
+	rec := httptest.NewRecorder()
+	serveFaviconICO(rec, httptest.NewRequest(http.MethodGet, "/favicon.ico", nil))
+	if rec.Code != http.StatusNotFound {
+		t.Fatalf("status %d body %s", rec.Code, rec.Body.String())
+	}
+}
+
 func restoreContentGlobals(t *testing.T) {
 	t.Helper()
 	origTmpl := tmpl
@@ -601,6 +658,12 @@ func assertStockPages(t *testing.T, tmpl *template.Template) {
 	index := executeNamed(t, tmpl, "index.html")
 	if !strings.Contains(index, "<title>Fibo Planner</title>") {
 		t.Fatal("index.html missing title")
+	}
+	if !strings.Contains(index, `rel="icon" href="/favicon.svg" type="image/svg+xml"`) {
+		t.Fatal("index.html missing favicon link")
+	}
+	if !strings.Contains(index, `rel="icon" href="/favicon.ico" sizes="any"`) {
+		t.Fatal("index.html missing favicon.ico link")
 	}
 	if !strings.Contains(index, `class="create-room"`) {
 		t.Fatal("index.html missing create-room class")
