@@ -1,0 +1,11 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" role="img" aria-label="Fibo Planner card 8 with Fibonacci bars">
+  <rect width="32" height="32" rx="6" fill="#f8fafc"/>
+  <text x="8" y="21" text-anchor="middle" font-family="system-ui,sans-serif"
+        font-size="28" font-weight="700" fill="black">8</text>
+  <g opacity="0.95">
+    <rect x="2" y="23" width="4" height="7" rx="0.65" fill="black"/>
+    <rect x="10" y="23" width="4" height="7" rx="0.65" fill="black"/>
+    <rect x="18" y="16" width="4" height="14" rx="0.65" fill="black"/>
+    <rect x="26" y="9" width="4" height="21" rx="0.65" fill="black"/>
+  </g>
+</svg>
