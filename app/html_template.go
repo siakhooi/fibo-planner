@@ -25,9 +25,11 @@ const (
 	customDisclaimerFile = "disclaimer.html"
 	customPrivacyFile    = "privacy.html"
 	customTermsFile      = "terms.html"
+	contentType          = "Content-Type"
+	notFound             = "not found"
 )
 
-//go:embed *.html *.css room.js
+//go:embed *.html *.css room.js favicon.svg favicon.ico
 var tplFS embed.FS
 
 var (
@@ -65,7 +67,7 @@ func writeHTML(w http.ResponseWriter, status int, name string, data any) {
 		http.Error(w, "template error", http.StatusInternalServerError)
 		return
 	}
-	w.Header().Set("Content-Type", "text/html; charset=utf-8")
+	w.Header().Set(contentType, "text/html; charset=utf-8")
 	w.WriteHeader(status)
 	_, _ = w.Write(buf.Bytes())
 }
@@ -170,10 +172,30 @@ func readOptionalCSS(htmlFS fs.FS, name string) (template.CSS, error) {
 func serveRoomJS(w http.ResponseWriter, _ *http.Request) {
 	b, err := fs.ReadFile(templateFS, "room.js")
 	if err != nil {
-		http.Error(w, "not found", http.StatusNotFound)
+		http.Error(w, notFound, http.StatusNotFound)
 		return
 	}
-	w.Header().Set("Content-Type", "text/javascript; charset=utf-8")
+	w.Header().Set(contentType, "text/javascript; charset=utf-8")
+	_, _ = w.Write(b)
+}
+
+func serveFavicon(w http.ResponseWriter, _ *http.Request) {
+	b, err := fs.ReadFile(templateFS, "favicon.svg")
+	if err != nil {
+		http.Error(w, notFound, http.StatusNotFound)
+		return
+	}
+	w.Header().Set(contentType, "image/svg+xml")
+	_, _ = w.Write(b)
+}
+
+func serveFaviconICO(w http.ResponseWriter, _ *http.Request) {
+	b, err := fs.ReadFile(templateFS, "favicon.ico")
+	if err != nil {
+		http.Error(w, notFound, http.StatusNotFound)
+		return
+	}
+	w.Header().Set(contentType, "image/x-icon")
 	_, _ = w.Write(b)
 }
 

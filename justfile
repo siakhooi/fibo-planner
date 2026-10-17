@@ -45,3 +45,6 @@ curl-ws:
 
 websocat-ws:
 	websocat ws://localhost:8080/ws
+
+ico:
+	magick -background none app/favicon.svg -define icon:auto-resize=32,16 app/favicon.ico
